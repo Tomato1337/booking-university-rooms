@@ -1,0 +1,6 @@
+export { authRoute } from "@/pages/auth"
+export { dashboardRoute } from "@/pages/dashboard"
+export { roomsRoute } from "@/pages/rooms"
+export { bookingsRoute } from "@/pages/bookings"
+export { roomDetailRoute } from "@/pages/room-detail"
+export { rootRoute } from "@/shared/router"

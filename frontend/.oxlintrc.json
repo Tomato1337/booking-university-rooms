@@ -1,0 +1,31 @@
+{
+	"plugins": ["import"],
+	"rules": {
+		"import/no-cycle": "error",
+		"react-refresh/only-export-components": "off",
+		"eslint/no-restricted-imports": [
+			"warn",
+			{
+				"paths": [
+					{
+						"name": "react",
+						"importNames": [
+							"useEffect",
+							"useLayoutEffect",
+							"useMemo",
+							"useCallback",
+							"useState",
+							"useRef",
+							"useContext",
+							"useReducer",
+							"useImperativeHandle",
+							"useDebugValue",
+							"memo"
+						],
+						"message": "Find appropriate solution with reatom or ask user for guidance."
+					}
+				]
+			}
+		]
+	}
+}

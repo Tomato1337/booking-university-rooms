@@ -1,0 +1,174 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/inter";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* ── Brutalist Concierge: Dark-Only Theme ────────────────────────── */
+
+  /* Surface Hierarchy (MD3-inspired tonal layers) */
+  --surface: oklch(0.145 0.005 60);
+  --surface-container-lowest: oklch(0 0 0);
+  --surface-container-low: oklch(0.175 0.005 60);
+  --surface-container: oklch(0.215 0.005 60);
+  --surface-container-high: oklch(0.235 0.005 60);
+  --surface-container-highest: oklch(0.27 0.005 60);
+
+  /* On-Surface */
+  --on-surface: oklch(1 0 0);
+  --on-surface-variant: oklch(0.75 0.005 60);
+  --outline-variant: oklch(0.4 0.005 60);
+
+  /* Primary Accent — Electric Violet (MTUCI-inspired #372579) */
+  --primary: oklch(0.68 0.25 280);
+  --primary-foreground: oklch(0.98 0 0);
+  --primary-dim: oklch(0.60 0.22 280);
+  --primary-container: oklch(0.68 0.25 280);
+  --on-primary-container: oklch(0.98 0 0);
+
+  /* Secondary — "The Occupied" Red */
+  --secondary: oklch(0.65 0.2 25);
+  --secondary-foreground: oklch(0.98 0 0);
+
+  /* Tertiary — "The Transition" Yellow */
+  --tertiary: oklch(0.88 0.15 85);
+  --tertiary-foreground: oklch(0.3 0.08 85);
+
+  /* shadcn Semantic Mappings */
+  --background: var(--surface);
+  --foreground: var(--on-surface);
+
+  --card: var(--surface-container-high);
+  --card-foreground: var(--on-surface);
+
+  --popover: var(--surface-container-highest);
+  --popover-foreground: var(--on-surface);
+
+  --muted: var(--surface-container);
+  --muted-foreground: var(--on-surface-variant);
+
+  --accent: var(--surface-container-high);
+  --accent-foreground: var(--on-surface);
+
+  --destructive: var(--secondary);
+
+  --border: var(--outline-variant);
+  --input: var(--surface-container-lowest);
+  --ring: oklch(0.68 0.25 280 / 20%);
+
+  /* Charts */
+  --chart-1: var(--primary);
+  --chart-2: var(--secondary);
+  --chart-3: var(--tertiary);
+  --chart-4: var(--on-surface-variant);
+  --chart-5: oklch(0.6 0.15 200);
+
+  /* Radius — Brutalist sharp corners */
+  --radius: 0.125rem;
+
+  /* Sidebar */
+  --sidebar: var(--surface-container-low);
+  --sidebar-foreground: var(--on-surface);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--surface-container);
+  --sidebar-accent-foreground: var(--on-surface);
+  --sidebar-border: var(--outline-variant);
+  --sidebar-ring: var(--ring);
+
+  /* Typography */
+  --tracking-tight: -0.04em;
+  --tracking-tighter: -0.08em;
+
+  /* Global Styles */
+  color-scheme: dark;
+  color: var(--on-surface);
+  background: var(--surface);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@theme inline {
+  --font-sans: 'Inter Variable', sans-serif;
+  --font-heading: var(--font-sans);
+
+  /* Colors — shadcn standard */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Custom surface colors for Tailwind utilities */
+  --color-surface: var(--surface);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-outline-variant: var(--outline-variant);
+  --color-primary-dim: var(--primary-dim);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary-container: var(--on-primary-container);
+  --color-tertiary: var(--tertiary);
+  --color-tertiary-foreground: var(--tertiary-foreground);
+
+  /* Radius — Brutalist scale */
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    box-sizing: border-box;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    margin: 0;
+    padding: 0;
+     @apply font-heading;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
