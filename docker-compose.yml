@@ -10,80 +10,62 @@ services:
       dockerfile: Dockerfile
     container_name: bur-frontend
     ports:
-      - "${FRONTEND_PORT:-3000}:80"
+      - "${FRONTEND_PORT:-5173}:80"
     networks:
       - frontend-net
     restart: unless-stopped
 
   # ── Backend API ──────────────────────────────────────────────────
-  # Uncomment when backend is ready
-  #
-  # backend:
-  #   build:
-  #     context: ./backend
-  #     dockerfile: Dockerfile
-  #   container_name: bur-backend
-  #   ports:
-  #     - "${BACKEND_PORT:-8000}:8000"
-  #   environment:
-  #     - DATABASE_URL=postgresql://${POSTGRES_USER:-bur}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-bur}
-  #     - REDIS_URL=redis://redis:6379/0
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #   networks:
-  #     - frontend-net
-  #     - backend-net
-  #   restart: unless-stopped
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bur-backend
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    environment:
+      PORT: "3000"
+      HOST: "0.0.0.0"
+      ENV: "${ENV:-production}"
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-bur}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-bur}?sslmode=disable"
+      JWT_SECRET: "${JWT_SECRET:?Set JWT_SECRET}"
+      JWT_REFRESH_SECRET: "${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET}"
+      JWT_ACCESS_TTL: "${JWT_ACCESS_TTL:-15m}"
+      JWT_REFRESH_TTL: "${JWT_REFRESH_TTL:-720h}"
+      CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:5173}"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - frontend-net
+      - backend-net
+    restart: unless-stopped
 
   # ── PostgreSQL ───────────────────────────────────────────────────
-  # Uncomment when backend is ready
-  #
-  # postgres:
-  #   image: postgres:17-alpine
-  #   container_name: bur-postgres
-  #   environment:
-  #     POSTGRES_USER: ${POSTGRES_USER:-bur}
-  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
-  #     POSTGRES_DB: ${POSTGRES_DB:-bur}
-  #   volumes:
-  #     - postgres-data:/var/lib/postgresql/data
-  #   networks:
-  #     - backend-net
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bur}"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #   restart: unless-stopped
-
-  # ── Redis ────────────────────────────────────────────────────────
-  # Uncomment when backend is ready
-  #
-  # redis:
-  #   image: redis:7-alpine
-  #   container_name: bur-redis
-  #   command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
-  #   volumes:
-  #     - redis-data:/data
-  #   networks:
-  #     - backend-net
-  #   healthcheck:
-  #     test: ["CMD", "redis-cli", "ping"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #   restart: unless-stopped
+  postgres:
+    image: postgres:17-alpine
+    container_name: bur-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bur}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-bur}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bur}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
 networks:
   frontend-net:
     driver: bridge
   backend-net:
     driver: bridge
-    # internal: true  # Uncomment to isolate backend network from host
 
-# volumes:
-#   postgres-data:
-#   redis-data:
+volumes:
+  postgres-data:

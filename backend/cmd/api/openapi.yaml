@@ -1,0 +1,1780 @@
+openapi: 3.1.0
+info:
+    title: University Room Booking API
+    description: |
+        REST API for the University Room Booking System.
+        Allows users to search rooms, view availability timelines, create booking requests,
+        and track their status. Administrators approve/reject pending bookings via a dashboard.
+
+        ## Authentication
+        - **Access Token**: Short-lived JWT (15 min) sent in `Authorization: Bearer <token>` header.
+        - **Refresh Token**: Long-lived token (30 days) stored in an `httpOnly` cookie with rotation on each use.
+
+        ## Pagination
+        All list endpoints use cursor-based pagination. The `nextCursor` value from a response
+        should be passed as the `cursor` query parameter in the next request.
+
+        ## Time Slots
+        All booking times must be in 30-minute increments (`:00` or `:30`).
+        Working day: 08:00–22:00.
+    version: 1.0.0
+    contact:
+        name: Backend Architecture Team
+
+servers:
+    - url: http://localhost:3000/api
+      description: Local development
+    - url: https://booking.university.edu/api
+      description: Production
+
+tags:
+    - name: Auth
+      description: Registration, login, token refresh, logout, profile
+    - name: Rooms
+      description: Room search, details, and CRUD (admin)
+    - name: Equipment
+      description: Equipment catalogue
+    - name: Bookings
+      description: Create, list, and cancel bookings
+    - name: Admin
+      description: Admin dashboard — approve/reject bookings, stats
+    - name: System
+      description: Health check and operational endpoints
+
+# ──────────────────────────────────────────────
+# Security Schemes
+# ──────────────────────────────────────────────
+components:
+    securitySchemes:
+        BearerAuth:
+            type: http
+            scheme: bearer
+            bearerFormat: JWT
+            description: Access token issued on login/register/refresh
+        CookieAuth:
+            type: apiKey
+            in: cookie
+            name: refreshToken
+            description: httpOnly refresh token cookie
+
+    # ────────────────────────────────────────────
+    # Reusable Schemas
+    # ────────────────────────────────────────────
+    schemas:
+        # ── Enums ──────────────────────────────────
+        UserRole:
+            type: string
+            enum: [user, admin]
+
+        BookingStatus:
+            type: string
+            enum: [pending, confirmed, rejected, cancelled]
+
+        RoomType:
+            type: string
+            enum: [lab, auditorium, seminar, conference, studio, lecture_hall]
+
+        BookingPurpose:
+            type: string
+            enum:
+                [
+                    academic_lecture,
+                    research_workshop,
+                    collaborative_study,
+                    technical_assessment,
+                ]
+
+        TimeSlotStatus:
+            type: string
+            enum: [available, occupied, pending, yours]
+            description: "Priority: yours > occupied > pending > available"
+
+        # ── Core Resources ─────────────────────────
+        User:
+            type: object
+            required: [id, email, firstName, lastName, role, createdAt]
+            properties:
+                id:
+                    type: string
+                    format: uuid
+                email:
+                    type: string
+                    format: email
+                firstName:
+                    type: string
+                lastName:
+                    type: string
+                department:
+                    type: string
+                    nullable: true
+                role:
+                    $ref: "#/components/schemas/UserRole"
+                createdAt:
+                    type: string
+                    format: date-time
+
+        EquipmentItem:
+            type: object
+            required: [id, name, icon]
+            properties:
+                id:
+                    type: string
+                    format: uuid
+                name:
+                    type: string
+                icon:
+                    type: string
+                    description: Tabler icon name (e.g. IconVideo)
+
+        RoomCard:
+            type: object
+            required:
+                [
+                    id,
+                    name,
+                    roomType,
+                    capacity,
+                    building,
+                    floor,
+                    equipment,
+                    availability,
+                ]
+            properties:
+                id:
+                    type: string
+                    format: uuid
+                name:
+                    type: string
+                    example: LAB_402B
+                roomType:
+                    $ref: "#/components/schemas/RoomType"
+                capacity:
+                    type: integer
+                    minimum: 1
+                building:
+                    type: string
+                floor:
+                    type: integer
+                equipment:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/EquipmentItem"
+                availability:
+                    $ref: "#/components/schemas/RoomAvailability"
+
+        RoomAvailability:
+            type: object
+            required: [isAvailable, label]
+            properties:
+                isAvailable:
+                    type: boolean
+                label:
+                    type: string
+                    description: "e.g. AVAILABLE NOW, BOOKED UNTIL 16:00, FULLY BOOKED, AVAILABLE"
+                    example: AVAILABLE NOW
+                availableTimeRange:
+                    type: string
+                    nullable: true
+                    description: "First free interval, e.g. 09:00 — 18:00"
+                    example: "09:00 — 18:00"
+
+        RoomDetail:
+            type: object
+            required:
+                [
+                    id,
+                    name,
+                    roomType,
+                    capacity,
+                    building,
+                    floor,
+                    equipment,
+                    timeSlots,
+                    userBookingsToday,
+                ]
+            properties:
+                id:
+                    type: string
+                    format: uuid
+                name:
+                    type: string
+                description:
+                    type: string
+                    nullable: true
+                roomType:
+                    $ref: "#/components/schemas/RoomType"
+                capacity:
+                    type: integer
+                    minimum: 1
+                building:
+                    type: string
+                floor:
+                    type: integer
+                photos:
+                    type: array
+                    items:
+                        type: string
+                        format: uri
+                equipment:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/EquipmentItem"
+                timeSlots:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TimeSlot"
+                userBookingsToday:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/UserBookingSummary"
+
+        TimeSlot:
+            type: object
+            required: [startTime, endTime, status]
+            properties:
+                startTime:
+                    type: string
+                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
+                    example: "10:00"
+                endTime:
+                    type: string
+                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
+                    example: "12:00"
+                status:
+                    $ref: "#/components/schemas/TimeSlotStatus"
+                booking:
+                    nullable: true
+                    oneOf:
+                        - $ref: "#/components/schemas/TimeSlotBooking"
+                    description: "null when status is available"
+
+        TimeSlotBooking:
+            type: object
+            required: [id, title, userId]
+            properties:
+                id:
+                    type: string
+                    format: uuid
+                title:
+                    type: string
+                userId:
+                    type: string
+                    format: uuid
+
+        UserBookingSummary:
+            type: object
+            required: [id, title, startTime, endTime, status]
+            properties:
+                id:
+                    type: string
+                    format: uuid
+                title:
+                    type: string
+                startTime:
+                    type: string
+                    example: "14:00"
+                endTime:
+                    type: string
+                    example: "16:30"
+                status:
+                    $ref: "#/components/schemas/BookingStatus"
+
+        Booking:
+            type: object
+            required:
+                [
+                    id,
+                    roomId,
+                    roomName,
+                    title,
+                    purpose,
+                    bookingDate,
+                    startTime,
+                    endTime,
+                    status,
+                    createdAt,
+                ]
+            properties:
+                id:
+                    type: string
+                    format: uuid
+                roomId:
+                    type: string
+                    format: uuid
+                roomName:
+                    type: string
+                title:
+                    type: string
+                purpose:
+                    $ref: "#/components/schemas/BookingPurpose"
+                bookingDate:
+                    type: string
+                    format: date
+                startTime:
+                    type: string
+                    example: "14:00"
+                endTime:
+                    type: string
+                    example: "16:30"
+                attendeeCount:
+                    type: integer
+                    nullable: true
+                    minimum: 1
+                status:
+                    $ref: "#/components/schemas/BookingStatus"
+                createdAt:
+                    type: string
+                    format: date-time
+
+        MyBooking:
+            type: object
+            required:
+                [
+                    id,
+                    bookingId,
+                    roomId,
+                    roomName,
+                    title,
+                    bookingDate,
+                    startTime,
+                    endTime,
+                    building,
+                    status,
+                    createdAt,
+                ]
+            properties:
+                id:
+                    type: string
+                    format: uuid
+                bookingId:
+                    type: string
+                    description: "Human-readable ID, e.g. #BK-88291-Q"
+                    example: "#BK-88291-Q"
+                roomId:
+                    type: string
+                    format: uuid
+                roomName:
+                    type: string
+                    example: RM_402 QUANTUM LAB
+                title:
+                    type: string
+                bookingDate:
+                    type: string
+                    format: date
+                startTime:
+                    type: string
+                    example: "14:00"
+                endTime:
+                    type: string
+                    example: "16:30"
+                building:
+                    type: string
+                    example: SCIENCE BLOCK B
+                status:
+                    $ref: "#/components/schemas/BookingStatus"
+                createdAt:
+                    type: string
+                    format: date-time
+
+        AdminPendingBooking:
+            type: object
+            required:
+                [
+                    id,
+                    user,
+                    room,
+                    title,
+                    purpose,
+                    bookingDate,
+                    startTime,
+                    endTime,
+                    status,
+                    createdAt,
+                ]
+            properties:
+                id:
+                    type: string
+                    format: uuid
+                user:
+                    type: object
+                    required: [id, firstName, lastName, initials]
+                    properties:
+                        id:
+                            type: string
+                            format: uuid
+                        firstName:
+                            type: string
+                        lastName:
+                            type: string
+                        initials:
+                            type: string
+                            example: JD
+                        department:
+                            type: string
+                            nullable: true
+                room:
+                    type: object
+                    required: [id, name, building]
+                    properties:
+                        id:
+                            type: string
+                            format: uuid
+                        name:
+                            type: string
+                        building:
+                            type: string
+                title:
+                    type: string
+                purpose:
+                    $ref: "#/components/schemas/BookingPurpose"
+                bookingDate:
+                    type: string
+                    format: date
+                startTime:
+                    type: string
+                    example: "14:00"
+                endTime:
+                    type: string
+                    example: "16:30"
+                attendeeCount:
+                    type: integer
+                    nullable: true
+                status:
+                    $ref: "#/components/schemas/BookingStatus"
+                createdAt:
+                    type: string
+                    format: date-time
+
+        AdminStats:
+            type: object
+            required:
+                [
+                    pendingCount,
+                    occupancyRate,
+                    todayBookingsCount,
+                    totalRooms,
+                    totalActiveRooms,
+                ]
+            properties:
+                pendingCount:
+                    type: integer
+                    example: 24
+                occupancyRate:
+                    type: integer
+                    description: Percentage of total room-hours occupied today (0-100)
+                    example: 88
+                todayBookingsCount:
+                    type: integer
+                    example: 15
+                totalRooms:
+                    type: integer
+                    example: 42
+                totalActiveRooms:
+                    type: integer
+                    example: 40
+
+        RoomFull:
+            type: object
+            required:
+                [
+                    id,
+                    name,
+                    roomType,
+                    capacity,
+                    building,
+                    floor,
+                    equipment,
+                    createdAt,
+                ]
+            properties:
+                id:
+                    type: string
+                    format: uuid
+                name:
+                    type: string
+                description:
+                    type: string
+                    nullable: true
+                roomType:
+                    $ref: "#/components/schemas/RoomType"
+                capacity:
+                    type: integer
+                    minimum: 1
+                building:
+                    type: string
+                floor:
+                    type: integer
+                photos:
+                    type: array
+                    items:
+                        type: string
+                        format: uri
+                equipment:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/EquipmentItem"
+                createdAt:
+                    type: string
+                    format: date-time
+
+        # ── Request Bodies ─────────────────────────
+        RegisterRequest:
+            type: object
+            required: [email, password, firstName, lastName]
+            properties:
+                email:
+                    type: string
+                    format: email
+                    maxLength: 255
+                password:
+                    type: string
+                    minLength: 8
+                    maxLength: 128
+                    description: "Must contain ≥1 uppercase, ≥1 lowercase, ≥1 digit"
+                firstName:
+                    type: string
+                    minLength: 1
+                    maxLength: 100
+                lastName:
+                    type: string
+                    minLength: 1
+                    maxLength: 100
+                department:
+                    type: string
+                    maxLength: 200
+
+        LoginRequest:
+            type: object
+            required: [email, password]
+            properties:
+                email:
+                    type: string
+                    format: email
+                password:
+                    type: string
+                    minLength: 1
+
+        CreateBookingRequest:
+            type: object
+            required: [roomId, title, purpose, bookingDate, startTime, endTime]
+            properties:
+                roomId:
+                    type: string
+                    format: uuid
+                title:
+                    type: string
+                    minLength: 1
+                    maxLength: 200
+                purpose:
+                    $ref: "#/components/schemas/BookingPurpose"
+                bookingDate:
+                    type: string
+                    format: date
+                    description: "YYYY-MM-DD, must not be in the past"
+                startTime:
+                    type: string
+                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
+                    example: "14:00"
+                endTime:
+                    type: string
+                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
+                    description: Must be after startTime
+                    example: "16:30"
+                attendeeCount:
+                    type: integer
+                    minimum: 1
+                    description: "Must not exceed room capacity"
+
+        CreateRoomRequest:
+            type: object
+            required: [name, roomType, capacity, building, floor]
+            properties:
+                name:
+                    type: string
+                    minLength: 1
+                    maxLength: 100
+                description:
+                    type: string
+                roomType:
+                    $ref: "#/components/schemas/RoomType"
+                capacity:
+                    type: integer
+                    minimum: 1
+                building:
+                    type: string
+                    minLength: 1
+                    maxLength: 200
+                floor:
+                    type: integer
+                photos:
+                    type: array
+                    items:
+                        type: string
+                        format: uri
+                equipmentIds:
+                    type: array
+                    items:
+                        type: string
+                        format: uuid
+
+        UpdateRoomRequest:
+            type: object
+            required: [name, roomType, capacity, building, floor]
+            properties:
+                name:
+                    type: string
+                    minLength: 1
+                    maxLength: 100
+                description:
+                    type: string
+                roomType:
+                    $ref: "#/components/schemas/RoomType"
+                capacity:
+                    type: integer
+                    minimum: 1
+                building:
+                    type: string
+                    minLength: 1
+                    maxLength: 200
+                floor:
+                    type: integer
+                photos:
+                    type: array
+                    items:
+                        type: string
+                        format: uri
+                equipmentIds:
+                    type: array
+                    items:
+                        type: string
+                        format: uuid
+
+        RejectBookingRequest:
+            type: object
+            properties:
+                reason:
+                    type: string
+                    maxLength: 500
+
+        # ── Pagination Meta ────────────────────────
+        CursorPaginationMeta:
+            type: object
+            required: [hasMore]
+            properties:
+                hasMore:
+                    type: boolean
+                nextCursor:
+                    type: string
+                    nullable: true
+                    description: Base64-encoded cursor for the next page
+
+        CursorPaginationMetaWithTotal:
+            type: object
+            required: [hasMore, total]
+            properties:
+                total:
+                    type: integer
+                    description: Total count matching current filters
+                hasMore:
+                    type: boolean
+                nextCursor:
+                    type: string
+                    nullable: true
+
+        # ── Error Schemas ──────────────────────────
+        ErrorResponse:
+            type: object
+            required: [error]
+            properties:
+                error:
+                    type: object
+                    required: [code, message]
+                    properties:
+                        code:
+                            type: string
+                            description: Machine-readable error code
+                            example: BOOKING_CONFLICT
+                        message:
+                            type: string
+                            description: Human-readable error description
+                        details:
+                            type: object
+                            additionalProperties: true
+
+        ValidationErrorResponse:
+            type: object
+            required: [error]
+            properties:
+                error:
+                    type: object
+                    required: [code, message, details]
+                    properties:
+                        code:
+                            type: string
+                            enum: [VALIDATION_ERROR]
+                        message:
+                            type: string
+                        details:
+                            type: object
+                            required: [fields]
+                            properties:
+                                fields:
+                                    type: array
+                                    items:
+                                        type: object
+                                        required: [field, message, code]
+                                        properties:
+                                            field:
+                                                type: string
+                                            message:
+                                                type: string
+                                            code:
+                                                type: string
+
+        HealthResponse:
+            type: object
+            required: [status, version, uptime, database]
+            properties:
+                status:
+                    type: string
+                    example: ok
+                version:
+                    type: string
+                    example: 1.0.0
+                uptime:
+                    type: integer
+                    description: Server uptime in seconds
+                database:
+                    type: string
+                    example: connected
+
+    # ────────────────────────────────────────────
+    # Reusable Parameters
+    # ────────────────────────────────────────────
+    parameters:
+        LimitParam:
+            name: limit
+            in: query
+            schema:
+                type: integer
+                minimum: 1
+                maximum: 100
+                default: 20
+            description: Number of items per page
+
+        CursorParam:
+            name: cursor
+            in: query
+            schema:
+                type: string
+            description: Cursor from a previous response's `meta.nextCursor`
+
+        SearchParam:
+            name: search
+            in: query
+            schema:
+                type: string
+                maxLength: 100
+            description: Free-text search
+
+        DateParam:
+            name: date
+            in: query
+            schema:
+                type: string
+                format: date
+            description: "Date (YYYY-MM-DD). Defaults to today."
+
+        RoomIdParam:
+            name: roomId
+            in: path
+            required: true
+            schema:
+                type: string
+                format: uuid
+            description: Room UUID
+
+        BookingIdParam:
+            name: bookingId
+            in: path
+            required: true
+            schema:
+                type: string
+                format: uuid
+            description: Booking UUID
+
+    # ────────────────────────────────────────────
+    # Reusable Responses
+    # ────────────────────────────────────────────
+    responses:
+        Unauthorized:
+            description: Missing or invalid access token
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/ErrorResponse"
+                    example:
+                        error:
+                            code: UNAUTHORIZED
+                            message: Missing or invalid access token
+
+        Forbidden:
+            description: Insufficient permissions (admin required)
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/ErrorResponse"
+                    example:
+                        error:
+                            code: FORBIDDEN
+                            message: Admin role required
+
+        NotFound:
+            description: Resource not found
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/ErrorResponse"
+
+        ValidationError:
+            description: Request body validation failed
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/ValidationErrorResponse"
+
+        RateLimited:
+            description: Rate limit exceeded
+            headers:
+                Retry-After:
+                    schema:
+                        type: integer
+                    description: Seconds until the rate limit resets
+                X-RateLimit-Limit:
+                    schema:
+                        type: integer
+                X-RateLimit-Remaining:
+                    schema:
+                        type: integer
+                X-RateLimit-Reset:
+                    schema:
+                        type: integer
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/ErrorResponse"
+                    example:
+                        error:
+                            code: RATE_LIMIT_EXCEEDED
+                            message: Too many requests, please try again later
+                            details:
+                                retryAfter: 45
+
+# ══════════════════════════════════════════════
+# Paths
+# ══════════════════════════════════════════════
+paths:
+    # ── Auth ────────────────────────────────────
+    /auth/register:
+        post:
+            operationId: register
+            tags: [Auth]
+            summary: Register a new user
+            description: Creates a new user account with `user` role. Returns access token in body and sets refresh token cookie.
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: "#/components/schemas/RegisterRequest"
+                        example:
+                            email: john.doe@university.edu
+                            password: SecureP@ss123
+                            firstName: John
+                            lastName: Doe
+                            department: Faculty of Computer Science
+            responses:
+                "201":
+                    description: User created successfully
+                    headers:
+                        Set-Cookie:
+                            schema:
+                                type: string
+                            description: "refreshToken=<token>; HttpOnly; Secure; SameSite=Strict; Path=/api/auth; Max-Age=2592000"
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        type: object
+                                        required: [user, accessToken]
+                                        properties:
+                                            user:
+                                                $ref: "#/components/schemas/User"
+                                            accessToken:
+                                                type: string
+                "400":
+                    $ref: "#/components/responses/ValidationError"
+                "409":
+                    description: Email already registered
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorResponse"
+                            example:
+                                error:
+                                    code: EMAIL_ALREADY_EXISTS
+                                    message: This email is already registered
+                "429":
+                    $ref: "#/components/responses/RateLimited"
+
+    /auth/login:
+        post:
+            operationId: login
+            tags: [Auth]
+            summary: Log in
+            description: Authenticates with email/password. Returns access token in body and sets refresh token cookie.
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: "#/components/schemas/LoginRequest"
+                        example:
+                            email: john.doe@university.edu
+                            password: SecureP@ss123
+            responses:
+                "200":
+                    description: Login successful
+                    headers:
+                        Set-Cookie:
+                            schema:
+                                type: string
+                            description: "refreshToken=<token>; HttpOnly; Secure; SameSite=Strict; Path=/api/auth; Max-Age=2592000"
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        type: object
+                                        required: [user, accessToken]
+                                        properties:
+                                            user:
+                                                $ref: "#/components/schemas/User"
+                                            accessToken:
+                                                type: string
+                "400":
+                    $ref: "#/components/responses/ValidationError"
+                "401":
+                    description: Invalid email or password
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorResponse"
+                            example:
+                                error:
+                                    code: UNAUTHORIZED
+                                    message: Invalid email or password
+                "429":
+                    $ref: "#/components/responses/RateLimited"
+
+    /auth/refresh:
+        post:
+            operationId: refreshToken
+            tags: [Auth]
+            summary: Refresh access token
+            description: |
+                Uses the refresh token from the `refreshToken` httpOnly cookie.
+                Performs **token rotation**: the old refresh token is revoked and a new one is issued.
+            security:
+                - CookieAuth: []
+            responses:
+                "200":
+                    description: New tokens issued
+                    headers:
+                        Set-Cookie:
+                            schema:
+                                type: string
+                            description: New refresh token cookie
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        type: object
+                                        required: [accessToken]
+                                        properties:
+                                            accessToken:
+                                                type: string
+                "401":
+                    description: Refresh token missing, expired, or revoked
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorResponse"
+                            example:
+                                error:
+                                    code: REFRESH_TOKEN_INVALID
+                                    message: Refresh token is invalid, expired, or revoked
+                "429":
+                    $ref: "#/components/responses/RateLimited"
+
+    /auth/logout:
+        post:
+            operationId: logout
+            tags: [Auth]
+            summary: Log out
+            description: Revokes the refresh token and clears the cookie.
+            security:
+                - BearerAuth: []
+            responses:
+                "204":
+                    description: Logged out successfully
+                    headers:
+                        Set-Cookie:
+                            schema:
+                                type: string
+                            description: "refreshToken=; Max-Age=0 (clear cookie)"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+
+    /auth/me:
+        get:
+            operationId: getMe
+            tags: [Auth]
+            summary: Get current user profile
+            security:
+                - BearerAuth: []
+            responses:
+                "200":
+                    description: Current user data
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        $ref: "#/components/schemas/User"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+
+    # ── Rooms ───────────────────────────────────
+    /rooms:
+        get:
+            operationId: searchRooms
+            tags: [Rooms]
+            summary: Search rooms with availability
+            description: |
+                Returns a paginated list of active rooms with computed availability for the given date.
+                Supports filtering by name, time range, equipment, and capacity.
+            security:
+                - BearerAuth: []
+            parameters:
+                - $ref: "#/components/parameters/DateParam"
+                - $ref: "#/components/parameters/SearchParam"
+                - name: timeFrom
+                  in: query
+                  schema:
+                      type: string
+                      pattern: "^([01]\\d|2[0-3]):(00|30)$"
+                  description: Start of desired time range (HH:mm, 30-min granularity)
+                - name: timeTo
+                  in: query
+                  schema:
+                      type: string
+                      pattern: "^([01]\\d|2[0-3]):(00|30)$"
+                  description: End of desired time range
+                - name: equipment
+                  in: query
+                  schema:
+                      type: string
+                  description: "Comma-separated equipment UUIDs. Rooms must have ALL listed equipment."
+                  example: "uuid1,uuid2"
+                - name: minCapacity
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                  description: Minimum room capacity
+                - $ref: "#/components/parameters/LimitParam"
+                - $ref: "#/components/parameters/CursorParam"
+            responses:
+                "200":
+                    description: Paginated room list
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data, meta]
+                                properties:
+                                    data:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/RoomCard"
+                                    meta:
+                                        $ref: "#/components/schemas/CursorPaginationMeta"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+
+        post:
+            operationId: createRoom
+            tags: [Rooms]
+            summary: Create a room (admin)
+            security:
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: "#/components/schemas/CreateRoomRequest"
+            responses:
+                "201":
+                    description: Room created
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        $ref: "#/components/schemas/RoomFull"
+                "400":
+                    $ref: "#/components/responses/ValidationError"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+
+    /rooms/{roomId}:
+        get:
+            operationId: getRoomDetail
+            tags: [Rooms]
+            summary: Room detail with time-slot timeline
+            description: |
+                Returns full room info and a timeline of time slots for the given date.
+                Slot statuses: `available`, `occupied` (confirmed by another user),
+                `pending` (pending by another user), `yours` (current user's booking of any status).
+            security:
+                - BearerAuth: []
+            parameters:
+                - $ref: "#/components/parameters/RoomIdParam"
+                - $ref: "#/components/parameters/DateParam"
+            responses:
+                "200":
+                    description: Room detail with timeline
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        $ref: "#/components/schemas/RoomDetail"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "404":
+                    description: Room not found or inactive
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorResponse"
+                            example:
+                                error:
+                                    code: ROOM_NOT_FOUND
+                                    message: Room not found
+
+        put:
+            operationId: updateRoom
+            tags: [Rooms]
+            summary: Update a room (admin)
+            description: Full replacement of room data.
+            security:
+                - BearerAuth: []
+            parameters:
+                - $ref: "#/components/parameters/RoomIdParam"
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: "#/components/schemas/UpdateRoomRequest"
+            responses:
+                "200":
+                    description: Room updated
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        $ref: "#/components/schemas/RoomFull"
+                "400":
+                    $ref: "#/components/responses/ValidationError"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+                "404":
+                    $ref: "#/components/responses/NotFound"
+
+        delete:
+            operationId: deleteRoom
+            tags: [Rooms]
+            summary: Soft-delete a room (admin)
+            description: "Sets `is_active = false`. Existing bookings are NOT cancelled."
+            security:
+                - BearerAuth: []
+            parameters:
+                - $ref: "#/components/parameters/RoomIdParam"
+            responses:
+                "204":
+                    description: Room deactivated
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+                "404":
+                    $ref: "#/components/responses/NotFound"
+
+    # ── Equipment ───────────────────────────────
+    /equipment:
+        get:
+            operationId: listEquipment
+            tags: [Equipment]
+            summary: List all equipment types
+            description: Returns the full equipment catalogue. Used by the frontend for filter rendering.
+            security:
+                - BearerAuth: []
+            responses:
+                "200":
+                    description: Equipment list
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/EquipmentItem"
+                            example:
+                                data:
+                                    - id: eq-uuid-1
+                                      name: Projector
+                                      icon: IconVideo
+                                    - id: eq-uuid-2
+                                      name: Whiteboard
+                                      icon: IconPresentation
+                                    - id: eq-uuid-3
+                                      name: Computers
+                                      icon: IconDeviceDesktop
+                                    - id: eq-uuid-4
+                                      name: Microphone
+                                      icon: IconMicrophone
+                                    - id: eq-uuid-5
+                                      name: Live Stream
+                                      icon: IconBroadcast
+                                    - id: eq-uuid-6
+                                      name: Spatial Audio
+                                      icon: IconVolume
+                                    - id: eq-uuid-7
+                                      name: Wi-Fi
+                                      icon: IconWifi
+                                    - id: eq-uuid-8
+                                      name: Linux Nodes
+                                      icon: IconTerminal2
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+
+    # ── Bookings ────────────────────────────────
+    /bookings:
+        post:
+            operationId: createBooking
+            tags: [Bookings]
+            summary: Create a booking request
+            description: |
+                Creates a new booking with `pending` status.
+
+                **Overlap rules:**
+                - Overlap with `confirmed` bookings → **409 BOOKING_CONFLICT** (blocked).
+                - Overlap with `pending` bookings → **allowed** (multiple pending requests for the same slot are OK).
+
+                Checked inside a transaction with `SELECT ... FOR UPDATE`.
+            security:
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: "#/components/schemas/CreateBookingRequest"
+                        example:
+                            roomId: room-uuid-1
+                            title: Advanced AI Seminar
+                            purpose: academic_lecture
+                            bookingDate: "2026-04-10"
+                            startTime: "14:00"
+                            endTime: "16:30"
+                            attendeeCount: 35
+            responses:
+                "201":
+                    description: Booking created with status `pending`
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        $ref: "#/components/schemas/Booking"
+                "400":
+                    description: Validation error, invalid time range, or capacity exceeded
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorResponse"
+                            examples:
+                                validation:
+                                    summary: Validation error
+                                    value:
+                                        error:
+                                            code: VALIDATION_ERROR
+                                            message: Validation failed
+                                            details:
+                                                fields:
+                                                    - field: startTime
+                                                      message: "Time must be in HH:00 or HH:30 format"
+                                                      code: invalid_format
+                                invalidTime:
+                                    summary: Invalid time range
+                                    value:
+                                        error:
+                                            code: INVALID_TIME_RANGE
+                                            message: startTime must be before endTime
+                                capacityExceeded:
+                                    summary: Capacity exceeded
+                                    value:
+                                        error:
+                                            code: CAPACITY_EXCEEDED
+                                            message: Attendee count exceeds room capacity
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "404":
+                    description: Room not found
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorResponse"
+                            example:
+                                error:
+                                    code: ROOM_NOT_FOUND
+                                    message: Room not found
+                "409":
+                    description: Time slot conflicts with a confirmed booking
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorResponse"
+                            example:
+                                error:
+                                    code: BOOKING_CONFLICT
+                                    message: Requested time slot overlaps with a confirmed booking
+                                    details:
+                                        conflicting_booking_id: uuid
+                                        conflicting_time_range: "14:00-16:00"
+                "422":
+                    description: Booking date/time is in the past
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorResponse"
+                            example:
+                                error:
+                                    code: BOOKING_IN_PAST
+                                    message: Cannot create a booking in the past
+                "429":
+                    $ref: "#/components/responses/RateLimited"
+
+    /bookings/my:
+        get:
+            operationId: getMyBookings
+            tags: [Bookings]
+            summary: My active bookings
+            description: |
+                Returns the current user's bookings that are still upcoming
+                (`pending` or `confirmed`, and `booking_date + end_time` is in the future).
+                Sorted ascending by date/time.
+            security:
+                - BearerAuth: []
+            parameters:
+                - $ref: "#/components/parameters/SearchParam"
+                - $ref: "#/components/parameters/LimitParam"
+                - $ref: "#/components/parameters/CursorParam"
+            responses:
+                "200":
+                    description: Paginated active bookings
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data, meta]
+                                properties:
+                                    data:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/MyBooking"
+                                    meta:
+                                        $ref: "#/components/schemas/CursorPaginationMeta"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+
+    /bookings/my/history:
+        get:
+            operationId: getMyBookingHistory
+            tags: [Bookings]
+            summary: My past / inactive bookings
+            description: |
+                Returns the current user's bookings that are expired, rejected, or cancelled.
+                Sorted descending by date (newest first).
+            security:
+                - BearerAuth: []
+            parameters:
+                - $ref: "#/components/parameters/SearchParam"
+                - $ref: "#/components/parameters/LimitParam"
+                - $ref: "#/components/parameters/CursorParam"
+            responses:
+                "200":
+                    description: Paginated history bookings
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data, meta]
+                                properties:
+                                    data:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/MyBooking"
+                                    meta:
+                                        $ref: "#/components/schemas/CursorPaginationMeta"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+
+    /bookings/{bookingId}/cancel:
+        patch:
+            operationId: cancelBooking
+            tags: [Bookings]
+            summary: Cancel a booking
+            description: |
+                Only the booking owner (or an admin) can cancel.
+                Only `pending` or `confirmed` bookings can be cancelled.
+                Cannot cancel a booking that has already started.
+            security:
+                - BearerAuth: []
+            parameters:
+                - $ref: "#/components/parameters/BookingIdParam"
+            responses:
+                "200":
+                    description: Booking cancelled
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        type: object
+                                        required: [id, status, updatedAt]
+                                        properties:
+                                            id:
+                                                type: string
+                                                format: uuid
+                                            status:
+                                                type: string
+                                                enum: [cancelled]
+                                            updatedAt:
+                                                type: string
+                                                format: date-time
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "403":
+                    description: Not the booking owner
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorResponse"
+                            example:
+                                error:
+                                    code: NOT_OWNER
+                                    message: You can only cancel your own bookings
+                "404":
+                    $ref: "#/components/responses/NotFound"
+                "409":
+                    description: Booking already processed (not pending/confirmed)
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorResponse"
+                            example:
+                                error:
+                                    code: BOOKING_ALREADY_PROCESSED
+                                    message: Booking has already been processed
+                "422":
+                    description: Booking has already started
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorResponse"
+                            example:
+                                error:
+                                    code: BOOKING_IN_PAST
+                                    message: Cannot cancel a booking that has already started
+
+    # ── Admin ───────────────────────────────────
+    /admin/bookings/pending:
+        get:
+            operationId: getPendingBookings
+            tags: [Admin]
+            summary: List pending booking requests
+            description: Admin dashboard — paginated list of all pending bookings with user and room details.
+            security:
+                - BearerAuth: []
+            parameters:
+                - $ref: "#/components/parameters/SearchParam"
+                - $ref: "#/components/parameters/LimitParam"
+                - $ref: "#/components/parameters/CursorParam"
+            responses:
+                "200":
+                    description: Paginated pending bookings with total count
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data, meta]
+                                properties:
+                                    data:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/AdminPendingBooking"
+                                    meta:
+                                        $ref: "#/components/schemas/CursorPaginationMetaWithTotal"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+
+    /admin/bookings/{bookingId}/approve:
+        patch:
+            operationId: approveBooking
+            tags: [Admin]
+            summary: Approve a pending booking
+            description: |
+                Approves a pending booking inside a `SERIALIZABLE` transaction.
+
+                **Cascade auto-rejection:** all other `pending` bookings that overlap with the
+                newly approved time slot are automatically rejected with a system-generated reason.
+
+                The response includes the list of auto-rejected bookings.
+            security:
+                - BearerAuth: []
+            parameters:
+                - $ref: "#/components/parameters/BookingIdParam"
+            responses:
+                "200":
+                    description: Booking approved (with optional auto-rejected list)
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        type: object
+                                        required: [booking, autoRejected]
+                                        properties:
+                                            booking:
+                                                type: object
+                                                required:
+                                                    [id, status, updatedAt]
+                                                properties:
+                                                    id:
+                                                        type: string
+                                                        format: uuid
+                                                    status:
+                                                        type: string
+                                                        enum: [confirmed]
+                                                    updatedAt:
+                                                        type: string
+                                                        format: date-time
+                                            autoRejected:
+                                                type: array
+                                                description: Pending bookings that were auto-rejected due to overlap
+                                                items:
+                                                    type: object
+                                                    required:
+                                                        [
+                                                            id,
+                                                            userId,
+                                                            title,
+                                                            startTime,
+                                                            endTime,
+                                                            reason,
+                                                        ]
+                                                    properties:
+                                                        id:
+                                                            type: string
+                                                            format: uuid
+                                                        userId:
+                                                            type: string
+                                                            format: uuid
+                                                        title:
+                                                            type: string
+                                                        startTime:
+                                                            type: string
+                                                        endTime:
+                                                            type: string
+                                                        reason:
+                                                            type: string
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+                "404":
+                    $ref: "#/components/responses/NotFound"
+                "409":
+                    description: Booking already processed or new time conflict detected
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorResponse"
+                            examples:
+                                alreadyProcessed:
+                                    summary: Not pending
+                                    value:
+                                        error:
+                                            code: BOOKING_ALREADY_PROCESSED
+                                            message: Booking is no longer pending
+                                conflict:
+                                    summary: Conflict appeared after submission
+                                    value:
+                                        error:
+                                            code: BOOKING_CONFLICT
+                                            message: Another booking was confirmed for this time slot
+                "422":
+                    description: Booking date/time is in the past
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorResponse"
+                            example:
+                                error:
+                                    code: BOOKING_IN_PAST
+                                    message: Cannot approve a booking in the past
+
+    /admin/bookings/{bookingId}/reject:
+        patch:
+            operationId: rejectBooking
+            tags: [Admin]
+            summary: Reject a pending booking
+            security:
+                - BearerAuth: []
+            parameters:
+                - $ref: "#/components/parameters/BookingIdParam"
+            requestBody:
+                required: false
+                content:
+                    application/json:
+                        schema:
+                            $ref: "#/components/schemas/RejectBookingRequest"
+                        example:
+                            reason: Room is reserved for maintenance on this date
+            responses:
+                "200":
+                    description: Booking rejected
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        type: object
+                                        required: [id, status, updatedAt]
+                                        properties:
+                                            id:
+                                                type: string
+                                                format: uuid
+                                            status:
+                                                type: string
+                                                enum: [rejected]
+                                            statusReason:
+                                                type: string
+                                                nullable: true
+                                            updatedAt:
+                                                type: string
+                                                format: date-time
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+                "404":
+                    $ref: "#/components/responses/NotFound"
+                "409":
+                    description: Booking is not pending
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorResponse"
+                            example:
+                                error:
+                                    code: BOOKING_ALREADY_PROCESSED
+                                    message: Booking is no longer pending
+
+    /admin/stats:
+        get:
+            operationId: getAdminStats
+            tags: [Admin]
+            summary: Dashboard statistics
+            description: Returns aggregate metrics for the admin dashboard (pending count, occupancy rate, etc.)
+            security:
+                - BearerAuth: []
+            responses:
+                "200":
+                    description: Dashboard stats
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        $ref: "#/components/schemas/AdminStats"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+
+    # ── System ──────────────────────────────────
+    /health:
+        get:
+            operationId: healthCheck
+            tags: [System]
+            summary: Health check
+            description: Returns server status and database connectivity.
+            responses:
+                "200":
+                    description: Service is healthy
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/HealthResponse"
