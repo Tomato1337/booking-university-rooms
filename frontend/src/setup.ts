@@ -1,13 +1,15 @@
-import { clearStack, connectLogger, context } from "@reatom/core"
+import { clearStack, context } from "@reatom/core";
+import { connectLogger } from "@reatom/core";
 
-import { installAuthMiddleware } from "@/modules/auth"
+import { installAuthMiddleware } from "@/modules/auth";
 
-clearStack()
+clearStack();
 
-export const rootFrame = context.start()
+export const rootFrame = context.start();
 
-installAuthMiddleware()
+installAuthMiddleware();
 
 if (import.meta.env.DEV) {
-  rootFrame.run(connectLogger)
+  // TEMP: disabled to unmask real errors hidden by connectLogger crash
+  rootFrame.run(connectLogger);
 }

@@ -1,6 +1,8 @@
 import { atom } from "@reatom/core";
-import { reatomComponent, useWrap } from "@reatom/react";
-import { IconArrowRight } from "@tabler/icons-react";
+import { bindField, reatomComponent, useWrap } from "@reatom/react";
+import { IconArrowRight, IconLoader2 } from "@tabler/icons-react";
+
+import { authErrorAtom, loginForm, registerForm } from "@/modules/auth";
 
 import { rootRoute } from "@/shared/router";
 import { cn } from "@/shared/lib/utils";
@@ -11,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 type AuthTab = "login" | "register";
 
-const authTabAtom = atom<AuthTab>("register", "authTabAtom");
+const authTabAtom = atom<AuthTab>("login", "authTabAtom");
 
 const DEPARTMENTS = [
   "SCHOOL OF ARCHITECTURE",
@@ -25,6 +27,8 @@ const inputClassName =
 
 const labelClassName =
   "block text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant";
+
+const errorClassName = "mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-secondary";
 
 function AuthBranding() {
   return (
@@ -42,12 +46,6 @@ function AuthBranding() {
 
       <div className="relative z-10">
         <Logo />
-        <div className="mt-2 flex items-center gap-2">
-          <span className="size-2 rounded-full bg-primary" />
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">
-            System Status: Operational
-          </span>
-        </div>
       </div>
 
       <div className="relative z-10 flex flex-1 flex-col justify-center">
@@ -65,7 +63,20 @@ function AuthBranding() {
   );
 }
 
-function RegisterForm() {
+const RegisterForm = reatomComponent(() => {
+  //   const { fields, submit } = registerForm;
+  const ready = registerForm.submit.ready();
+  const serverError = authErrorAtom();
+
+  const { error: firstNameError, ...firstNameBind } = bindField(registerForm.fields.firstName);
+  const { error: lastNameError, ...lastNameBind } = bindField(registerForm.fields.lastName);
+  const { error: emailError, ...emailBind } = bindField(registerForm.fields.email);
+  const { error: passwordError, ...passwordBind } = bindField(registerForm.fields.password);
+  const { error: confirmPasswordError, ...confirmPasswordBind } = bindField(
+    registerForm.fields.confirmPassword,
+  );
+  const departmentError = registerForm.fields.department.validation().error;
+  console.log(registerForm.fields.department());
   return (
     <>
       <header className="mb-10">
@@ -75,21 +86,60 @@ function RegisterForm() {
         <p className="text-sm text-on-surface-variant">Access the campus resource grid.</p>
       </header>
 
-      <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
-        <div className="space-y-1.5">
-          <label className={labelClassName}>Full Name</label>
-          <Input className={inputClassName} placeholder="ALEXANDER VANCE" type="text" />
+      <form
+        className="space-y-6"
+        onSubmit={useWrap((e) => {
+          e.preventDefault();
+          registerForm.submit();
+        })}
+      >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <label className={labelClassName}>First Name</label>
+            <Input
+              {...firstNameBind}
+              aria-invalid={!!firstNameError}
+              className={inputClassName}
+              placeholder="ALEXANDER"
+              type="text"
+            />
+            {firstNameError && <p className={errorClassName}>{firstNameError}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <label className={labelClassName}>Last Name</label>
+            <Input
+              {...lastNameBind}
+              aria-invalid={!!lastNameError}
+              className={inputClassName}
+              placeholder="VANCE"
+              type="text"
+            />
+            {lastNameError && <p className={errorClassName}>{lastNameError}</p>}
+          </div>
         </div>
 
         <div className="space-y-1.5">
           <label className={labelClassName}>Email</label>
-          <Input className={inputClassName} placeholder="S1234567@UNIVERSITY.EDU" type="email" />
+          <Input
+            {...emailBind}
+            aria-invalid={!!emailError}
+            className={inputClassName}
+            placeholder="S1234567@UNIVERSITY.EDU"
+            type="email"
+          />
+          {emailError && <p className={errorClassName}>{emailError}</p>}
         </div>
 
         <div className="space-y-1.5">
           <label className={labelClassName}>Department</label>
-          <Select>
-            <SelectTrigger className={cn(inputClassName, "placeholder:text-on-surface-variant/50")}>
+          <Select
+            value={registerForm.fields.department() || undefined}
+            onValueChange={useWrap((val: string) => registerForm.fields.department.set(val))}
+          >
+            <SelectTrigger
+              aria-invalid={!!departmentError}
+              className={cn(inputClassName, "placeholder:text-on-surface-variant/50")}
+            >
               <SelectValue placeholder="SELECT DEPARTMENT" />
             </SelectTrigger>
             <SelectContent>
@@ -100,42 +150,71 @@ function RegisterForm() {
               ))}
             </SelectContent>
           </Select>
+          {departmentError && <p className={errorClassName}>{departmentError}</p>}
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
             <label className={labelClassName}>Create Password</label>
-            <Input className={inputClassName} placeholder="••••••••" type="password" />
+            <Input
+              {...passwordBind}
+              aria-invalid={!!passwordError}
+              className={inputClassName}
+              placeholder="••••••••"
+              type="password"
+            />
+            {passwordError && <p className={errorClassName}>{passwordError}</p>}
           </div>
           <div className="space-y-1.5">
             <label className={labelClassName}>Confirm Password</label>
-            <Input className={inputClassName} placeholder="••••••••" type="password" />
+            <Input
+              {...confirmPasswordBind}
+              aria-invalid={!!confirmPasswordError}
+              className={inputClassName}
+              placeholder="••••••••"
+              type="password"
+            />
+            {confirmPasswordError && <p className={errorClassName}>{confirmPasswordError}</p>}
           </div>
         </div>
+
+        {serverError && (
+          <p data-slot="auth-error" className={errorClassName}>
+            {serverError}
+          </p>
+        )}
 
         <div className="pt-6">
           <Button
             className="w-full py-5 text-sm font-black uppercase tracking-[0.2em]"
+            disabled={!ready}
             type="submit"
           >
-            Create Account
-            <IconArrowRight className="size-4 transition-transform duration-150 ease-linear group-hover/button:translate-x-1" />
+            {ready ? (
+              <>
+                Create Account
+                <IconArrowRight className="size-4 transition-transform duration-150 ease-linear group-hover/button:translate-x-1" />
+              </>
+            ) : (
+              <>
+                Creating...
+                <IconLoader2 className="size-4 animate-spin" />
+              </>
+            )}
           </Button>
         </div>
-
-        <p className="mt-6 text-center text-[10px] uppercase tracking-[0.2em] text-on-surface-variant/50">
-          By initializing, you agree to the{" "}
-          <span className="cursor-pointer text-on-surface transition-colors duration-150 ease-linear hover:text-primary">
-            Resource Usage Protocol
-          </span>
-          .
-        </p>
       </form>
     </>
   );
-}
+}, "RegisterForm");
 
-function LoginForm() {
+const LoginForm = reatomComponent(() => {
+  const { fields, submit } = loginForm;
+  const ready = submit.ready();
+  const serverError = authErrorAtom();
+  const { error: emailError, ...emailBind } = bindField(fields.email);
+  const { error: passwordError, ...passwordBind } = bindField(fields.password);
+
   return (
     <>
       <header className="mb-10">
@@ -145,38 +224,66 @@ function LoginForm() {
         <p className="text-sm text-on-surface-variant">Authenticate to the campus resource grid.</p>
       </header>
 
-      <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+      <form
+        className="space-y-6"
+        onSubmit={useWrap((e) => {
+          e.preventDefault();
+          submit();
+        })}
+      >
         <div className="space-y-1.5">
           <label className={labelClassName}>Email</label>
-          <Input className={inputClassName} placeholder="S1234567@UNIVERSITY.EDU" type="email" />
+          <Input
+            {...emailBind}
+            aria-invalid={!!emailError}
+            className={inputClassName}
+            placeholder="S1234567@UNIVERSITY.EDU"
+            type="email"
+          />
+          {emailError && <p className={errorClassName}>{emailError}</p>}
         </div>
 
         <div className="space-y-1.5">
           <label className={labelClassName}>Password</label>
-          <Input className={inputClassName} placeholder="••••••••" type="password" />
+          <Input
+            {...passwordBind}
+            aria-invalid={!!passwordError}
+            className={inputClassName}
+            placeholder="••••••••"
+            type="password"
+          />
+          {passwordError && <p className={errorClassName}>{passwordError}</p>}
         </div>
+
+        {serverError && (
+          <p data-slot="auth-error" className={errorClassName}>
+            {serverError}
+          </p>
+        )}
 
         <div className="pt-6">
           <Button
             className="w-full py-5 text-sm font-black uppercase tracking-[0.2em]"
+            disabled={!ready}
             type="submit"
           >
-            Access Terminal
-            <IconArrowRight className="size-4 transition-transform duration-150 ease-linear group-hover/button:translate-x-1" />
+            {ready ? (
+              <>
+                Access Terminal
+                <IconArrowRight className="size-4 transition-transform duration-150 ease-linear group-hover/button:translate-x-1" />
+              </>
+            ) : (
+              <>
+                Authenticating...
+                <IconLoader2 className="size-4 animate-spin" />
+              </>
+            )}
           </Button>
         </div>
-
-        <p className="mt-6 text-center text-[10px] uppercase tracking-[0.2em] text-on-surface-variant/50">
-          By accessing, you agree to the{" "}
-          <span className="cursor-pointer text-on-surface transition-colors duration-150 ease-linear hover:text-primary">
-            Resource Usage Protocol
-          </span>
-          .
-        </p>
       </form>
     </>
   );
-}
+}, "LoginForm");
 
 const AuthPage = reatomComponent(() => {
   const activeTab = authTabAtom();
@@ -195,7 +302,10 @@ const AuthPage = reatomComponent(() => {
                   ? "border-b-2 border-primary text-primary"
                   : "text-on-surface-variant hover:text-on-surface",
               )}
-              onClick={useWrap(() => authTabAtom.set("login"))}
+              onClick={useWrap(() => {
+                authTabAtom.set("login");
+                authErrorAtom.set(null);
+              })}
               type="button"
             >
               Login
@@ -207,7 +317,10 @@ const AuthPage = reatomComponent(() => {
                   ? "border-b-2 border-primary text-primary"
                   : "text-on-surface-variant hover:text-on-surface",
               )}
-              onClick={useWrap(() => authTabAtom.set("register"))}
+              onClick={useWrap(() => {
+                authTabAtom.set("register");
+                authErrorAtom.set(null);
+              })}
               type="button"
             >
               Register

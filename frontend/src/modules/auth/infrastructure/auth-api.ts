@@ -1,23 +1,22 @@
-import type { components } from "@/shared/api/schema"
+import { apiClient } from "@/shared/api/client";
+import type { LoginRequest, RegisterRequest } from "../domain/types";
 
-import { apiClient } from "@/shared/api/client"
-
-export function login(body: components["schemas"]["LoginRequest"]) {
-  return apiClient.POST("/auth/login", { body })
+export function login(body: LoginRequest) {
+  return apiClient.POST("/auth/login", { body });
 }
 
-export function register(body: components["schemas"]["RegisterRequest"]) {
-  return apiClient.POST("/auth/register", { body })
+export function register(body: RegisterRequest) {
+  return apiClient.POST("/auth/register", { body });
 }
 
 export function refreshToken() {
-  return apiClient.POST("/auth/refresh")
+  return apiClient.POST("/auth/refresh");
 }
 
 export function logout() {
-  return apiClient.POST("/auth/logout")
+  return apiClient.POST("/auth/logout");
 }
 
 export function getMe() {
-  return apiClient.GET("/auth/me")
+  return apiClient.GET("/auth/me");
 }

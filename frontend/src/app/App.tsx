@@ -17,6 +17,7 @@ import {
   roomsRoute,
   rootRoute,
 } from "./routes";
+import { IconLoader2 } from "@tabler/icons-react";
 
 urlAtom.extend(
   withChangeHook(() => {
@@ -48,21 +49,25 @@ const pageMeta: PageMeta[] = [
 
 const App = reatomComponent(() => {
   const status = authStatusAtom();
-  console.log(status);
-
-  if (authRoute.match()) {
-    if (status === "authenticated") {
-      dashboardRoute.go(undefined, true);
-    }
-  }
 
   if (status === "loading" || status === "idle") {
-    return <div>Loading...</div>;
+    return (
+      <div className="w-full h-screen flex items-center justify-center">
+        <IconLoader2 className="animate-spin size-24 text-on-surface-variant" />
+      </div>
+    );
   }
 
-  if (status === "unauthenticated" || authRoute.match()) {
-    authRoute.go(undefined, true);
+  if (status === "unauthenticated") {
+    if (!authRoute.match()) {
+      authRoute.go(undefined, true);
+    }
     return <>{authRoute.render()}</>;
+  }
+
+  // authenticated — redirect away from auth page
+  if (authRoute.match()) {
+    dashboardRoute.go(undefined, true);
   }
 
   const currentPage = pageMeta.find(({ route }) => route.match());

@@ -8,6 +8,8 @@ export {
   logoutAction,
 } from "./application/auth-atoms"
 
+export { loginForm, registerForm } from "./application/auth-forms"
+
 export { installAuthMiddleware } from "./infrastructure/auth-middleware"
 
 export { authMockHandlers } from "./infrastructure/mocks/handlers"
