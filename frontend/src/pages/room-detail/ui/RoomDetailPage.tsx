@@ -293,7 +293,7 @@ function RoomDetailPage() {
 
 export const roomDetailRoute = rootRoute.reatomRoute(
   {
-    path: "room-detail",
+    path: "rooms/:roomId",
     render: () => <RoomDetailPage />,
   },
   "roomDetail",

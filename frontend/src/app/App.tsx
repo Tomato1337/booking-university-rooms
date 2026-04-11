@@ -76,7 +76,7 @@ const App = reatomComponent(() => {
     <SidebarProvider>
       <AppSidebar />
       <div className="flex w-full flex-col relative">
-        <header className="sticky top-0 flex min-h-18 items-center gap-4 border-b border-surface-container-high bg-sidebar px-6">
+        <header className="sticky top-0 z-20 flex min-h-18 items-center gap-4 border-b border-surface-container-high bg-sidebar px-6">
           <SidebarTrigger />
           {currentPage?.parent && (
             <>

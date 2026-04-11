@@ -11,7 +11,8 @@ async function bootstrap() {
   if (import.meta.env.DEV) {
     const { startMockWorker } = await import("@/shared/mocks/browser")
     const { authMockHandlers } = await import("@/modules/auth")
-    await startMockWorker(...authMockHandlers)
+    const { roomsMockHandlers } = await import("@/modules/rooms")
+    await startMockWorker(...authMockHandlers, ...roomsMockHandlers)
   }
 
   rootFrame.run(checkAuthAction)
