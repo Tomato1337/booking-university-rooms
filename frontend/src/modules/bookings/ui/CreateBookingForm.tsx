@@ -14,8 +14,11 @@ import {
   createBookingErrorAtom,
   createBookingForm,
   createBookingStatusAtom,
+  fetchMyBookingHistoryAction,
+  fetchMyBookingsAction,
 } from "../application/create-booking-form";
 import type { BookingPurpose, TimeSlotFromApi, UserBookingSummary } from "../domain/types";
+import { wrap } from "@reatom/core";
 
 interface CreateBookingFormProps extends ComponentProps<"div"> {
   roomId: string;
@@ -94,17 +97,21 @@ const CreateBookingForm = reatomComponent(
       createBookingStatusAtom.set("idle");
       createBookingErrorAtom.set(null);
 
-      const success = await createBookingAction({
-        roomId,
-        bookingDate: date,
-        title: fields.title(),
-        purpose: fields.purpose(),
-        startTime: fields.startTime(),
-        endTime: fields.endTime(),
-        attendeeCount: fields.attendeeCount(),
-      });
+      const success = await wrap(
+        createBookingAction({
+          roomId,
+          bookingDate: date,
+          title: fields.title(),
+          purpose: fields.purpose(),
+          startTime: fields.startTime(),
+          endTime: fields.endTime(),
+          attendeeCount: fields.attendeeCount(),
+        }),
+      );
 
       if (success) {
+        await wrap(fetchMyBookingsAction());
+        await wrap(fetchMyBookingHistoryAction());
         onBooked();
         createBookingForm.reset();
       }
@@ -128,10 +135,10 @@ const CreateBookingForm = reatomComponent(
 
         <form
           className="flex flex-col gap-6"
-          onSubmit={(e) => {
+          onSubmit={useWrap((e) => {
             e.preventDefault();
-            wrapSubmit();
-          }}
+            void wrapSubmit();
+          })}
         >
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">

@@ -6,6 +6,16 @@ type RoomDetail = components["schemas"]["RoomDetail"]
 type TimeSlot = components["schemas"]["TimeSlot"]
 type UserBookingSummary = components["schemas"]["UserBookingSummary"]
 
+export interface MockRoomUserBooking {
+  id: string
+  title: string
+  startTime: string
+  endTime: string
+  status: components["schemas"]["BookingStatus"]
+}
+
+type RoomUserBookingsProvider = (roomId: string, date: string) => MockRoomUserBooking[]
+
 export const mockEquipment: EquipmentItem[] = [
   { id: "11111111-1111-4111-8111-111111111111", name: "Projector", icon: "IconVideo" },
   { id: "22222222-2222-4222-8222-222222222222", name: "Whiteboard", icon: "IconPresentation" },
@@ -261,9 +271,12 @@ export const mockRooms: RoomCard[] = [
   },
 ]
 
-const mockRoomDetailsBase: Record<string, RoomDetail> = Object.fromEntries(
+const mockRoomMetaById: Record<
+  string,
+  Pick<RoomDetail, "id" | "name" | "description" | "roomType" | "capacity" | "building" | "floor" | "photos" | "equipment">
+> = Object.fromEntries(
   mockRooms.map((room) => {
-    const detail: RoomDetail = {
+    const meta = {
       id: room.id,
       name: room.name,
       description: "High-security learning space. No shadows. Only focus.",
@@ -273,114 +286,223 @@ const mockRoomDetailsBase: Record<string, RoomDetail> = Object.fromEntries(
       floor: room.floor,
       photos: [],
       equipment: room.equipment,
-      timeSlots: [
-        { startTime: "08:00", endTime: "10:00", status: "available", booking: null },
-        {
-          startTime: "10:00",
-          endTime: "12:00",
-          status: "occupied",
-          booking: { id: "b-1", title: "Math", userId: "u-1" },
-        },
-        { startTime: "12:00", endTime: "14:00", status: "available", booking: null },
-        {
-          startTime: "14:00",
-          endTime: "16:00",
-          status: "pending",
-          booking: { id: "b-2", title: "Seminar", userId: "u-2" },
-        },
-        { startTime: "16:00", endTime: "18:00", status: "available", booking: null },
-        {
-          startTime: "18:00",
-          endTime: "20:00",
-          status: "available",
-          booking: null,
-        },
-      ],
-      userBookingsToday: [],
     }
-    return [room.id, detail]
+    return [room.id, meta]
   }),
 )
 
-function randomInt(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min
+const mockRoomDetailsByDate = new Map<string, RoomDetail>()
+let roomUserBookingsProvider: RoomUserBookingsProvider | null = null
+
+function roomDateKey(roomId: string, date: string): string {
+  return `${roomId}|${date}`
 }
 
-function makeDynamicUserBookings(timeSlots: TimeSlot[]): {
-  timeSlots: TimeSlot[]
-  userBookingsToday: UserBookingSummary[]
-} {
-  const slots = timeSlots.map((slot) => ({ ...slot }))
-  const availableIndexes = slots
-    .map((slot, idx) => ({ slot, idx }))
-    .filter(({ slot }) => slot.status === "available")
-    .map(({ idx }) => idx)
-
-  const bookingsCount = Math.min(randomInt(0, 2), availableIndexes.length)
-  const picked = new Set<number>()
-
-  while (picked.size < bookingsCount) {
-    const idx = availableIndexes[randomInt(0, availableIndexes.length - 1)]
-    picked.add(idx)
-  }
-
-  const userBookingsToday: UserBookingSummary[] = []
-
-  Array.from(picked)
-    .sort((a, b) => a - b)
-    .forEach((idx, order) => {
-      const slot = slots[idx]
-      const bookingId = `my-${crypto.randomUUID()}`
-      const title = `Your Booking ${order + 1}`
-
-      slots[idx] = {
-        ...slot,
-        status: "yours",
-        booking: {
-          id: bookingId,
-          title,
-          userId: "me",
-        },
-      }
-
-      userBookingsToday.push({
-        id: bookingId,
-        title,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        status: "confirmed",
-      })
-    })
-
+function cloneRoomDetail(detail: RoomDetail): RoomDetail {
   return {
-    timeSlots: slots,
-    userBookingsToday,
+    ...detail,
+    equipment: detail.equipment.map((item) => ({ ...item })),
+    timeSlots: detail.timeSlots.map((slot) => ({
+      ...slot,
+      booking: slot.booking ? { ...slot.booking } : null,
+    })),
+    userBookingsToday: detail.userBookingsToday.map((booking) => ({ ...booking })),
   }
 }
 
-export function getMockRoomDetail(roomId: string, date?: string | null): RoomDetail | null {
-  const base = mockRoomDetailsBase[roomId]
+function ensureRoomDetailForDate(roomId: string, date: string): RoomDetail | null {
+  const base = mockRoomMetaById[roomId]
   if (!base) return null
 
-  const timeSlots = base.timeSlots.map((slot) => ({ ...slot }))
+  const key = roomDateKey(roomId, date)
+  const existing = mockRoomDetailsByDate.get(key)
+  if (existing) return existing
 
-  if (date?.endsWith("-01")) {
-    const target = timeSlots[2]
-    if (target && target.status === "available") {
-      timeSlots[2] = {
-        ...target,
+  const next: RoomDetail = {
+    ...base,
+    photos: [...(base.photos ?? [])],
+    equipment: base.equipment.map((item) => ({ ...item })),
+    timeSlots: [],
+    userBookingsToday: [],
+  }
+
+  mockRoomDetailsByDate.set(key, next)
+  return next
+}
+
+function parseHmToMinutes(value: string): number | null {
+  const matched = value.match(/^([01]\d|2[0-3]):([0-5]\d)$/)
+  if (!matched) return null
+
+  return Number(matched[1]) * 60 + Number(matched[2])
+}
+
+function toHm(minutes: number): string {
+  const hh = Math.floor(minutes / 60)
+  const mm = minutes % 60
+  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`
+}
+
+function getWorkingRange(roomId: string): { start: number; end: number } {
+  const room = mockRooms.find((item) => item.id === roomId)
+  const range = room?.availability.availableTimeRange
+
+  if (!range) {
+    return { start: 8 * 60, end: 20 * 60 }
+  }
+
+  const [from, to] = range.split(" — ")
+  const start = parseHmToMinutes(from)
+  const end = parseHmToMinutes(to)
+
+  if (start === null || end === null || end <= start) {
+    return { start: 8 * 60, end: 20 * 60 }
+  }
+
+  return { start, end }
+}
+
+function sortByStartThenEnd<T extends { startTime: string; endTime: string }>(items: T[]): T[] {
+  return items.toSorted((a, b) => {
+    const aStart = parseHmToMinutes(a.startTime) ?? 0
+    const bStart = parseHmToMinutes(b.startTime) ?? 0
+    if (aStart !== bStart) return aStart - bStart
+
+    const aEnd = parseHmToMinutes(a.endTime) ?? aStart
+    const bEnd = parseHmToMinutes(b.endTime) ?? bStart
+    return aEnd - bEnd
+  })
+}
+
+function buildTimeSlotsForRoomDate(
+  roomId: string,
+  date: string,
+  bookings: MockRoomUserBooking[],
+): { timeSlots: TimeSlot[]; userBookingsToday: UserBookingSummary[] } {
+  const { start: dayStart, end: dayEnd } = getWorkingRange(roomId)
+  const sortedBookings = sortByStartThenEnd(bookings)
+
+  const boundaries = new Set<number>([dayStart, dayEnd])
+
+  sortedBookings.forEach((booking) => {
+    const start = parseHmToMinutes(booking.startTime)
+    const end = parseHmToMinutes(booking.endTime)
+
+    if (start === null || end === null) return
+    if (end <= dayStart || start >= dayEnd) return
+
+    boundaries.add(Math.max(dayStart, start))
+    boundaries.add(Math.min(dayEnd, end))
+  })
+
+  const sortedBoundaries = Array.from(boundaries).toSorted((a, b) => a - b)
+  const timeSlots: TimeSlot[] = []
+
+  for (let i = 0; i < sortedBoundaries.length - 1; i += 1) {
+    const segmentStart = sortedBoundaries[i]
+    const segmentEnd = sortedBoundaries[i + 1]
+    if (segmentEnd <= segmentStart) continue
+
+    const activeBooking = sortedBookings.find((booking) => {
+      const bookingStart = parseHmToMinutes(booking.startTime)
+      const bookingEnd = parseHmToMinutes(booking.endTime)
+      if (bookingStart === null || bookingEnd === null) return false
+
+      return bookingStart <= segmentStart && bookingEnd >= segmentEnd
+    })
+
+    timeSlots.push({
+      startTime: toHm(segmentStart),
+      endTime: toHm(segmentEnd),
+      status: activeBooking ? "yours" : "available",
+      booking: activeBooking
+        ? {
+            id: activeBooking.id,
+            title: activeBooking.title,
+            userId: "me",
+          }
+        : null,
+    })
+  }
+
+  if (timeSlots.length === 0) {
+    timeSlots.push({
+      startTime: toHm(dayStart),
+      endTime: toHm(dayEnd),
+      status: "available",
+      booking: null,
+    })
+  }
+
+  const userBookingsToday: UserBookingSummary[] = sortedBookings.map((booking) => ({
+    id: booking.id,
+    title: booking.title,
+    startTime: booking.startTime,
+    endTime: booking.endTime,
+    status: booking.status,
+  }))
+
+  if (date.endsWith("-01") && userBookingsToday.length === 0) {
+    const pendingStart = dayStart + 2 * 60
+    const pendingEnd = dayStart + 4 * 60
+
+    if (pendingEnd <= dayEnd) {
+      const pendingSlotId = `mock-pending-${roomId}-${date}`
+      const pendingBooking: MockRoomUserBooking = {
+        id: pendingSlotId,
+        title: "Seminar",
+        startTime: toHm(pendingStart),
+        endTime: toHm(pendingEnd),
         status: "pending",
+      }
+
+      const seeded = buildTimeSlotsForRoomDate(roomId, date, [pendingBooking])
+
+      return {
+        timeSlots: seeded.timeSlots.map((slot) => {
+          if (slot.booking?.id !== pendingSlotId) return slot
+          return {
+            ...slot,
+            status: "pending",
+          }
+        }),
+        userBookingsToday: [],
       }
     }
   }
 
-  const dynamic = makeDynamicUserBookings(timeSlots)
+  return { timeSlots, userBookingsToday }
+}
 
-  return {
-    ...base,
-    timeSlots: dynamic.timeSlots,
-    userBookingsToday: dynamic.userBookingsToday,
-  }
+export function registerMockRoomBookingsProvider(provider: RoomUserBookingsProvider) {
+  roomUserBookingsProvider = provider
+}
+
+function syncUserBookingsForRoomDate(roomId: string, date: string) {
+  const detail = ensureRoomDetailForDate(roomId, date)
+  if (!detail) return
+
+  const bookings = roomUserBookingsProvider?.(roomId, date) ?? []
+  const built = buildTimeSlotsForRoomDate(roomId, date, bookings)
+
+  detail.timeSlots = built.timeSlots
+  detail.userBookingsToday = built.userBookingsToday
+}
+
+export function invalidateMockRoomDetail(params: { roomId: string; date: string }) {
+  const key = roomDateKey(params.roomId, params.date)
+  mockRoomDetailsByDate.delete(key)
+}
+
+export function getMockRoomDetail(roomId: string, date?: string | null): RoomDetail | null {
+  const normalizedDate = date ?? "2026-04-12"
+
+  syncUserBookingsForRoomDate(roomId, normalizedDate)
+
+  const detail = ensureRoomDetailForDate(roomId, normalizedDate)
+  if (!detail) return null
+
+  return cloneRoomDetail(detail)
 }
 
 function encodeCursor(index: number) {

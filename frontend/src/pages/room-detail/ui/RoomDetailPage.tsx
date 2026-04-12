@@ -3,8 +3,14 @@ import { createElement } from "react";
 
 import { reatomComponent, useWrap } from "@reatom/react";
 
-import { CreateBookingForm, setCreateBookingTimeRangeAction } from "@/modules/bookings";
 import {
+  cancelBookingErrorAtom,
+  cancelBookingStatusAtom,
+  CreateBookingForm,
+  setCreateBookingTimeRangeAction,
+} from "@/modules/bookings";
+import {
+  cancelMyBookingFromRoomDetailAction,
   TimeGrid,
   type TimeSlot,
   buildRoomDetailTimeGridSlots,
@@ -15,12 +21,23 @@ import {
   roomDetailLoadingAtom,
 } from "@/modules/rooms";
 import { rootRoute } from "@/shared/router";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/shared/ui/alert-dialog";
 import { Button } from "@/shared/ui/button";
 import { Calendar } from "@/shared/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 
 import { z } from "zod/v4";
 import { parseDateStr, todayUtcStr, toUtcDateStr } from "@/shared/lib/utils";
+import { wrap } from "@reatom/core";
 
 function EquipmentIcon({ icon }: { icon: string }) {
   const Icon = getEquipmentIcon(icon);
@@ -29,6 +46,28 @@ function EquipmentIcon({ icon }: { icon: string }) {
 
 const YourBookingsPanel = reatomComponent(() => {
   const detail = roomDetailAtom();
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [bookingToCancel, setBookingToCancel] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+  const cancelStatus = cancelBookingStatusAtom();
+  const cancelError = cancelBookingErrorAtom();
+
+  const wrapOpenCancel = useWrap((booking: { id: string; title: string }) => {
+    setBookingToCancel(booking);
+    setCancelDialogOpen(true);
+  });
+
+  const wrapCancel = useWrap(async () => {
+    if (!bookingToCancel) return;
+
+    const ok = await wrap(cancelMyBookingFromRoomDetailAction(bookingToCancel.id));
+    if (!ok) return;
+
+    setCancelDialogOpen(false);
+    setBookingToCancel(null);
+  });
 
   if (!detail || detail.userBookingsToday.length === 0) {
     return null;
@@ -63,9 +102,48 @@ const YourBookingsPanel = reatomComponent(() => {
             <p className="mt-2 text-[0.65rem] font-bold uppercase tracking-widest text-primary">
               {booking.status}
             </p>
+            <Button
+              className="mt-3 w-full uppercase tracking-widest"
+              size="sm"
+              type="button"
+              variant="outline"
+              onClick={() => wrapOpenCancel({ id: booking.id, title: booking.title })}
+            >
+              Cancel
+            </Button>
           </article>
         ))}
       </div>
+
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
+            <AlertDialogDescription>
+              {bookingToCancel
+                ? `Cancel "${bookingToCancel.title}" from your bookings today?`
+                : "Cancel this booking?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {cancelError && (
+            <p className="text-xs font-bold uppercase tracking-widest text-secondary">
+              {cancelError}
+            </p>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Booking</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={(e) => {
+                e.preventDefault();
+                wrapCancel();
+              }}
+            >
+              {cancelStatus === "submitting" ? "Cancelling..." : "Yes, cancel"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }, "YourBookingsPanel");
@@ -93,6 +171,7 @@ const RoomDetailPage = reatomComponent(() => {
 
   const roomId = params?.roomId ?? "";
   const date = params?.date ?? todayUtcStr();
+  const today = new Date();
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   const wrapLoad = useWrap((nextRoomId: string, nextDate: string) =>
@@ -155,7 +234,14 @@ const RoomDetailPage = reatomComponent(() => {
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-3" align="end">
-              <Calendar mode="single" selected={parseDateStr(date)} onSelect={wrapChangeDate} />
+              <Calendar
+                mode="single"
+                selected={parseDateStr(date)}
+                onSelect={wrapChangeDate}
+                disabled={{ before: today }}
+                startMonth={parseDateStr(date) ?? today}
+                defaultMonth={parseDateStr(date) ?? today}
+              />
             </PopoverContent>
           </Popover>
         </div>
@@ -249,7 +335,7 @@ const RoomDetailPage = reatomComponent(() => {
           </div>
         </div>
       </div>
-      <div className="fixed bottom-4 right-4 text-7xl text-accent/50 font-bold pointer-events-none select-none">
+      <div className="fixed hidden md:block bottom-2 right-8 text-[20vh] text-accent/50 font-bold pointer-events-none select-none">
         {detail ? detail.name : ""}
       </div>
     </div>

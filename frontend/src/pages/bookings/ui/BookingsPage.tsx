@@ -1,64 +1,150 @@
-import { IconSearch } from "@tabler/icons-react"
+import { IconSearch } from "@tabler/icons-react";
 
-import { atom } from "@reatom/core"
-import { reatomComponent, useWrap } from "@reatom/react"
+import { atom, wrap } from "@reatom/core";
+import { reatomComponent, useWrap } from "@reatom/react";
+import { useEffect, useState } from "react";
 
-import { BookingRow } from "@/modules/bookings"
-import type { BookingStatus } from "@/modules/bookings"
-import { rootRoute } from "@/shared/router"
+import {
+  BookingRow,
+  cancelBookingAction,
+  cancelBookingErrorAtom,
+  cancelBookingStatusAtom,
+  fetchMyBookingHistoryAction,
+  fetchMyBookingsAction,
+  myBookingHistoryAtom,
+  myBookingHistoryErrorAtom,
+  myBookingHistoryLoadingAtom,
+  myBookingsAtom,
+  myBookingsErrorAtom,
+  myBookingsLoadingAtom,
+  myBookingsSearchAtom,
+  type MyBooking,
+} from "@/modules/bookings";
+import { roomDetailRoute } from "@/pages/room-detail";
+import { rootRoute } from "@/shared/router";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/shared/ui/alert-dialog";
+import { delay } from "@/shared/lib/utils";
 
-interface MockBooking {
-  roomName: string
-  bookingId: string
-  date: string
-  timeRange: string
-  location: string
-  status: BookingStatus
+const searchQuery = atom("", "bookingsPage-searchQuery");
+
+type BookingsTab = "active" | "history";
+
+function formatBookingDate(value: string): string {
+  const date = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
 }
 
-const MOCK_BOOKINGS: MockBooking[] = [
-  {
-    roomName: "RM_402 QUANTUM LAB",
-    bookingId: "#BK-88291-Q",
-    date: "OCT 24, 2023",
-    timeRange: "14:00 — 16:30",
-    location: "SCIENCE BLOCK B",
-    status: "confirmed",
-  },
-  {
-    roomName: "STUDIO_G DIGITAL ARTS",
-    bookingId: "#BK-88450-D",
-    date: "OCT 26, 2023",
-    timeRange: "09:00 — 11:00",
-    location: "MEDIA CENTER 1",
-    status: "pending",
-  },
-  {
-    roomName: "HALL_A AUDITORIUM",
-    bookingId: "#BK-88901-A",
-    date: "NOV 01, 2023",
-    timeRange: "18:00 — 20:00",
-    location: "MAIN CAMPUS",
-    status: "confirmed",
-  },
-]
-
-const searchQuery = atom("", "bookingsPage-searchQuery")
+function toBookingRowData(booking: MyBooking) {
+  return {
+    id: booking.id,
+    roomId: booking.roomId,
+    title: booking.title,
+    roomName: booking.roomName,
+    bookingId: booking.bookingId,
+    date: formatBookingDate(booking.bookingDate).toUpperCase(),
+    timeRange: `${booking.startTime} — ${booking.endTime}`,
+    location: booking.building,
+    status: booking.status,
+    bookingDate: booking.bookingDate,
+    canCancel: booking.status === "pending" || booking.status === "confirmed",
+  } as const;
+}
 
 const BookingsPage = reatomComponent(() => {
-  const query = searchQuery().toLowerCase()
-  const filteredBookings = MOCK_BOOKINGS.filter(
-    (booking) =>
-      booking.roomName.toLowerCase().includes(query) ||
-      booking.bookingId.toLowerCase().includes(query) ||
-      booking.location.toLowerCase().includes(query),
-  )
+  const [activeTab, setActiveTab] = useState<BookingsTab>("active");
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [bookingToCancel, setBookingToCancel] = useState<ReturnType<
+    typeof toBookingRowData
+  > | null>(null);
+
+  const query = searchQuery();
+  const activeBookings = myBookingsAtom().map(toBookingRowData);
+  const historyBookings = myBookingHistoryAtom().map(toBookingRowData);
+
+  const currentRows = activeTab === "active" ? activeBookings : historyBookings;
+  const isLoading =
+    activeTab === "active" ? myBookingsLoadingAtom() : myBookingHistoryLoadingAtom();
+  const loadError = activeTab === "active" ? myBookingsErrorAtom() : myBookingHistoryErrorAtom();
+  const cancelStatus = cancelBookingStatusAtom();
+  const cancelError = cancelBookingErrorAtom();
+
+  const wrapLoadData = useWrap(() => {
+    myBookingsSearchAtom.set(query.trim());
+
+    if (activeTab === "active") {
+      fetchMyBookingsAction();
+      return;
+    }
+
+    fetchMyBookingHistoryAction();
+  });
+
+  useEffect(() => {
+    wrapLoadData();
+  }, [wrapLoadData]);
+
+  const wrapSearch = useWrap(async (value: string) => {
+    searchQuery.set(value);
+    myBookingsSearchAtom.set(value.trim());
+
+    if (activeTab === "active") {
+      fetchMyBookingsAction();
+      return;
+    }
+
+    fetchMyBookingHistoryAction();
+  });
+
+  const wrapOpenRoom = useWrap((booking: ReturnType<typeof toBookingRowData>) => {
+    roomDetailRoute.go({ roomId: booking.roomId, date: booking.bookingDate });
+  });
+
+  const wrapConfirmCancel = useWrap((booking: ReturnType<typeof toBookingRowData>) => {
+    setBookingToCancel(booking);
+    setCancelDialogOpen(true);
+  });
+
+  const wrapDoCancel = useWrap(async () => {
+    if (!bookingToCancel) return;
+
+    const result = await cancelBookingAction(bookingToCancel.id);
+    if (!result) return;
+
+    setCancelDialogOpen(false);
+    setBookingToCancel(null);
+    fetchMyBookingsAction();
+    fetchMyBookingHistoryAction();
+  });
+
+  const wrapSelectTab = useWrap((tab: BookingsTab) => {
+    setActiveTab(tab);
+
+    if (tab === "active") {
+      fetchMyBookingsAction();
+      return;
+    }
+
+    fetchMyBookingHistoryAction();
+  });
 
   return (
-    <div
-      data-slot="bookings-page"
-      className="flex min-h-full flex-col gap-10 px-6 py-8 md:px-10"
-    >
+    <div data-slot="bookings-page" className="flex min-h-full flex-col gap-10 px-6 py-8 md:px-10">
       {/* Hero title section */}
       <section className="flex flex-col gap-6">
         <div>
@@ -72,13 +158,23 @@ const BookingsPage = reatomComponent(() => {
         <div className="flex items-center gap-6">
           <button
             type="button"
-            className="text-sm font-black uppercase tracking-widest text-primary"
+            className={
+              activeTab === "active"
+                ? "text-sm font-black uppercase tracking-widest text-primary"
+                : "text-sm font-bold uppercase tracking-widest text-on-surface-variant transition-colors duration-150 ease-linear hover:text-on-surface"
+            }
+            onClick={() => wrapSelectTab("active")}
           >
             Active
           </button>
           <button
             type="button"
-            className="text-sm font-bold uppercase tracking-widest text-on-surface-variant transition-colors duration-150 ease-linear hover:text-on-surface"
+            className={
+              activeTab === "history"
+                ? "text-sm font-black uppercase tracking-widest text-primary"
+                : "text-sm font-bold uppercase tracking-widest text-on-surface-variant transition-colors duration-150 ease-linear hover:text-on-surface"
+            }
+            onClick={() => wrapSelectTab("history")}
           >
             History
           </button>
@@ -92,12 +188,20 @@ const BookingsPage = reatomComponent(() => {
           <IconSearch size={18} className="shrink-0 text-primary" />
           <input
             type="text"
-            value={searchQuery()}
-            onChange={useWrap((e) => searchQuery.set(e.target.value))}
+            value={query}
+            onChange={useWrap((e) => wrapSearch(e.target.value))}
             placeholder="SEARCH BOOKINGS BY ROOM, DATE, OR ID..."
             className="w-full bg-transparent text-sm font-bold uppercase tracking-widest text-on-surface outline-none placeholder:text-on-surface-variant/50"
           />
         </div>
+
+        {loadError && (
+          <div className="border-l-2 border-secondary bg-surface-container-low px-6 py-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-secondary">
+              {loadError}
+            </p>
+          </div>
+        )}
 
         {/* Table header */}
         <div className="hidden bg-surface-container-high px-8 py-4 md:grid md:grid-cols-5">
@@ -120,22 +224,71 @@ const BookingsPage = reatomComponent(() => {
 
         {/* Booking rows */}
         <div className="flex flex-col gap-1 bg-surface-container-lowest">
-          {filteredBookings.length > 0 ? (
-            filteredBookings.map((booking) => (
-              <BookingRow key={booking.bookingId} {...booking} />
+          {isLoading ? (
+            <div className="flex items-center justify-center bg-surface-container-low py-20">
+              <p className="text-sm font-bold uppercase tracking-widest text-on-surface-variant">
+                Loading bookings...
+              </p>
+            </div>
+          ) : currentRows.length > 0 ? (
+            currentRows.map((booking) => (
+              <BookingRow
+                key={booking.id}
+                roomName={booking.roomName}
+                title={booking.title}
+                date={booking.date}
+                timeRange={booking.timeRange}
+                location={booking.location}
+                status={booking.status}
+                onOpen={() => wrapOpenRoom(booking)}
+                onCancel={booking.canCancel ? () => wrapConfirmCancel(booking) : undefined}
+                cancelDisabled={!booking.canCancel || activeTab === "history"}
+              />
             ))
           ) : (
             <div className="flex items-center justify-center bg-surface-container-low py-20">
               <p className="text-sm font-bold uppercase tracking-widest text-on-surface-variant">
-                No bookings match your search
+                {activeTab === "active"
+                  ? "No active bookings match your search"
+                  : "No booking history matches your search"}
               </p>
             </div>
           )}
         </div>
       </section>
+
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
+            <AlertDialogDescription>
+              {bookingToCancel
+                ? `Are you sure you want to cancel ${bookingToCancel.bookingId} for ${bookingToCancel.roomName}?`
+                : "Are you sure you want to cancel this booking?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {cancelError && (
+            <p className="text-xs font-bold uppercase tracking-widest text-secondary">
+              {cancelError}
+            </p>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Booking</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={(e) => {
+                e.preventDefault();
+                wrapDoCancel();
+              }}
+            >
+              {cancelStatus === "submitting" ? "Cancelling..." : "Yes, cancel"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
-  )
-}, "BookingsPage")
+  );
+}, "BookingsPage");
 
 export const bookingsRoute = rootRoute.reatomRoute(
   {
@@ -143,4 +296,4 @@ export const bookingsRoute = rootRoute.reatomRoute(
     render: () => <BookingsPage />,
   },
   "bookings",
-)
+);

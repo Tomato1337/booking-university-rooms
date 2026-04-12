@@ -26,6 +26,7 @@ export {
   roomsBackHrefAtom,
 } from "./application/rooms-atoms";
 export {
+  cancelMyBookingFromRoomDetailAction,
   loadRoomDetailAction,
   roomDetailAtom,
   roomDetailErrorAtom,
@@ -35,7 +36,11 @@ export { buildRoomDetailTimeGridSlots } from "./application/room-detail-view"
 
 // infrastructure — mocks (DEV only, lazy-imported)
 export { roomsMockHandlers } from "./infrastructure/mocks/handlers";
-export { getMockRoomDetail } from "./infrastructure/mocks/data"
+export {
+  getMockRoomDetail,
+  invalidateMockRoomDetail,
+  registerMockRoomBookingsProvider,
+} from "./infrastructure/mocks/data"
 
 // infrastructure
 export { getRoomDetail } from "./infrastructure/rooms-api"

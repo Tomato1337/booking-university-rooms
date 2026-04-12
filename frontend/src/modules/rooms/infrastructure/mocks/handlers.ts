@@ -1,6 +1,7 @@
 import { http } from "@/shared/mocks/http"
 
 import { getMockRoomDetail, mockEquipment, mockRooms, paginateRooms } from "./data"
+import { ensureRoomBookingsProviderRegistered } from "@/modules/bookings/infrastructure/mocks/data"
 
 export const listEquipment = {
   default: http.get("/equipment", ({ response }) => {
@@ -73,6 +74,8 @@ export const roomsMockHandlers = [
   listEquipment.default,
   searchRooms.default,
   http.get("/rooms/{roomId}", ({ params, request, response }) => {
+    ensureRoomBookingsProviderRegistered()
+
     const url = new URL(request.url)
     const date = url.searchParams.get("date")
     const roomId = String(params.roomId)
