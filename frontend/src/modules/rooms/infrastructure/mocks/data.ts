@@ -2,6 +2,9 @@ import type { components } from "@/shared/api/schema"
 
 type RoomCard = components["schemas"]["RoomCard"]
 type EquipmentItem = components["schemas"]["EquipmentItem"]
+type RoomDetail = components["schemas"]["RoomDetail"]
+type TimeSlot = components["schemas"]["TimeSlot"]
+type UserBookingSummary = components["schemas"]["UserBookingSummary"]
 
 export const mockEquipment: EquipmentItem[] = [
   { id: "11111111-1111-4111-8111-111111111111", name: "Projector", icon: "IconVideo" },
@@ -257,6 +260,128 @@ export const mockRooms: RoomCard[] = [
     },
   },
 ]
+
+const mockRoomDetailsBase: Record<string, RoomDetail> = Object.fromEntries(
+  mockRooms.map((room) => {
+    const detail: RoomDetail = {
+      id: room.id,
+      name: room.name,
+      description: "High-security learning space. No shadows. Only focus.",
+      roomType: room.roomType,
+      capacity: room.capacity,
+      building: room.building,
+      floor: room.floor,
+      photos: [],
+      equipment: room.equipment,
+      timeSlots: [
+        { startTime: "08:00", endTime: "10:00", status: "available", booking: null },
+        {
+          startTime: "10:00",
+          endTime: "12:00",
+          status: "occupied",
+          booking: { id: "b-1", title: "Math", userId: "u-1" },
+        },
+        { startTime: "12:00", endTime: "14:00", status: "available", booking: null },
+        {
+          startTime: "14:00",
+          endTime: "16:00",
+          status: "pending",
+          booking: { id: "b-2", title: "Seminar", userId: "u-2" },
+        },
+        { startTime: "16:00", endTime: "18:00", status: "available", booking: null },
+        {
+          startTime: "18:00",
+          endTime: "20:00",
+          status: "available",
+          booking: null,
+        },
+      ],
+      userBookingsToday: [],
+    }
+    return [room.id, detail]
+  }),
+)
+
+function randomInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min
+}
+
+function makeDynamicUserBookings(timeSlots: TimeSlot[]): {
+  timeSlots: TimeSlot[]
+  userBookingsToday: UserBookingSummary[]
+} {
+  const slots = timeSlots.map((slot) => ({ ...slot }))
+  const availableIndexes = slots
+    .map((slot, idx) => ({ slot, idx }))
+    .filter(({ slot }) => slot.status === "available")
+    .map(({ idx }) => idx)
+
+  const bookingsCount = Math.min(randomInt(0, 2), availableIndexes.length)
+  const picked = new Set<number>()
+
+  while (picked.size < bookingsCount) {
+    const idx = availableIndexes[randomInt(0, availableIndexes.length - 1)]
+    picked.add(idx)
+  }
+
+  const userBookingsToday: UserBookingSummary[] = []
+
+  Array.from(picked)
+    .sort((a, b) => a - b)
+    .forEach((idx, order) => {
+      const slot = slots[idx]
+      const bookingId = `my-${crypto.randomUUID()}`
+      const title = `Your Booking ${order + 1}`
+
+      slots[idx] = {
+        ...slot,
+        status: "yours",
+        booking: {
+          id: bookingId,
+          title,
+          userId: "me",
+        },
+      }
+
+      userBookingsToday.push({
+        id: bookingId,
+        title,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        status: "confirmed",
+      })
+    })
+
+  return {
+    timeSlots: slots,
+    userBookingsToday,
+  }
+}
+
+export function getMockRoomDetail(roomId: string, date?: string | null): RoomDetail | null {
+  const base = mockRoomDetailsBase[roomId]
+  if (!base) return null
+
+  const timeSlots = base.timeSlots.map((slot) => ({ ...slot }))
+
+  if (date?.endsWith("-01")) {
+    const target = timeSlots[2]
+    if (target && target.status === "available") {
+      timeSlots[2] = {
+        ...target,
+        status: "pending",
+      }
+    }
+  }
+
+  const dynamic = makeDynamicUserBookings(timeSlots)
+
+  return {
+    ...base,
+    timeSlots: dynamic.timeSlots,
+    userBookingsToday: dynamic.userBookingsToday,
+  }
+}
 
 function encodeCursor(index: number) {
   return btoa(String(index))

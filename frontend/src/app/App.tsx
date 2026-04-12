@@ -6,6 +6,7 @@ import { urlAtom, withChangeHook } from "@reatom/core";
 import { reatomComponent } from "@reatom/react";
 
 import { authStatusAtom } from "@/modules/auth";
+import { roomsBackHrefAtom } from "@/modules/rooms";
 import { AppSidebar } from "@/modules/sidebar/ui/AppSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/shared/ui/sidebar";
 
@@ -18,6 +19,12 @@ import {
   rootRoute,
 } from "./routes";
 import { IconLoader2 } from "@tabler/icons-react";
+
+function isRoomsBackHrefValid(href: string | null, roomsHref: string): href is string {
+  if (!href) return false;
+
+  return href === roomsHref || href.startsWith(`${roomsHref}?`);
+}
 
 urlAtom.extend(
   withChangeHook(() => {
@@ -38,17 +45,18 @@ interface PageMeta {
 
 const pageMeta: PageMeta[] = [
   { route: dashboardRoute, title: "Dashboard" },
-  { route: roomsRoute, title: "Room Search" },
-  { route: bookingsRoute, title: "My Bookings" },
   {
     route: roomDetailRoute,
     title: "LAB_402_OMEGA",
     parent: { route: roomsRoute, title: "Room Search" },
   },
+  { route: roomsRoute, title: "Room Search" },
+  { route: bookingsRoute, title: "My Bookings" },
 ];
 
 const App = reatomComponent(() => {
   const status = authStatusAtom();
+  const roomsBackHref = roomsBackHrefAtom();
 
   if (status === "loading" || status === "idle") {
     return (
@@ -71,17 +79,26 @@ const App = reatomComponent(() => {
   }
 
   const currentPage = pageMeta.find(({ route }) => route.match());
+  const roomsHref = roomsRoute.path();
+  const roomDetailParentHref = isRoomsBackHrefValid(roomsBackHref, roomsHref)
+    ? roomsBackHref
+    : roomsHref;
+
+  const parentHref =
+    currentPage?.route === roomDetailRoute
+      ? roomDetailParentHref
+      : currentPage?.parent?.route.path();
 
   return (
     <SidebarProvider>
       <AppSidebar />
       <div className="flex w-full flex-col relative">
         <header className="sticky top-0 z-20 flex min-h-18 items-center gap-4 border-b border-surface-container-high bg-sidebar px-6">
-          <SidebarTrigger />
+          <SidebarTrigger className="ml-1" />
           {currentPage?.parent && (
             <>
               <a
-                href={currentPage.parent.route.path()}
+                href={parentHref}
                 className="text-lg font-black uppercase tracking-widest text-on-surface-variant transition-colors duration-150 ease-linear hover:text-on-surface"
               >
                 {currentPage.parent.title}

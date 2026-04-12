@@ -35,7 +35,7 @@ export const registerForm = reatomForm(
     validateOnChange: true,
     schema: registerSchema,
     onSubmit: async (values) => {
-      const { confirmPassword, ...credentials } = values;
+      const { confirmPassword: _confirmPassword, ...credentials } = values;
       await wrap(
         registerAction({
           ...credentials,

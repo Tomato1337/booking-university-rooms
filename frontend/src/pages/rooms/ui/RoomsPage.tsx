@@ -1,7 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react"
 
-import { IconSearch } from "@tabler/icons-react";
-import { reatomComponent, useWrap } from "@reatom/react";
+import { IconSearch } from "@tabler/icons-react"
+import { reatomComponent, useWrap } from "@reatom/react"
 
 import {
   RoomCard,
@@ -14,12 +14,14 @@ import {
   loadMoreRoomsAction,
   fetchEquipmentAction,
   isEditable,
-} from "@/modules/rooms";
-import { roomDetailRoute } from "@/pages/room-detail";
-import { rootRoute } from "@/shared/router";
-import { Button } from "@/shared/ui/button";
-import { Skeleton } from "@/shared/ui/skeleton";
-import { Input } from "@/shared/ui/input";
+  roomsDateAtom,
+  roomsBackHrefAtom,
+} from "@/modules/rooms"
+import { roomDetailRoute } from "@/pages/room-detail"
+import { rootRoute } from "@/shared/router"
+import { Button } from "@/shared/ui/button"
+import { Skeleton } from "@/shared/ui/skeleton"
+import { Input } from "@/shared/ui/input"
 
 function RoomCardSkeleton() {
   return (
@@ -41,61 +43,70 @@ function RoomCardSkeleton() {
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 const RoomsPage = reatomComponent(() => {
-  const rooms = roomsListAtom();
-  const loading = roomsLoadingAtom();
-  const hasMore = roomsHasMoreAtom();
-  const search = roomsSearchAtom();
+  const rooms = roomsListAtom()
+  const loading = roomsLoadingAtom()
+  const hasMore = roomsHasMoreAtom()
+  const search = roomsSearchAtom()
 
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const wrapLoadMore = useWrap(() => loadMoreRoomsAction());
-  const wrapSearch = useWrap(() => searchRoomsAction());
-  const wrapFetchEquipment = useWrap(() => fetchEquipmentAction());
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  const wrapLoadMore = useWrap(() => loadMoreRoomsAction())
+  const wrapSearch = useWrap(() => searchRoomsAction())
+  const wrapFetchEquipment = useWrap(() => fetchEquipmentAction())
 
-  const searchHTMLRef = useRef<HTMLInputElement>(null);
+  const searchHTMLRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    wrapSearch();
-    wrapFetchEquipment();
-  }, []);
+    wrapSearch()
+    wrapFetchEquipment()
+  }, [wrapFetchEquipment, wrapSearch])
 
-  const isFirstSearch = useRef(true);
+  const isFirstSearch = useRef(true)
   useEffect(() => {
     if (isFirstSearch.current) {
-      isFirstSearch.current = false;
-      return;
+      isFirstSearch.current = false
+      return
     }
 
-    const timer = setTimeout(() => wrapSearch(), 300);
-    return () => clearTimeout(timer);
-  }, [search]);
+    const timer = setTimeout(() => wrapSearch(), 300)
+    return () => clearTimeout(timer)
+  }, [search, wrapSearch])
 
   useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !loading) {
-          wrapLoadMore();
+          wrapLoadMore()
         }
       },
       { rootMargin: "200px" },
-    );
+    )
 
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [hasMore, loading, wrapLoadMore]);
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasMore, loading, wrapLoadMore])
 
-  const handleBook = (roomId: string) => {
-    roomDetailRoute.go({ roomId });
-  };
+  const handleBook = useWrap((roomId: string) => {
+    const { pathname, search } = window.location
 
-  const showSkeletons = loading && rooms.length === 0;
-  const showEmpty = !loading && rooms.length === 0;
+    const backHref = `${pathname}${search}`
+    if (backHref === roomsRoute.path() || backHref.startsWith(`${roomsRoute.path()}?`)) {
+      roomsBackHrefAtom.set(backHref)
+    } else {
+      roomsBackHrefAtom.set(roomsRoute.path())
+    }
+
+    roomDetailRoute.go({ roomId, date: roomsDateAtom() })
+  })
+
+  const showSkeletons = loading && rooms.length === 0
+  const showEmpty = !loading && rooms.length === 0
 
   return (
     <div data-slot="rooms-page" className="flex min-h-full flex-col gap-10 px-6 py-8 md:px-10">
@@ -134,7 +145,7 @@ const RoomsPage = reatomComponent(() => {
         <div
           onClick={() => {
             if (searchHTMLRef.current) {
-              searchHTMLRef.current.focus();
+              searchHTMLRef.current.focus()
             }
           }}
           className="flex items-center gap-3 bg-surface-container-high px-4 py-3"
@@ -183,8 +194,8 @@ const RoomsPage = reatomComponent(() => {
         </div>
       </section>
     </div>
-  );
-}, "RoomsPage");
+  )
+}, "RoomsPage")
 
 export const roomsRoute = rootRoute.reatomRoute(
   {
@@ -192,4 +203,4 @@ export const roomsRoute = rootRoute.reatomRoute(
     render: () => <RoomsPage />,
   },
   "rooms",
-);
+)

@@ -1,23 +1,22 @@
-import { IconArrowRight, IconUser } from "@tabler/icons-react";
+import { IconArrowRight, IconUser } from "@tabler/icons-react"
 
-import type { RoomCard as RoomCardType } from "../domain/types";
-import { getEquipmentIcon } from "../infrastructure/icon-map";
-import { cn } from "@/shared/lib/utils";
-import { Button } from "@/shared/ui/button";
-import { StatusIndicator } from "@/shared/ui/status-indicator";
+import type { RoomCard as RoomCardType } from "../domain/types"
+import { getEquipmentIcon } from "../infrastructure/icon-map"
+import { cn } from "@/shared/lib/utils"
+import { StatusIndicator } from "@/shared/ui/status-indicator"
 
 interface RoomCardProps {
   /** Room data from the API */
-  room: RoomCardType;
+  room: RoomCardType
   /** Called when user clicks "Book Space" */
-  onBook?: (roomId: string) => void;
+  onBook?: (roomId: string) => void
   /** Additional className */
-  className?: string;
+  className?: string
 }
 
 function RoomCard({ room, onBook, className }: RoomCardProps) {
-  const { availability } = room;
-  const available = availability.isAvailable;
+  const { availability } = room
+  const available = availability.isAvailable
 
   return (
     <div
@@ -27,6 +26,15 @@ function RoomCard({ room, onBook, className }: RoomCardProps) {
         !available && "grayscale opacity-50",
         className,
       )}
+      onClick={() => onBook?.(room.id)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          onBook?.(room.id)
+        }
+      }}
     >
       <StatusIndicator
         status={available ? "available" : "booked"}
@@ -62,7 +70,7 @@ function RoomCard({ room, onBook, className }: RoomCardProps) {
             </div>
 
             {room.equipment.map((item) => {
-              const EquipmentIcon = getEquipmentIcon(item.icon);
+              const EquipmentIcon = getEquipmentIcon(item.icon)
 
               return (
                 <div key={item.id} className="flex items-center gap-2">
@@ -71,7 +79,7 @@ function RoomCard({ room, onBook, className }: RoomCardProps) {
                     {item.name}
                   </span>
                 </div>
-              );
+              )
             })}
           </div>
         </div>
@@ -106,8 +114,8 @@ function RoomCard({ room, onBook, className }: RoomCardProps) {
         </div>
       </div>
     </div>
-  );
+  )
 }
 
-export { RoomCard };
-export type { RoomCardProps };
+export { RoomCard }
+export type { RoomCardProps }

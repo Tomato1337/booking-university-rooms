@@ -1,68 +1,71 @@
-import type { ComponentProps } from "react"
+import type { ComponentProps } from "react";
 
-import { cn } from "@/shared/lib/utils"
+import { cn } from "@/shared/lib/utils";
 
-export type TimeSlotStatus = "available" | "booked" | "pending" | "yours"
+export type TimeSlotStatus = "available" | "booked" | "pending" | "yours";
 
 export interface TimeSlot {
   /** Slot status determines color */
-  status: TimeSlotStatus
+  status: TimeSlotStatus;
   /** CSS flex value (e.g. "1", "2", "10%") — controls relative width */
-  flex?: string | number
+  flex?: string | number;
   /** Time label to show below the left edge of this slot */
-  startLabel?: string
+  startLabel?: string;
   /** Time label to show below the right edge of this slot (typically only for the last slot) */
-  endLabel?: string
+  endLabel?: string;
   /** Text label to display centered inside the slot bar */
-  label?: string
+  label?: string;
+  /** Raw slot start in HH:mm */
+  startTime?: string;
+  /** Raw slot end in HH:mm */
+  endTime?: string;
 }
 
 export interface TimeGridProps extends ComponentProps<"div"> {
   /** Array of time slots to render */
-  slots: TimeSlot[]
+  slots: TimeSlot[];
   /** Title text, e.g. "Daily Occupancy" */
-  title?: string
+  title?: string;
   /** Subtitle text, e.g. "Today: Oct 24, 2024" */
-  subtitle?: string
+  subtitle?: string;
   /** Whether to show the legend (defaults to true) */
-  showLegend?: boolean
+  showLegend?: boolean;
+  /** Called when user clicks a slot */
+  onSlotSelect?: (slot: TimeSlot) => void;
 }
 
 const statusColorMap: Record<TimeSlotStatus, string> = {
   available: "bg-primary",
   booked: "bg-secondary",
   pending: "bg-tertiary",
-  yours: "bg-primary",
-}
+  yours: "bg-primary border-dotted border-4 border-accent-foreground",
+};
 
 const statusLabelMap: Record<TimeSlotStatus, string> = {
   available: "Available",
   booked: "Booked",
   pending: "Pending",
   yours: "Your Session",
-}
+};
 
-const LEGEND_ORDER: TimeSlotStatus[] = ["available", "booked", "pending", "yours"]
+const LEGEND_ORDER: TimeSlotStatus[] = ["available", "booked", "pending", "yours"];
 
 function TimeGrid({
   slots,
   title,
   subtitle,
   showLegend = true,
+  onSlotSelect,
   className,
   ...props
 }: TimeGridProps) {
-  const presentStatuses = new Set(slots.map((s) => s.status))
-  const legendItems = LEGEND_ORDER
-    .filter((status) => presentStatuses.has(status))
-    .map((status) => ({ status, label: statusLabelMap[status] }))
+  const presentStatuses = new Set(slots.map((s) => s.status));
+  const legendItems = LEGEND_ORDER.filter((status) => presentStatuses.has(status)).map(
+    (status) => ({ status, label: statusLabelMap[status] }),
+  );
 
   return (
-    <div
-      data-slot="time-grid"
-      className={cn("bg-surface-container-low p-8", className)}
-      {...props}
-    >
+    <div data-slot="time-grid" className={cn("bg-surface-container-low p-8", className)} {...props}>
       {(title || subtitle) && (
         <div className="mb-6 flex items-end justify-between gap-4">
           {title ? (
@@ -85,6 +88,7 @@ function TimeGrid({
               key={`${index}-${slot.status}`}
               className={cn("group relative cursor-pointer", statusColorMap[slot.status])}
               style={{ flex: slot.flex ?? 1 }}
+              onClick={() => onSlotSelect?.(slot)}
             >
               <div className="absolute inset-0 bg-white/20 opacity-0 transition-opacity duration-150 ease-linear group-hover:opacity-100" />
               {slot.label && (
@@ -92,23 +96,27 @@ function TimeGrid({
                   {slot.label}
                 </span>
               )}
-              {slot.startLabel && (
-                <span className="absolute -bottom-8 left-0 text-[0.65rem] font-bold text-on-surface-variant">
-                  {slot.startLabel}
-                </span>
-              )}
-              {slot.endLabel && (
-                <span className="absolute -bottom-8 right-0 text-[0.65rem] font-bold text-on-surface-variant">
-                  {slot.endLabel}
-                </span>
-              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-3 flex w-full gap-[2px]">
+          {slots.map((slot, index) => (
+            <div
+              key={`label-${index}-${slot.status}`}
+              style={{ flex: slot.flex ?? 1 }}
+              className="flex items-center justify-center"
+            >
+              <span className="text-[0.65rem] font-bold whitespace-nowrap text-on-surface-variant">
+                {slot.startTime ?? slot.startLabel} — {slot.endTime ?? slot.endLabel}
+              </span>
             </div>
           ))}
         </div>
       </div>
 
       {showLegend && (
-        <div className="mt-14 flex flex-wrap gap-6">
+        <div className="mt-8 flex flex-wrap gap-6">
           {legendItems.map((item) => (
             <div key={item.status} className="flex items-center gap-2">
               <div className={cn("h-3 w-3 rounded-sm", statusColorMap[item.status])} />
@@ -120,7 +128,7 @@ function TimeGrid({
         </div>
       )}
     </div>
-  )
+  );
 }
 
-export { TimeGrid }
+export { TimeGrid };

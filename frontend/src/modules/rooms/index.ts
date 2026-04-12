@@ -1,5 +1,11 @@
 // domain
-export type { RoomCard as RoomCardType, EquipmentItem, RoomSearchFilters } from "./domain/types";
+export type {
+  RoomCard as RoomCardType,
+  EquipmentItem,
+  RoomSearchFilters,
+  RoomDetail,
+  TimeSlotFromApi,
+} from "./domain/types"
 
 // application
 export {
@@ -17,10 +23,23 @@ export {
   fetchEquipmentAction,
   equipmentListAtom,
   isEditable,
+  roomsBackHrefAtom,
 } from "./application/rooms-atoms";
+export {
+  loadRoomDetailAction,
+  roomDetailAtom,
+  roomDetailErrorAtom,
+  roomDetailLoadingAtom,
+} from "./application/room-detail-atoms"
+export { buildRoomDetailTimeGridSlots } from "./application/room-detail-view"
 
 // infrastructure — mocks (DEV only, lazy-imported)
 export { roomsMockHandlers } from "./infrastructure/mocks/handlers";
+export { getMockRoomDetail } from "./infrastructure/mocks/data"
+
+// infrastructure
+export { getRoomDetail } from "./infrastructure/rooms-api"
+export { getEquipmentIcon } from "./infrastructure/icon-map"
 
 // ui
 export { TimeGrid } from "./ui/TimeGrid";

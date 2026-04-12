@@ -1,6 +1,6 @@
 import { http } from "@/shared/mocks/http"
 
-import { mockEquipment, mockRooms, paginateRooms } from "./data"
+import { getMockRoomDetail, mockEquipment, mockRooms, paginateRooms } from "./data"
 
 export const listEquipment = {
   default: http.get("/equipment", ({ response }) => {
@@ -72,4 +72,19 @@ export const searchRooms = {
 export const roomsMockHandlers = [
   listEquipment.default,
   searchRooms.default,
+  http.get("/rooms/{roomId}", ({ params, request, response }) => {
+    const url = new URL(request.url)
+    const date = url.searchParams.get("date")
+    const roomId = String(params.roomId)
+    const base = getMockRoomDetail(roomId, date)
+    if (!base) {
+      return response(404).json({
+        error: { code: "ROOM_NOT_FOUND", message: "Room not found" },
+      })
+    }
+
+    return response(200).json({
+      data: base,
+    })
+  }),
 ]
