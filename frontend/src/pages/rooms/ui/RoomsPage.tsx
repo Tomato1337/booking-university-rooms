@@ -1,27 +1,29 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef } from "react";
 
-import { IconSearch } from "@tabler/icons-react"
-import { reatomComponent, useWrap } from "@reatom/react"
+import { IconSearch } from "@tabler/icons-react";
+import { reatomComponent, useWrap } from "@reatom/react";
 
 import {
+  activateRoomsPageAction,
+  deactivateRoomsPageAction,
   RoomCard,
   RoomsFilters,
   roomsSearchAtom,
   roomsListAtom,
   roomsLoadingAtom,
   roomsHasMoreAtom,
+  updateRoomsSearchInputAction,
   searchRoomsAction,
   loadMoreRoomsAction,
-  fetchEquipmentAction,
   isEditable,
   roomsDateAtom,
   roomsBackHrefAtom,
-} from "@/modules/rooms"
-import { roomDetailRoute } from "@/pages/room-detail"
-import { rootRoute } from "@/shared/router"
-import { Button } from "@/shared/ui/button"
-import { Skeleton } from "@/shared/ui/skeleton"
-import { Input } from "@/shared/ui/input"
+} from "@/modules/rooms";
+import { roomDetailRoute } from "@/pages/room-detail";
+import { rootRoute } from "@/shared/router";
+import { Button } from "@/shared/ui/button";
+import { Skeleton } from "@/shared/ui/skeleton";
+import { Input } from "@/shared/ui/input";
 
 function RoomCardSkeleton() {
   return (
@@ -43,70 +45,67 @@ function RoomCardSkeleton() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 const RoomsPage = reatomComponent(() => {
-  const rooms = roomsListAtom()
-  const loading = roomsLoadingAtom()
-  const hasMore = roomsHasMoreAtom()
-  const search = roomsSearchAtom()
+  const rooms = roomsListAtom();
+  const loading = roomsLoadingAtom();
+  const hasMore = roomsHasMoreAtom();
+  const search = roomsSearchAtom();
 
-  const sentinelRef = useRef<HTMLDivElement>(null)
-  const wrapLoadMore = useWrap(() => loadMoreRoomsAction())
-  const wrapSearch = useWrap(() => searchRoomsAction())
-  const wrapFetchEquipment = useWrap(() => fetchEquipmentAction())
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const wrapLoadMore = useWrap(() => loadMoreRoomsAction());
+  const wrapSearch = useWrap(() => searchRoomsAction());
+  const wrapUpdateSearch = useWrap((value: string) => updateRoomsSearchInputAction(value));
+  const wrapActivatePage = useWrap(() => activateRoomsPageAction());
+  const wrapDeactivatePage = useWrap(() => deactivateRoomsPageAction());
 
-  const searchHTMLRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    wrapSearch()
-    wrapFetchEquipment()
-  }, [wrapFetchEquipment, wrapSearch])
-
-  const isFirstSearch = useRef(true)
-  useEffect(() => {
-    if (isFirstSearch.current) {
-      isFirstSearch.current = false
-      return
-    }
-
-    const timer = setTimeout(() => wrapSearch(), 300)
-    return () => clearTimeout(timer)
-  }, [search, wrapSearch])
+  const searchHTMLRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const sentinel = sentinelRef.current
-    if (!sentinel) return
+    wrapActivatePage();
+
+    return () => {
+      wrapDeactivatePage();
+    };
+  }, [wrapActivatePage, wrapDeactivatePage]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loading) {
-          wrapLoadMore()
+        const entry = entries[0];
+        if (!entry) return;
+
+        if (entry.isIntersecting && hasMore && !loading) {
+          wrapLoadMore();
         }
       },
       { rootMargin: "200px" },
-    )
+    );
 
-    observer.observe(sentinel)
-    return () => observer.disconnect()
-  }, [hasMore, loading, wrapLoadMore])
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loading, wrapLoadMore]);
 
   const handleBook = useWrap((roomId: string) => {
-    const { pathname, search } = window.location
+    const { pathname, search } = window.location;
 
-    const backHref = `${pathname}${search}`
+    const backHref = `${pathname}${search}`;
     if (backHref === roomsRoute.path() || backHref.startsWith(`${roomsRoute.path()}?`)) {
-      roomsBackHrefAtom.set(backHref)
+      roomsBackHrefAtom.set(backHref);
     } else {
-      roomsBackHrefAtom.set(roomsRoute.path())
+      roomsBackHrefAtom.set(roomsRoute.path());
     }
 
-    roomDetailRoute.go({ roomId, date: roomsDateAtom() })
-  })
+    roomDetailRoute.go({ roomId, date: roomsDateAtom() });
+  });
 
-  const showSkeletons = loading && rooms.length === 0
-  const showEmpty = !loading && rooms.length === 0
+  const showSkeletons = loading && rooms.length === 0;
+  const showEmpty = !loading && rooms.length === 0;
 
   return (
     <div data-slot="rooms-page" className="flex min-h-full flex-col gap-10 px-6 py-8 md:px-10">
@@ -145,7 +144,7 @@ const RoomsPage = reatomComponent(() => {
         <div
           onClick={() => {
             if (searchHTMLRef.current) {
-              searchHTMLRef.current.focus()
+              searchHTMLRef.current.focus();
             }
           }}
           className="flex items-center gap-3 bg-surface-container-high px-4 py-3"
@@ -158,7 +157,7 @@ const RoomsPage = reatomComponent(() => {
             type="text"
             id="room-search"
             value={search}
-            onChange={useWrap((e) => roomsSearchAtom.set(e.target.value))}
+            onChange={useWrap((e) => wrapUpdateSearch(e.target.value))}
             placeholder="SEARCH ROOM BY NAME..."
             className="w-full border-none bg-transparent text-xs font-bold uppercase tracking-widest text-on-surface outline-none placeholder:text-on-surface-variant/50"
           />
@@ -194,8 +193,8 @@ const RoomsPage = reatomComponent(() => {
         </div>
       </section>
     </div>
-  )
-}, "RoomsPage")
+  );
+}, "RoomsPage");
 
 export const roomsRoute = rootRoute.reatomRoute(
   {
@@ -203,4 +202,4 @@ export const roomsRoute = rootRoute.reatomRoute(
     render: () => <RoomsPage />,
   },
   "rooms",
-)
+);

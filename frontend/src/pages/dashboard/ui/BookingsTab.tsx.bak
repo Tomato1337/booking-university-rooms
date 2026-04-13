@@ -1,0 +1,144 @@
+import { IconSearch } from "@tabler/icons-react";
+
+import { reatomComponent, useWrap } from "@reatom/react";
+import { useEffect, useRef } from "react";
+
+import {
+  AdminBookingRow,
+  adminStatsQuery,
+  loadMorePendingBookingsAction,
+  pendingBookingsListAtom,
+  pendingBookingsQuery,
+  pendingHasMoreAtom,
+  pendingSearchAtom,
+  searchPendingBookingsAction,
+  updatePendingSearchAction,
+} from "@/modules/admin";
+import { Input } from "@/shared/ui/input";
+import { MetricCard, MetricLabel, MetricValue } from "@/shared/ui/metric-card";
+
+export const BookingsTab = reatomComponent(() => {
+  const stats = adminStatsQuery.data();
+  const bookings = pendingBookingsListAtom();
+  const query = pendingSearchAtom();
+  const hasMore = pendingHasMoreAtom();
+  const pendingStatus = pendingBookingsQuery.status();
+
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  const wrapSearch = useWrap((value: string) => updatePendingSearchAction(value));
+  const wrapLoadMore = useWrap(() => loadMorePendingBookingsAction());
+  const wrapActivate = useWrap(() => searchPendingBookingsAction());
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    wrapActivate();
+  }, [wrapActivate]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+
+        if (entry.isIntersecting && hasMore && !pendingStatus.isPending) {
+          wrapLoadMore();
+        }
+      },
+      { rootMargin: "200px" },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, pendingStatus.isPending, wrapLoadMore]);
+
+  return (
+    <section data-slot="dashboard-bookings-tab" className="flex flex-1 flex-col gap-6">
+      <section className="grid grid-cols-1 gap-6 md:grid-cols-4">
+        <MetricCard stripe="pending">
+          <MetricLabel>Pending Requests</MetricLabel>
+          <MetricValue>{stats.pendingCount}</MetricValue>
+        </MetricCard>
+        <MetricCard stripe="available">
+          <MetricLabel>Today Bookings</MetricLabel>
+          <MetricValue>{stats.todayBookingsCount}</MetricValue>
+        </MetricCard>
+        <MetricCard stripe="booked">
+          <MetricLabel>Occupancy Rate</MetricLabel>
+          <MetricValue>{stats.occupancyRate}%</MetricValue>
+        </MetricCard>
+        <MetricCard stripe="available">
+          <MetricLabel>Active Rooms</MetricLabel>
+          <MetricValue>{stats.totalActiveRooms}</MetricValue>
+        </MetricCard>
+      </section>
+
+      <section className="flex flex-1 flex-col gap-6">
+        <h3 className="text-[1.75rem] font-black uppercase tracking-tighter">Pending Bookings</h3>
+
+        <div className="flex flex-col">
+          <div
+            onClick={() => {
+              if (searchInputRef.current) {
+                searchInputRef.current.focus();
+              }
+            }}
+            className="flex items-center gap-3 bg-surface-container px-6 py-4"
+          >
+            <IconSearch size={18} className="shrink-0 text-primary" />
+            <Input
+              ref={searchInputRef}
+              type="text"
+              value={query}
+              onChange={useWrap((e) => wrapSearch(e.target.value))}
+              placeholder="SEARCH BY USER, ROOM, BUILDING, OR TITLE..."
+              className="w-full border-none bg-transparent text-sm font-bold uppercase tracking-widest text-on-surface outline-none placeholder:text-on-surface-variant/50"
+            />
+          </div>
+
+          <div className="hidden bg-surface-container-high px-8 py-4 md:grid md:grid-cols-5">
+            <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+              User
+            </span>
+            <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+              Room
+            </span>
+            <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+              Time Slot
+            </span>
+            <span className="text-center text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+              Status
+            </span>
+            <span className="text-right text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+              Actions
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-1 bg-surface-container-lowest">
+            {pendingStatus.isFirstPending ? (
+              <div className="flex items-center justify-center bg-surface-container-low py-20">
+                <p className="text-sm font-bold uppercase tracking-widest text-on-surface-variant">
+                  Loading pending bookings...
+                </p>
+              </div>
+            ) : bookings.length > 0 ? (
+              bookings.map((booking) => <AdminBookingRow key={booking.id} booking={booking} />)
+            ) : (
+              <div className="flex items-center justify-center bg-surface-container-low py-20">
+                <p className="text-sm font-bold uppercase tracking-widest text-on-surface-variant">
+                  No pending requests match your search
+                </p>
+              </div>
+            )}
+          </div>
+
+          {hasMore && <div ref={sentinelRef} className="h-1" />}
+        </div>
+      </section>
+    </section>
+  );
+}, "BookingsTab");

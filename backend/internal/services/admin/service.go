@@ -327,10 +327,31 @@ func (s *Service) Reject(ctx context.Context, bookingIDStr, adminIDStr, reason s
 	return booking, nil
 }
 
-func (s *Service) GetStats(ctx context.Context) (*models.AdminStats, error) {
+func (s *Service) GetStats(ctx context.Context, period string) (*models.AdminStats, error) {
 	stats := &models.AdminStats{}
 
-	err := s.db.QueryRow(ctx, "SELECT COUNT(*) FROM bookings WHERE status = 'pending'").Scan(&stats.PendingCount)
+	normalizedPeriod := normalizeStatsPeriod(period)
+	dateCondition := statsDateCondition("b", normalizedPeriod)
+	periodDays := statsPeriodDays(normalizedPeriod)
+	if periodDays == 0 {
+		err := s.db.QueryRow(ctx, fmt.Sprintf(
+			`SELECT COALESCE(COUNT(DISTINCT b.booking_date), 0)
+			 FROM bookings b
+			 WHERE b.status = 'confirmed' AND %s`,
+			dateCondition,
+		)).Scan(&periodDays)
+		if err != nil {
+			return nil, fmt.Errorf("period days: %w", err)
+		}
+		if periodDays == 0 {
+			periodDays = 1
+		}
+	}
+
+	err := s.db.QueryRow(ctx, fmt.Sprintf(
+		"SELECT COUNT(*) FROM bookings b WHERE b.status = 'pending' AND %s",
+		dateCondition,
+	)).Scan(&stats.PendingCount)
 	if err != nil {
 		return nil, fmt.Errorf("pending count: %w", err)
 	}
@@ -345,30 +366,164 @@ func (s *Service) GetStats(ctx context.Context) (*models.AdminStats, error) {
 		return nil, fmt.Errorf("total rooms count: %w", err)
 	}
 
-	err = s.db.QueryRow(ctx,
-		`SELECT COUNT(*) FROM bookings
-		 WHERE booking_date = CURRENT_DATE AND status IN ('pending', 'confirmed')`,
-	).Scan(&stats.TodayBookingsCount)
+	err = s.db.QueryRow(ctx, fmt.Sprintf(
+		`SELECT COUNT(*) FROM bookings b
+		 WHERE b.status IN ('pending', 'confirmed') AND %s`,
+		dateCondition,
+	)).Scan(&stats.TodayBookingsCount)
 	if err != nil {
 		return nil, fmt.Errorf("today bookings count: %w", err)
 	}
 
-	// Occupancy rate: confirmed minutes today / (active rooms * 14h * 60min) * 100
-	err = s.db.QueryRow(ctx, `
+	// Occupancy rate: confirmed minutes in selected period / (active rooms * period days * 14h * 60min) * 100
+	err = s.db.QueryRow(ctx, fmt.Sprintf(`
 		SELECT COALESCE(
 			ROUND(
 				COALESCE(
-					SUM(EXTRACT(EPOCH FROM (end_time - start_time)) / 60), 0
+					SUM(EXTRACT(EPOCH FROM (b.end_time - b.start_time)) / 60), 0
 				) / NULLIF(
-					(SELECT COUNT(*) FROM rooms WHERE is_active = true) * 14.0 * 60, 0
+					(SELECT COUNT(*) FROM rooms WHERE is_active = true) * 14.0 * 60 * $1, 0
 				) * 100
 			), 0
 		)
-		FROM bookings
-		WHERE booking_date = CURRENT_DATE AND status = 'confirmed'
-	`).Scan(&stats.OccupancyRate)
+		FROM bookings b
+		WHERE b.status = 'confirmed' AND %s
+	`, dateCondition), periodDays).Scan(&stats.OccupancyRate)
 	if err != nil {
 		return nil, fmt.Errorf("occupancy rate: %w", err)
+	}
+
+	// Bookings by status in selected period.
+	rows, err := s.db.Query(ctx, fmt.Sprintf(`
+		SELECT b.status::text, COUNT(*)::int
+		FROM bookings b
+		WHERE %s
+		GROUP BY b.status
+	`, dateCondition))
+	if err != nil {
+		return nil, fmt.Errorf("bookings by status: %w", err)
+	}
+	defer rows.Close()
+
+	statusCounts := map[string]int{}
+	for rows.Next() {
+		var status string
+		var count int
+		if err := rows.Scan(&status, &count); err != nil {
+			return nil, fmt.Errorf("scan bookings by status: %w", err)
+		}
+		statusCounts[status] = count
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate bookings by status: %w", err)
+	}
+
+	stats.BookingsByStatus = []models.BookingStatusCount{
+		{Status: string(models.StatusPending), Count: statusCounts[string(models.StatusPending)]},
+		{Status: string(models.StatusConfirmed), Count: statusCounts[string(models.StatusConfirmed)]},
+		{Status: string(models.StatusRejected), Count: statusCounts[string(models.StatusRejected)]},
+		{Status: string(models.StatusCancelled), Count: statusCounts[string(models.StatusCancelled)]},
+	}
+
+	// Most booked rooms in selected period.
+	popularRows, err := s.db.Query(ctx, fmt.Sprintf(`
+		SELECT r.id, r.name, r.building, COUNT(*)::int AS booking_count
+		FROM bookings b
+		JOIN rooms r ON r.id = b.room_id
+		WHERE %s
+		GROUP BY r.id, r.name, r.building
+		ORDER BY booking_count DESC, r.name ASC
+		LIMIT 5
+	`, dateCondition))
+	if err != nil {
+		return nil, fmt.Errorf("popular rooms: %w", err)
+	}
+	defer popularRows.Close()
+
+	for popularRows.Next() {
+		var room models.PopularRoom
+		if err := popularRows.Scan(&room.ID, &room.Name, &room.Building, &room.Count); err != nil {
+			return nil, fmt.Errorf("scan popular room: %w", err)
+		}
+		stats.PopularRooms = append(stats.PopularRooms, room)
+	}
+	if err := popularRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate popular rooms: %w", err)
+	}
+	if stats.PopularRooms == nil {
+		stats.PopularRooms = []models.PopularRoom{}
+	}
+
+	// Bookings grouped by day of week (ordered Sunday..Saturday).
+	dayRows, err := s.db.Query(ctx, fmt.Sprintf(`
+		SELECT TO_CHAR(b.booking_date, 'Dy') AS day,
+		       COUNT(*)::int AS booking_count,
+		       EXTRACT(DOW FROM b.booking_date)::int AS dow
+		FROM bookings b
+		WHERE %s
+		GROUP BY dow, day
+		ORDER BY dow
+	`, dateCondition))
+	if err != nil {
+		return nil, fmt.Errorf("bookings by day of week: %w", err)
+	}
+	defer dayRows.Close()
+
+	for dayRows.Next() {
+		var item models.DayOfWeekCount
+		var dow int
+		if err := dayRows.Scan(&item.Day, &item.Count, &dow); err != nil {
+			return nil, fmt.Errorf("scan bookings by day of week: %w", err)
+		}
+		stats.BookingsByDayOfWeek = append(stats.BookingsByDayOfWeek, item)
+	}
+	if err := dayRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate bookings by day of week: %w", err)
+	}
+	if stats.BookingsByDayOfWeek == nil {
+		stats.BookingsByDayOfWeek = []models.DayOfWeekCount{}
+	}
+
+	// Occupancy rate per building in selected period.
+	buildingRows, err := s.db.Query(ctx, fmt.Sprintf(`
+		SELECT r.building,
+		       COALESCE(
+			   ROUND(
+				   COALESCE(
+					   SUM(
+						   CASE
+							   WHEN b.status = 'confirmed' THEN EXTRACT(EPOCH FROM (b.end_time - b.start_time)) / 60
+							   ELSE 0
+						   END
+					   ),
+					   0
+				   ) / NULLIF(COUNT(DISTINCT r.id) * 14.0 * 60 * $1, 0) * 100
+			   ),
+			   0
+		       )::int AS occupancy_rate
+		FROM rooms r
+		LEFT JOIN bookings b ON b.room_id = r.id AND %s
+		WHERE r.is_active = true
+		GROUP BY r.building
+		ORDER BY r.building
+	`, dateCondition), periodDays)
+	if err != nil {
+		return nil, fmt.Errorf("occupancy by building: %w", err)
+	}
+	defer buildingRows.Close()
+
+	for buildingRows.Next() {
+		var item models.BuildingOccupancy
+		if err := buildingRows.Scan(&item.Building, &item.OccupancyRate); err != nil {
+			return nil, fmt.Errorf("scan occupancy by building: %w", err)
+		}
+		stats.OccupancyByBuilding = append(stats.OccupancyByBuilding, item)
+	}
+	if err := buildingRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate occupancy by building: %w", err)
+	}
+	if stats.OccupancyByBuilding == nil {
+		stats.OccupancyByBuilding = []models.BuildingOccupancy{}
 	}
 
 	return stats, nil
@@ -399,4 +554,44 @@ func nullableString(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+func normalizeStatsPeriod(period string) string {
+	switch strings.ToLower(strings.TrimSpace(period)) {
+	case "today", "week", "month", "all":
+		return strings.ToLower(strings.TrimSpace(period))
+	default:
+		return "all"
+	}
+}
+
+func statsDateCondition(alias, period string) string {
+	column := "booking_date"
+	if alias != "" {
+		column = alias + ".booking_date"
+	}
+
+	switch period {
+	case "today":
+		return column + " = CURRENT_DATE"
+	case "week":
+		return column + " >= CURRENT_DATE - INTERVAL '7 days'"
+	case "month":
+		return column + " >= CURRENT_DATE - INTERVAL '30 days'"
+	default:
+		return "TRUE"
+	}
+}
+
+func statsPeriodDays(period string) int {
+	switch period {
+	case "today":
+		return 1
+	case "week":
+		return 7
+	case "month":
+		return 30
+	default:
+		return 0
+	}
 }

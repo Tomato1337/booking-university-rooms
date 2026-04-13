@@ -1,10 +1,10 @@
 import { IconSearch } from "@tabler/icons-react";
 
-import { atom, wrap } from "@reatom/core";
 import { reatomComponent, useWrap } from "@reatom/react";
 import { useEffect, useState } from "react";
 
 import {
+  bookingsPageSearchAtom,
   BookingRow,
   cancelBookingAction,
   cancelBookingErrorAtom,
@@ -32,10 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/shared/ui/alert-dialog";
-import { delay } from "@/shared/lib/utils";
-
-const searchQuery = atom("", "bookingsPage-searchQuery");
-
+import { wrap } from "@reatom/core";
 type BookingsTab = "active" | "history";
 
 function formatBookingDate(value: string): string {
@@ -73,7 +70,7 @@ const BookingsPage = reatomComponent(() => {
     typeof toBookingRowData
   > | null>(null);
 
-  const query = searchQuery();
+  const query = bookingsPageSearchAtom();
   const activeBookings = myBookingsAtom().map(toBookingRowData);
   const historyBookings = myBookingHistoryAtom().map(toBookingRowData);
 
@@ -100,7 +97,7 @@ const BookingsPage = reatomComponent(() => {
   }, [wrapLoadData]);
 
   const wrapSearch = useWrap(async (value: string) => {
-    searchQuery.set(value);
+    bookingsPageSearchAtom.set(value);
     myBookingsSearchAtom.set(value.trim());
 
     if (activeTab === "active") {
@@ -115,21 +112,19 @@ const BookingsPage = reatomComponent(() => {
     roomDetailRoute.go({ roomId: booking.roomId, date: booking.bookingDate });
   });
 
-  const wrapConfirmCancel = useWrap((booking: ReturnType<typeof toBookingRowData>) => {
+  const wrapConfirmCancel = (booking: ReturnType<typeof toBookingRowData>) => {
     setBookingToCancel(booking);
     setCancelDialogOpen(true);
-  });
+  };
 
   const wrapDoCancel = useWrap(async () => {
     if (!bookingToCancel) return;
 
-    const result = await cancelBookingAction(bookingToCancel.id);
-    if (!result) return;
+    const ok = await wrap(cancelBookingAction(bookingToCancel.id));
+    if (!ok) return;
 
     setCancelDialogOpen(false);
     setBookingToCancel(null);
-    fetchMyBookingsAction();
-    fetchMyBookingHistoryAction();
   });
 
   const wrapSelectTab = useWrap((tab: BookingsTab) => {
@@ -204,7 +199,7 @@ const BookingsPage = reatomComponent(() => {
         )}
 
         {/* Table header */}
-        <div className="hidden bg-surface-container-high px-8 py-4 md:grid md:grid-cols-5">
+        <div className="hidden bg-surface-container-high gap-4 px-8 py-4 pl-10 md:grid md:grid-cols-5">
           <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
             Booking Details
           </span>

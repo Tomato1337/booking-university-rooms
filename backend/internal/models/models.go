@@ -69,6 +69,16 @@ type Equipment struct {
 	Icon string    `json:"icon"`
 }
 
+type EquipmentUsageRoom struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+type EquipmentDeleteResult struct {
+	Equipment   Equipment            `json:"equipment"`
+	UsedInRooms []EquipmentUsageRoom `json:"usedInRooms"`
+}
+
 type Room struct {
 	ID          uuid.UUID   `json:"id"`
 	Name        string      `json:"name"`
@@ -78,6 +88,8 @@ type Room struct {
 	Building    string      `json:"building"`
 	Floor       int         `json:"floor"`
 	Photos      []string    `json:"photos"`
+	OpenTime    string      `json:"openTime"`
+	CloseTime   string      `json:"closeTime"`
 	IsActive    bool        `json:"isActive"`
 	CreatedAt   time.Time   `json:"createdAt"`
 	UpdatedAt   time.Time   `json:"-"`
@@ -122,10 +134,11 @@ type RoomCard struct {
 type TimeSlotStatus string
 
 const (
-	SlotAvailable TimeSlotStatus = "available"
-	SlotOccupied  TimeSlotStatus = "occupied"
-	SlotPending   TimeSlotStatus = "pending"
-	SlotYours     TimeSlotStatus = "yours"
+	SlotAvailable    TimeSlotStatus = "available"
+	SlotOccupied     TimeSlotStatus = "occupied"
+	SlotPending      TimeSlotStatus = "pending"
+	SlotYours        TimeSlotStatus = "yours"
+	SlotYoursPending TimeSlotStatus = "yours_pending"
 )
 
 type TimeSlotBooking struct {
@@ -158,6 +171,8 @@ type RoomDetail struct {
 	Building          string               `json:"building"`
 	Floor             int                  `json:"floor"`
 	Photos            []string             `json:"photos"`
+	OpenTime          string               `json:"openTime"`
+	CloseTime         string               `json:"closeTime"`
 	Equipment         []Equipment          `json:"equipment"`
 	TimeSlots         []TimeSlot           `json:"timeSlots"`
 	UserBookingsToday []UserBookingSummary `json:"userBookingsToday"`
@@ -205,12 +220,38 @@ type AdminPendingBooking struct {
 	CreatedAt     time.Time        `json:"createdAt"`
 }
 
+type BookingStatusCount struct {
+	Status string `json:"status"`
+	Count  int    `json:"count"`
+}
+
+type PopularRoom struct {
+	ID       uuid.UUID `json:"id"`
+	Name     string    `json:"name"`
+	Building string    `json:"building"`
+	Count    int       `json:"count"`
+}
+
+type DayOfWeekCount struct {
+	Day   string `json:"day"`
+	Count int    `json:"count"`
+}
+
+type BuildingOccupancy struct {
+	Building      string `json:"building"`
+	OccupancyRate int    `json:"occupancyRate"`
+}
+
 type AdminStats struct {
-	PendingCount       int `json:"pendingCount"`
-	OccupancyRate      int `json:"occupancyRate"`
-	TodayBookingsCount int `json:"todayBookingsCount"`
-	TotalRooms         int `json:"totalRooms"`
-	TotalActiveRooms   int `json:"totalActiveRooms"`
+	PendingCount        int                  `json:"pendingCount"`
+	OccupancyRate       int                  `json:"occupancyRate"`
+	TodayBookingsCount  int                  `json:"todayBookingsCount"`
+	TotalRooms          int                  `json:"totalRooms"`
+	TotalActiveRooms    int                  `json:"totalActiveRooms"`
+	BookingsByStatus    []BookingStatusCount `json:"bookingsByStatus"`
+	PopularRooms        []PopularRoom        `json:"popularRooms"`
+	BookingsByDayOfWeek []DayOfWeekCount     `json:"bookingsByDayOfWeek"`
+	OccupancyByBuilding []BuildingOccupancy  `json:"occupancyByBuilding"`
 }
 
 type AutoRejectedBooking struct {

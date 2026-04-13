@@ -95,6 +95,8 @@ type createRoomRequest struct {
 	Building     string          `json:"building" binding:"required,min=1,max=200"`
 	Floor        int             `json:"floor" binding:"required"`
 	Photos       []string        `json:"photos"`
+	OpenTime     string          `json:"openTime"`
+	CloseTime    string          `json:"closeTime"`
 	EquipmentIDs []string        `json:"equipmentIds"`
 }
 
@@ -115,6 +117,8 @@ func (h *Handler) Create(c *gin.Context) {
 		Building:    req.Building,
 		Floor:       req.Floor,
 		Photos:      req.Photos,
+		OpenTime:    req.OpenTime,
+		CloseTime:   req.CloseTime,
 	}
 	if input.Photos == nil {
 		input.Photos = []string{}
@@ -154,6 +158,8 @@ func (h *Handler) Update(c *gin.Context) {
 		Building:    req.Building,
 		Floor:       req.Floor,
 		Photos:      req.Photos,
+		OpenTime:    req.OpenTime,
+		CloseTime:   req.CloseTime,
 	}
 	if input.Photos == nil {
 		input.Photos = []string{}

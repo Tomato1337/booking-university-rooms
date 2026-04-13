@@ -14,11 +14,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const (
-	dayStart = "08:00"
-	dayEnd   = "22:00"
-)
-
 type interval struct{ start, end string }
 
 type Service struct {
@@ -99,7 +94,7 @@ func (s *Service) Search(ctx context.Context, input SearchInput, currentUserID s
 
 	whereClause := "WHERE " + strings.Join(conditions, " AND ")
 	query := fmt.Sprintf(`
-		SELECT r.id, r.name, r.room_type, r.capacity, r.building, r.floor
+		SELECT r.id, r.name, r.room_type, r.capacity, r.building, r.floor, r.open_time::text, r.close_time::text
 		FROM rooms r
 		%s
 		ORDER BY r.name ASC, r.id ASC
@@ -114,18 +109,20 @@ func (s *Service) Search(ctx context.Context, input SearchInput, currentUserID s
 	defer rows.Close()
 
 	type roomRow struct {
-		id       uuid.UUID
-		name     string
-		roomType models.RoomType
-		capacity int
-		building string
-		floor    int
+		id        uuid.UUID
+		name      string
+		roomType  models.RoomType
+		capacity  int
+		building  string
+		floor     int
+		openTime  string
+		closeTime string
 	}
 
 	var roomRows []roomRow
 	for rows.Next() {
 		var r roomRow
-		if err := rows.Scan(&r.id, &r.name, &r.roomType, &r.capacity, &r.building, &r.floor); err != nil {
+		if err := rows.Scan(&r.id, &r.name, &r.roomType, &r.capacity, &r.building, &r.floor, &r.openTime, &r.closeTime); err != nil {
 			return nil, err
 		}
 		roomRows = append(roomRows, r)
@@ -143,7 +140,7 @@ func (s *Service) Search(ctx context.Context, input SearchInput, currentUserID s
 			return nil, err
 		}
 
-		availability, err := s.computeAvailability(ctx, r.id, date, input.TimeFrom, input.TimeTo)
+		availability, err := s.computeAvailability(ctx, r.id, date, input.TimeFrom, input.TimeTo, r.openTime, r.closeTime)
 		if err != nil {
 			return nil, err
 		}
@@ -192,10 +189,10 @@ func (s *Service) GetDetail(ctx context.Context, roomIDStr, date, currentUserID 
 	var room models.RoomDetail
 	var photos []string
 	err = s.db.QueryRow(ctx,
-		`SELECT id, name, description, room_type, capacity, building, floor, photos
+		`SELECT id, name, description, room_type, capacity, building, floor, photos, open_time::text, close_time::text
 		 FROM rooms WHERE id = $1 AND is_active = true`,
 		roomID,
-	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.Capacity, &room.Building, &room.Floor, &photos)
+	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.Capacity, &room.Building, &room.Floor, &photos, &room.OpenTime, &room.CloseTime)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrRoomNotFound
@@ -213,7 +210,7 @@ func (s *Service) GetDetail(ctx context.Context, roomIDStr, date, currentUserID 
 	}
 	room.Equipment = equip
 
-	timeSlots, userBookings, err := s.buildTimeline(ctx, roomID, date, currentUserID)
+	timeSlots, userBookings, err := s.buildTimeline(ctx, roomID, date, currentUserID, room.OpenTime, room.CloseTime)
 	if err != nil {
 		return nil, err
 	}
@@ -227,11 +224,11 @@ func (s *Service) Create(ctx context.Context, input CreateRoomInput) (*models.Ro
 	room := &models.Room{}
 	var photos []string
 	err := s.db.QueryRow(ctx,
-		`INSERT INTO rooms (name, description, room_type, capacity, building, floor, photos)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)
-		 RETURNING id, name, description, room_type, capacity, building, floor, photos, is_active, created_at, updated_at`,
-		input.Name, input.Description, input.RoomType, input.Capacity, input.Building, input.Floor, input.Photos,
-	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.Capacity, &room.Building, &room.Floor, &photos, &room.IsActive, &room.CreatedAt, &room.UpdatedAt)
+		`INSERT INTO rooms (name, description, room_type, capacity, building, floor, photos, open_time, close_time)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE(NULLIF($8, ''), '08:00')::time, COALESCE(NULLIF($9, ''), '20:00')::time)
+		 RETURNING id, name, description, room_type, capacity, building, floor, photos, is_active, created_at, updated_at, open_time::text, close_time::text`,
+		input.Name, input.Description, input.RoomType, input.Capacity, input.Building, input.Floor, input.Photos, input.OpenTime, input.CloseTime,
+	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.Capacity, &room.Building, &room.Floor, &photos, &room.IsActive, &room.CreatedAt, &room.UpdatedAt, &room.OpenTime, &room.CloseTime)
 	if err != nil {
 		return nil, fmt.Errorf("insert room: %w", err)
 	}
@@ -263,11 +260,11 @@ func (s *Service) Update(ctx context.Context, roomIDStr string, input CreateRoom
 	room := &models.Room{}
 	var photos []string
 	err = s.db.QueryRow(ctx,
-		`UPDATE rooms SET name=$1, description=$2, room_type=$3, capacity=$4, building=$5, floor=$6, photos=$7, updated_at=now()
-		 WHERE id=$8 AND is_active=true
-		 RETURNING id, name, description, room_type, capacity, building, floor, photos, is_active, created_at, updated_at`,
-		input.Name, input.Description, input.RoomType, input.Capacity, input.Building, input.Floor, input.Photos, roomID,
-	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.Capacity, &room.Building, &room.Floor, &photos, &room.IsActive, &room.CreatedAt, &room.UpdatedAt)
+		`UPDATE rooms SET name=$1, description=$2, room_type=$3, capacity=$4, building=$5, floor=$6, photos=$7, open_time=COALESCE(NULLIF($8, ''), '08:00')::time, close_time=COALESCE(NULLIF($9, ''), '20:00')::time, updated_at=now()
+		 WHERE id=$10 AND is_active=true
+		 RETURNING id, name, description, room_type, capacity, building, floor, photos, is_active, created_at, updated_at, open_time::text, close_time::text`,
+		input.Name, input.Description, input.RoomType, input.Capacity, input.Building, input.Floor, input.Photos, input.OpenTime, input.CloseTime, roomID,
+	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.Capacity, &room.Building, &room.Floor, &photos, &room.IsActive, &room.CreatedAt, &room.UpdatedAt, &room.OpenTime, &room.CloseTime)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrRoomNotFound
@@ -384,7 +381,7 @@ type bookingSlot struct {
 	status    models.BookingStatus
 }
 
-func (s *Service) buildTimeline(ctx context.Context, roomID uuid.UUID, date, currentUserID string) ([]models.TimeSlot, []models.UserBookingSummary, error) {
+func (s *Service) buildTimeline(ctx context.Context, roomID uuid.UUID, date, currentUserID, openTime, closeTime string) ([]models.TimeSlot, []models.UserBookingSummary, error) {
 	rows, err := s.db.Query(ctx,
 		`SELECT id, user_id, title, start_time::text, end_time::text, status
 		 FROM bookings
@@ -421,7 +418,7 @@ func (s *Service) buildTimeline(ctx context.Context, roomID uuid.UUID, date, cur
 		userBookings = []models.UserBookingSummary{}
 	}
 
-	timeSlots := buildTimeSlots(slots, currentUserID, dayStart, dayEnd)
+	timeSlots := buildTimeSlots(slots, currentUserID, openTime, closeTime)
 	return timeSlots, userBookings, nil
 }
 
@@ -471,6 +468,9 @@ func buildTimeSlots(slots []bookingSlot, currentUserID, dayStart, dayEnd string)
 
 func determineSlotStatus(b bookingSlot, currentUserID string) models.TimeSlotStatus {
 	if b.userID.String() == currentUserID {
+		if b.status == models.StatusPending {
+			return models.SlotYoursPending
+		}
 		return models.SlotYours
 	}
 	if b.status == models.StatusConfirmed {
@@ -479,7 +479,7 @@ func determineSlotStatus(b bookingSlot, currentUserID string) models.TimeSlotSta
 	return models.SlotPending
 }
 
-func (s *Service) computeAvailability(ctx context.Context, roomID uuid.UUID, date, timeFrom, timeTo string) (*models.RoomAvailability, error) {
+func (s *Service) computeAvailability(ctx context.Context, roomID uuid.UUID, date, timeFrom, timeTo, openTime, closeTime string) (*models.RoomAvailability, error) {
 	rows, err := s.db.Query(ctx,
 		`SELECT start_time::text, end_time::text
 		 FROM bookings
@@ -501,7 +501,7 @@ func (s *Service) computeAvailability(ctx context.Context, roomID uuid.UUID, dat
 		occupied = append(occupied, iv)
 	}
 
-	freeIntervals := computeFreeIntervals(occupied, dayStart, dayEnd)
+	freeIntervals := computeFreeIntervals(occupied, openTime, closeTime)
 
 	isToday := date == time.Now().Format("2006-01-02")
 	nowStr := time.Now().Format("15:04")
@@ -591,5 +591,7 @@ type CreateRoomInput struct {
 	Building     string
 	Floor        int
 	Photos       []string
+	OpenTime     string
+	CloseTime    string
 	EquipmentIDs []uuid.UUID
 }

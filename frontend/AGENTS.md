@@ -1,21 +1,27 @@
 # AGENTS.md — Coding Agent Guide
 
+**Mandatory skill references for frontend work:**
+
+- `frontend/.agents/skills/frontend-reatom-patterns/SKILL.md` — canonical Reatom v1000 patterns for queries/mutations/lifecycle/search/infinite-scroll/cache.
+- `frontend/.agents/skills/frontend-feod-architecture/SKILL.md` — FEOD architecture boundaries and module layering.
+- `frontend/.agents/skills/shadcn/SKILL.md` — shadcn component usage/composition/styling constraints.
+
 ## Build & Dev Commands
 
 ```bash
-pnpm dev              # Start Vite dev server (http://localhost:5173)
-pnpm build            # Type-check (tsc -b) + production build
-pnpm lint             # ESLint across all .ts/.tsx files
+bun run dev              # Start Vite dev server (http://localhost:5173)
+bun run build            # Type-check (tsc -b) + production build
+bun run lint             # ESLint across all .ts/.tsx files
 ```
 
 **Important**: `tsc --noEmit` alone does NOT catch all errors — it uses the root tsconfig
-which has `"files": []`. Always use `pnpm build` (runs `tsc -b`) for real type-checking
+which has `"files": []`. Always use `bun run build` (runs `tsc -b`) for real type-checking
 via project references (`tsconfig.app.json`).
 
 No test runner is configured yet. When added (likely Vitest), single-test will be:
 
 ```bash
-pnpm exec vitest run src/path/to/file.test.ts
+bun exec vitest run src/path/to/file.test.ts
 ```
 
 ## Stack
@@ -28,7 +34,7 @@ pnpm exec vitest run src/path/to/file.test.ts
 - **Styling**: Tailwind CSS v4 (`@tailwindcss/vite`) + shadcn/ui (radix-lyra style)
 - **Icons**: `@tabler/icons-react` — never use other icon libraries
 - **Primitives**: `radix-ui` — import as `import { X } from "radix-ui"` (NOT `@radix-ui/react-x`)
-- **Package manager**: pnpm — ESM (`"type": "module"`)
+- **Package manager**: bun — ESM (`"type": "module"`)
 
 ## Architecture — FEOD (Feature-Sliced + Domain-Driven)
 
@@ -125,7 +131,7 @@ export type LoginRequest = components["schemas"]["LoginRequest"];
 export type RegisterRequest = components["schemas"]["RegisterRequest"];
 ```
 
-**Why**: OpenAPI schema is auto-generated from the backend spec (`docs/openapi.yaml` → `pnpm exec openapi-typescript`). Manual types drift from the actual API. Aliases stay in sync automatically when the schema is regenerated.
+**Why**: OpenAPI schema is auto-generated from the backend spec (`docs/openapi.yaml` → `bun exec openapi-typescript`). Manual types drift from the actual API. Aliases stay in sync automatically when the schema is regenerated.
 
 **When to create app-specific types**: Only for frontend-only concepts not in the API (e.g. `AuthStatus`, `TimeSlotStatus` for UI state, form-specific unions). You can also create mapped types based on API types if needed (e.g. `type UserProfile = Pick<User, "id" | "name" | "avatarUrl">`).
 
@@ -138,6 +144,17 @@ export type RegisterRequest = components["schemas"]["RegisterRequest"];
 5. **Within a module**: layers import downward only: `ui → application → infrastructure → domain`.
 
 ### Reatom Patterns
+
+> Detailed canonical patterns are maintained in:
+> `frontend/.agents/skills/frontend-reatom-patterns/SKILL.md`
+>
+> Use that skill as source of truth for:
+>
+> - Query/mutation patterns (`withAsyncData` vs `withAsync`)
+> - Lifecycle hooks (`onFulfill` + `withCallHook`)
+> - Search/filter behavior policy
+> - Infinite-scroll append semantics
+> - Cache/invalidation policy
 
 - **Initialization**: `src/setup.ts` calls `clearStack()` before anything, then `context.start()`.
   `src/main.tsx` must `import "./setup"` as the very first import.
@@ -316,7 +333,7 @@ Surface order: `lowest` (black) < `surface` < `low` < `container` < `high` < `hi
 ### shadcn Components
 
 - Config: `components.json` (style `radix-lyra`, aliases → `@/shared/ui`).
-- Add: `pnpm exec shadcn@latest add <component>` — verify registry availability first.
+- Add: `bun exec shadcn@latest add <component>` — verify registry availability first.
 - Post-gen: remove shadows, reduce radius, apply surface tokens, add `data-slot`.
 
 ## Error Handling

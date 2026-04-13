@@ -11,6 +11,8 @@ import {
 } from "@/modules/bookings";
 import {
   cancelMyBookingFromRoomDetailAction,
+  invalidateRoomDetailCacheAction,
+  refreshRoomDetailAction,
   TimeGrid,
   type TimeSlot,
   buildRoomDetailTimeGridSlots,
@@ -36,7 +38,7 @@ import { Calendar } from "@/shared/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 
 import { z } from "zod/v4";
-import { parseDateStr, todayUtcStr, toUtcDateStr } from "@/shared/lib/utils";
+import { cn, parseDateStr, todayUtcStr, toUtcDateStr } from "@/shared/lib/utils";
 import { wrap } from "@reatom/core";
 
 function EquipmentIcon({ icon }: { icon: string }) {
@@ -91,7 +93,9 @@ const YourBookingsPanel = reatomComponent(() => {
         {detail.userBookingsToday.map((booking) => (
           <article
             key={booking.id}
-            className="border-l-2 border-primary bg-surface-container-low p-4"
+            className={cn("border-l-2 border-primary bg-surface-container-low p-4", {
+              "border-tertiary": booking.status === "pending",
+            })}
           >
             <h4 className="text-sm font-bold uppercase tracking-wide text-on-surface">
               {booking.title}
@@ -99,7 +103,14 @@ const YourBookingsPanel = reatomComponent(() => {
             <p className="mt-1 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
               {booking.startTime} - {booking.endTime}
             </p>
-            <p className="mt-2 text-[0.65rem] font-bold uppercase tracking-widest text-primary">
+            <p
+              className={cn(
+                "mt-2 text-[0.65rem] font-bold uppercase tracking-widest text-primary",
+                {
+                  "text-tertiary": booking.status === "pending",
+                },
+              )}
+            >
               {booking.status}
             </p>
             <Button
@@ -174,9 +185,13 @@ const RoomDetailPage = reatomComponent(() => {
   const today = new Date();
   const [calendarOpen, setCalendarOpen] = useState(false);
 
-  const wrapLoad = useWrap((nextRoomId: string, nextDate: string) =>
-    loadRoomDetailAction({ roomId: nextRoomId, date: nextDate }),
-  );
+  const wrapLoad = useWrap((nextRoomId: string, nextDate: string) => {
+    const today = todayUtcStr();
+    const safeDate = nextDate < today ? today : nextDate;
+    return loadRoomDetailAction({ roomId: nextRoomId, date: safeDate });
+  });
+
+  const wrapRefresh = useWrap(() => refreshRoomDetailAction());
 
   useLayoutEffect(() => {
     document.documentElement.scrollTo({ top: 0 });
@@ -189,11 +204,15 @@ const RoomDetailPage = reatomComponent(() => {
   const wrapChangeDate = useWrap((next: Date | undefined) => {
     if (!next) return;
     setCalendarOpen(false);
+    if (roomId) {
+      invalidateRoomDetailCacheAction({ roomId, date });
+    }
     roomDetailRoute.go({ roomId, date: toUtcDateStr(next) });
   });
 
   const wrapSelectSlot = useWrap((slot: TimeSlot) => {
-    if (slot.status !== "available" && slot.status !== "pending") return;
+    if (slot.status !== "available" && slot.status !== "pending" && slot.status !== "yours_pending")
+      return;
     if (!slot.startTime || !slot.endTime) return;
 
     setCreateBookingTimeRangeAction({
@@ -301,7 +320,7 @@ const RoomDetailPage = reatomComponent(() => {
 
           <TimeGrid
             title="Daily Occupancy"
-            subtitle={`Date: ${date} (server TZ: UTC)`}
+            subtitle={`${detail?.openTime ?? "08:00"} — ${detail?.closeTime ?? "20:00"} / ${date}`}
             slots={slots}
             onSlotSelect={wrapSelectSlot}
           />
@@ -313,7 +332,7 @@ const RoomDetailPage = reatomComponent(() => {
               roomCapacity={detail.capacity}
               timeSlots={detail.timeSlots}
               userBookingsToday={detail.userBookingsToday}
-              onBooked={() => wrapLoad(roomId, date)}
+              onBooked={wrapRefresh}
             />
           )}
         </div>
@@ -329,7 +348,7 @@ const RoomDetailPage = reatomComponent(() => {
                 roomCapacity={detail.capacity}
                 timeSlots={detail.timeSlots}
                 userBookingsToday={detail.userBookingsToday}
-                onBooked={() => wrapLoad(roomId, date)}
+                onBooked={wrapRefresh}
               />
             )}
           </div>

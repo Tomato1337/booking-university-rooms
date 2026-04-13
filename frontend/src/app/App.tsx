@@ -4,8 +4,9 @@ import type { ReactNode } from "react";
 
 import { urlAtom, withChangeHook } from "@reatom/core";
 import { reatomComponent } from "@reatom/react";
+import { IconLoader2 } from "@tabler/icons-react";
 
-import { authStatusAtom } from "@/modules/auth";
+import { authStatusAtom, currentUserAtom } from "@/modules/auth";
 import { roomsBackHrefAtom } from "@/modules/rooms";
 import { AppSidebar } from "@/modules/sidebar/ui/AppSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/shared/ui/sidebar";
@@ -18,7 +19,6 @@ import {
   roomsRoute,
   rootRoute,
 } from "./routes";
-import { IconLoader2 } from "@tabler/icons-react";
 
 function isRoomsBackHrefValid(href: string | null, roomsHref: string): href is string {
   if (!href) return false;
@@ -76,6 +76,10 @@ const App = reatomComponent(() => {
   // authenticated — redirect away from auth page
   if (authRoute.match()) {
     dashboardRoute.go(undefined, true);
+  }
+
+  if (dashboardRoute.match() && currentUserAtom()?.role !== "admin") {
+    roomsRoute.go(undefined, true);
   }
 
   const currentPage = pageMeta.find(({ route }) => route.match());

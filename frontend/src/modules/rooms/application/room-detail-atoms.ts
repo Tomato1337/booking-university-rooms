@@ -1,75 +1,120 @@
-import { action, atom, wrap } from "@reatom/core";
+import { action, atom, computed, withAsyncData, wrap } from "@reatom/core";
 
 import type { RoomDetail } from "../domain/types";
 import * as roomsApi from "../infrastructure/rooms-api";
-import { roomDetailRoute } from "@/pages/room-detail";
+
+const ROOM_DETAIL_TTL_MS = 60 * 1000;
 
 export interface LoadRoomDetailParams {
   roomId: string;
   date: string;
 }
 
-export const roomDetailAtom = atom<RoomDetail | null>(null, "roomDetail.data");
-export const roomDetailLoadingAtom = atom(false, "roomDetail.loading");
-export const roomDetailErrorAtom = atom<string | null>(null, "roomDetail.error");
+interface RoomDetailCacheEntry {
+  data: RoomDetail;
+  updatedAt: number;
+}
 
-export const loadRoomDetailAction = action(async ({ roomId, date }: LoadRoomDetailParams) => {
-  const today = new Date().toISOString().slice(0, 10);
-  if (date < today) {
-    roomDetailRoute.go({ roomId, date: today }, true);
-    return;
+function roomDetailKey({ roomId, date }: LoadRoomDetailParams): string {
+  return `${roomId}:${date}`;
+}
+
+function isFresh(entry: RoomDetailCacheEntry): boolean {
+  return Date.now() - entry.updatedAt < ROOM_DETAIL_TTL_MS;
+}
+
+const roomDetailParamsAtom = atom<LoadRoomDetailParams | null>(null, "roomDetail.params");
+const roomDetailCacheAtom = atom<Map<string, RoomDetailCacheEntry>>(new Map(), "roomDetail.cache");
+
+export const roomDetailResource = computed(async () => {
+  const params = roomDetailParamsAtom();
+  if (!params) return null;
+
+  if (!params.roomId) {
+    throw new Error("Room id is missing");
   }
 
-  if (!roomId) {
-    roomDetailAtom.set(null);
-    roomDetailErrorAtom.set("Room id is missing");
-    return;
+  const cacheKey = roomDetailKey(params);
+  const cached = roomDetailCacheAtom().get(cacheKey);
+  if (cached && isFresh(cached)) {
+    return cached.data;
   }
 
-  roomDetailLoadingAtom.set(true);
-  roomDetailErrorAtom.set(null);
+  const { data, error } = await wrap(roomsApi.getRoomDetail(params.roomId, params.date));
 
-  try {
-    const { data } = await wrap(roomsApi.getRoomDetail(roomId, date));
-
-    if (!data) {
-      roomDetailAtom.set(null);
-      roomDetailErrorAtom.set("Failed to load room");
-      roomDetailLoadingAtom.set(false);
-      return;
-    }
-
-    roomDetailAtom.set(data.data);
-  } catch (err) {
-    roomDetailAtom.set(null);
-    roomDetailErrorAtom.set(err instanceof Error ? err.message : "Failed to load room");
+  if (error || !data) {
+    throw new Error("Failed to load room");
   }
 
-  roomDetailLoadingAtom.set(false);
+  roomDetailCacheAtom.set((cache) => {
+    const next = new Map(cache);
+    next.set(cacheKey, {
+      data: data.data,
+      updatedAt: Date.now(),
+    });
+    return next;
+  });
+
+  return data.data;
+}, "roomDetail.resource").extend(
+  withAsyncData({
+    initState: null as RoomDetail | null,
+    status: true,
+    parseError: (error) => (error instanceof Error ? error : new Error(String(error))),
+  }),
+);
+
+export const roomDetailAtom = computed(() => roomDetailResource.data(), "roomDetail.data");
+export const roomDetailLoadingAtom = computed(
+  () => !roomDetailResource.ready(),
+  "roomDetail.loading",
+);
+export const roomDetailErrorAtom = computed(() => {
+  const error = roomDetailResource.error();
+  return error?.message ?? null;
+}, "roomDetail.error");
+
+export const loadRoomDetailAction = action(async (params: LoadRoomDetailParams) => {
+  roomDetailParamsAtom.set(params);
+  return await wrap(roomDetailResource.retry());
 }, "roomDetail.load");
 
+export const invalidateRoomDetailCacheAction = action((params?: LoadRoomDetailParams) => {
+  if (!params) {
+    roomDetailCacheAtom.set(() => new Map());
+    return;
+  }
+
+  const key = roomDetailKey(params);
+  roomDetailCacheAtom.set((cache) => {
+    if (!cache.has(key)) return cache;
+    const next = new Map(cache);
+    next.delete(key);
+    return next;
+  });
+}, "roomDetail.invalidateCache");
+
+export const refreshRoomDetailAction = action(async () => {
+  const params = roomDetailParamsAtom();
+  if (!params) return null;
+
+  invalidateRoomDetailCacheAction(params);
+  return await wrap(roomDetailResource.retry());
+}, "roomDetail.refresh");
+
 export const cancelMyBookingFromRoomDetailAction = action(async (bookingId: string) => {
-  const { cancelBookingAction, fetchMyBookingsAction, fetchMyBookingHistoryAction } = await wrap(
+  const { cancelBookingAction, fetchMyBookingHistoryAction, fetchMyBookingsAction } = await wrap(
     import("@/modules/bookings"),
   );
-  const result = await wrap(cancelBookingAction(bookingId));
 
+  const result = await wrap(cancelBookingAction(bookingId));
   if (!result) {
     return false;
   }
 
-  await wrap(fetchMyBookingsAction());
-  await wrap(fetchMyBookingHistoryAction());
-
-  const params = roomDetailRoute();
-  if (params?.roomId) {
-    await wrap(
-      loadRoomDetailAction({
-        roomId: params.roomId,
-        date: params.date ?? new Date().toISOString().slice(0, 10),
-      }),
-    );
-  }
+  void (async () => await wrap(fetchMyBookingsAction()))().catch(() => null);
+  void (async () => await wrap(fetchMyBookingHistoryAction()))().catch(() => null);
+  void (async () => await wrap(refreshRoomDetailAction()))().catch(() => null);
 
   return true;
 }, "roomDetail.cancelMyBooking");

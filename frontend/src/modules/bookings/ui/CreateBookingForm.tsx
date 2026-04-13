@@ -14,8 +14,6 @@ import {
   createBookingErrorAtom,
   createBookingForm,
   createBookingStatusAtom,
-  fetchMyBookingHistoryAction,
-  fetchMyBookingsAction,
 } from "../application/create-booking-form";
 import type { BookingPurpose, TimeSlotFromApi, UserBookingSummary } from "../domain/types";
 import { wrap } from "@reatom/core";
@@ -94,7 +92,6 @@ const CreateBookingForm = reatomComponent(
       !attendeeExceedsCapacity;
 
     const wrapSubmit = useWrap(async () => {
-      createBookingStatusAtom.set("idle");
       createBookingErrorAtom.set(null);
 
       const success = await wrap(
@@ -110,8 +107,6 @@ const CreateBookingForm = reatomComponent(
       );
 
       if (success) {
-        await wrap(fetchMyBookingsAction());
-        await wrap(fetchMyBookingHistoryAction());
         onBooked();
         createBookingForm.reset();
       }

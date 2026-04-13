@@ -16,6 +16,7 @@ function parseHmToMinutes(value: string): number | null {
 
 function toUiSlotStatus(status: RoomDetail["timeSlots"][number]["status"]): TimeSlot["status"] {
   if (status === "occupied") return "booked"
+  if (status === "yours_pending") return "yours_pending"
   return status
 }
 
@@ -34,7 +35,7 @@ export function buildRoomDetailTimeGridSlots(timeSlots: RoomDetail["timeSlots"])
       endLabel: slot.endTime,
       startTime: slot.startTime,
       endTime: slot.endTime,
-      label: slot.status === "yours" ? "YOUR_SLOT" : undefined,
+      label: slot.status === "yours" ? "YOUR_SLOT" : slot.status === "yours_pending" ? "PENDING" : undefined,
     }
   })
 }

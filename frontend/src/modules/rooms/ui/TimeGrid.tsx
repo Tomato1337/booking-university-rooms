@@ -2,7 +2,7 @@ import type { ComponentProps } from "react";
 
 import { cn } from "@/shared/lib/utils";
 
-export type TimeSlotStatus = "available" | "booked" | "pending" | "yours";
+export type TimeSlotStatus = "available" | "booked" | "pending" | "yours" | "yours_pending";
 
 export interface TimeSlot {
   /** Slot status determines color */
@@ -38,7 +38,8 @@ const statusColorMap: Record<TimeSlotStatus, string> = {
   available: "bg-primary",
   booked: "bg-secondary",
   pending: "bg-tertiary",
-  yours: "bg-primary border-dotted border-4 border-accent-foreground",
+  yours: "bg-primary border-dashed border-4 border-accent-foreground",
+  yours_pending: "bg-tertiary border-dashed border-4 border-accent-foreground",
 };
 
 const statusLabelMap: Record<TimeSlotStatus, string> = {
@@ -46,9 +47,10 @@ const statusLabelMap: Record<TimeSlotStatus, string> = {
   booked: "Booked",
   pending: "Pending",
   yours: "Your Session",
+  yours_pending: "Your Pending",
 };
 
-const LEGEND_ORDER: TimeSlotStatus[] = ["available", "booked", "pending", "yours"];
+const LEGEND_ORDER: TimeSlotStatus[] = ["available", "booked", "pending", "yours", "yours_pending"];
 
 function TimeGrid({
   slots,

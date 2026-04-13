@@ -271,9 +271,9 @@ export const mockRooms: RoomCard[] = [
   },
 ]
 
-const mockRoomMetaById: Record<
+export const mockRoomMetaById: Record<
   string,
-  Pick<RoomDetail, "id" | "name" | "description" | "roomType" | "capacity" | "building" | "floor" | "photos" | "equipment">
+  Pick<RoomDetail, "id" | "name" | "description" | "roomType" | "capacity" | "building" | "floor" | "photos" | "equipment" | "openTime" | "closeTime">
 > = Object.fromEntries(
   mockRooms.map((room) => {
     const meta = {
@@ -286,6 +286,8 @@ const mockRoomMetaById: Record<
       floor: room.floor,
       photos: [],
       equipment: room.equipment,
+      openTime: "08:00",
+      closeTime: "20:00",
     }
     return [room.id, meta]
   }),
@@ -344,16 +346,14 @@ function toHm(minutes: number): string {
 }
 
 function getWorkingRange(roomId: string): { start: number; end: number } {
-  const room = mockRooms.find((item) => item.id === roomId)
-  const range = room?.availability.availableTimeRange
+  const meta = mockRoomMetaById[roomId]
 
-  if (!range) {
+  if (!meta) {
     return { start: 8 * 60, end: 20 * 60 }
   }
 
-  const [from, to] = range.split(" — ")
-  const start = parseHmToMinutes(from)
-  const end = parseHmToMinutes(to)
+  const start = parseHmToMinutes(meta.openTime)
+  const end = parseHmToMinutes(meta.closeTime)
 
   if (start === null || end === null || end <= start) {
     return { start: 8 * 60, end: 20 * 60 }
@@ -411,10 +411,14 @@ function buildTimeSlotsForRoomDate(
       return bookingStart <= segmentStart && bookingEnd >= segmentEnd
     })
 
+    const slotStatus = activeBooking
+      ? activeBooking.status === "pending" ? "yours_pending" : "yours"
+      : "available"
+
     timeSlots.push({
       startTime: toHm(segmentStart),
       endTime: toHm(segmentEnd),
-      status: activeBooking ? "yours" : "available",
+      status: slotStatus,
       booking: activeBooking
         ? {
             id: activeBooking.id,
@@ -492,6 +496,14 @@ function syncUserBookingsForRoomDate(roomId: string, date: string) {
 export function invalidateMockRoomDetail(params: { roomId: string; date: string }) {
   const key = roomDateKey(params.roomId, params.date)
   mockRoomDetailsByDate.delete(key)
+}
+
+export function invalidateAllMockRoomDetails(roomId: string) {
+  for (const key of mockRoomDetailsByDate.keys()) {
+    if (key.startsWith(`${roomId}|`)) {
+      mockRoomDetailsByDate.delete(key)
+    }
+  }
 }
 
 export function getMockRoomDetail(roomId: string, date?: string | null): RoomDetail | null {

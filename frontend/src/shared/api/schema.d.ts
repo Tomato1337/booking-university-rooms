@@ -285,6 +285,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/bookings/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List admin booking history
+         * @description Admin dashboard — paginated list of all processed bookings (confirmed, rejected, cancelled).
+         */
+        get: operations["getAdminBookingHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/bookings/{bookingId}/approve": {
         parameters: {
             query?: never;
@@ -325,6 +345,50 @@ export interface paths {
         head?: never;
         /** Reject a pending booking */
         patch: operations["rejectBooking"];
+        trace?: never;
+    };
+    "/admin/equipment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create new equipment
+         * @description Adds a new equipment item to the catalogue.
+         */
+        post: operations["createEquipment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/equipment/{equipmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update equipment
+         * @description Updates an existing equipment item.
+         */
+        put: operations["updateEquipment"];
+        post?: never;
+        /**
+         * Delete equipment
+         * @description Soft-deletes or completely removes an equipment item.
+         */
+        delete: operations["deleteEquipment"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/admin/stats": {
@@ -380,10 +444,10 @@ export interface components {
         /** @enum {string} */
         BookingPurpose: "academic_lecture" | "research_workshop" | "collaborative_study" | "technical_assessment";
         /**
-         * @description Priority: yours > occupied > pending > available
+         * @description Priority: yours > yours_pending > occupied > pending > available
          * @enum {string}
          */
-        TimeSlotStatus: "available" | "occupied" | "pending" | "yours";
+        TimeSlotStatus: "available" | "occupied" | "pending" | "yours" | "yours_pending";
         User: {
             /** Format: uuid */
             id: string;
@@ -438,6 +502,16 @@ export interface components {
             building: string;
             floor: number;
             photos?: string[];
+            /**
+             * @description Room opens at this time
+             * @example 08:00
+             */
+            openTime: string;
+            /**
+             * @description Room closes at this time
+             * @example 20:00
+             */
+            closeTime: string;
             equipment: components["schemas"]["EquipmentItem"][];
             timeSlots: components["schemas"]["TimeSlot"][];
             userBookingsToday: components["schemas"]["UserBookingSummary"][];
@@ -557,6 +631,25 @@ export interface components {
             totalRooms: number;
             /** @example 40 */
             totalActiveRooms: number;
+            bookingsByStatus?: {
+                status: string;
+                count: number;
+            }[];
+            popularRooms?: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                building: string;
+                count: number;
+            }[];
+            bookingsByDayOfWeek?: {
+                day: string;
+                count: number;
+            }[];
+            occupancyByBuilding?: {
+                building: string;
+                occupancyRate: number;
+            }[];
         };
         RoomFull: {
             /** Format: uuid */
@@ -567,6 +660,16 @@ export interface components {
             capacity: number;
             building: string;
             floor: number;
+            /**
+             * @description Room opens at this time
+             * @example 08:00
+             */
+            openTime: string;
+            /**
+             * @description Room closes at this time
+             * @example 20:00
+             */
+            closeTime: string;
             photos?: string[];
             equipment: components["schemas"]["EquipmentItem"][];
             /** Format: date-time */
@@ -608,21 +711,29 @@ export interface components {
         };
         CreateRoomRequest: {
             name: string;
-            description?: string;
+            description?: string | null;
             roomType: components["schemas"]["RoomType"];
             capacity: number;
             building: string;
             floor: number;
+            /** @example 08:00 */
+            openTime: string;
+            /** @example 20:00 */
+            closeTime: string;
             photos?: string[];
             equipmentIds?: string[];
         };
         UpdateRoomRequest: {
-            name: string;
-            description?: string;
-            roomType: components["schemas"]["RoomType"];
-            capacity: number;
-            building: string;
-            floor: number;
+            name?: string;
+            description?: string | null;
+            roomType?: components["schemas"]["RoomType"];
+            capacity?: number;
+            building?: string;
+            floor?: number;
+            /** @example 08:00 */
+            openTime?: string;
+            /** @example 20:00 */
+            closeTime?: string;
             photos?: string[];
             equipmentIds?: string[];
         };
@@ -1508,6 +1619,38 @@ export interface operations {
             403: components["responses"]["Forbidden"];
         };
     };
+    getAdminBookingHistory: {
+        parameters: {
+            query?: {
+                /** @description Free-text search */
+                search?: components["parameters"]["SearchParam"];
+                /** @description Number of items per page */
+                limit?: components["parameters"]["LimitParam"];
+                /** @description Cursor from a previous response's `meta.nextCursor` */
+                cursor?: components["parameters"]["CursorParam"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated booking history with total count */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminPendingBooking"][];
+                        meta: components["schemas"]["CursorPaginationMetaWithTotal"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
     approveBooking: {
         parameters: {
             query?: never;
@@ -1642,6 +1785,100 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+        };
+    };
+    createEquipment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example Projector */
+                    name: string;
+                    /** @example icon-projector */
+                    icon: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created equipment item */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["EquipmentItem"];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updateEquipment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                equipmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example High-res Projector */
+                    name: string;
+                    /** @example icon-projector */
+                    icon: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Updated equipment item */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["EquipmentItem"];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteEquipment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                equipmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Equipment deleted successfully */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getAdminStats: {

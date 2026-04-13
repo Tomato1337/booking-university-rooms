@@ -22,6 +22,7 @@ import (
 	adminsvc "booking-university-rooms/backend/internal/services/admin"
 	authsvc "booking-university-rooms/backend/internal/services/auth"
 	bookingssvc "booking-university-rooms/backend/internal/services/bookings"
+	equipmentsvc "booking-university-rooms/backend/internal/services/equipment"
 	roomssvc "booking-university-rooms/backend/internal/services/rooms"
 	"booking-university-rooms/backend/internal/utils"
 
@@ -49,12 +50,13 @@ func main() {
 	authService := authsvc.NewService(pool, cfg.JWTSecret, cfg.JWTRefreshSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 	roomsService := roomssvc.NewService(pool)
 	bookingsService := bookingssvc.NewService(pool)
+	equipmentService := equipmentsvc.NewService(pool)
 	adminService := adminsvc.NewService(pool)
 
 	// Handlers
 	authH := authhandler.NewHandler(authService, cfg.JWTRefreshTTL)
 	roomsH := roomshandler.NewHandler(roomsService)
-	equipH := equipmenthandler.NewHandler(roomsService)
+	equipH := equipmenthandler.NewHandler(equipmentService)
 	bookingsH := bookingshandler.NewHandler(bookingsService)
 	adminH := adminhandler.NewHandler(adminService)
 
@@ -148,6 +150,9 @@ func main() {
 		admin.PATCH("/bookings/:bookingId/approve", adminH.Approve)
 		admin.PATCH("/bookings/:bookingId/reject", adminH.Reject)
 		admin.GET("/stats", adminH.GetStats)
+		admin.POST("/equipment", equipH.Create)
+		admin.PUT("/equipment/:equipmentId", equipH.Update)
+		admin.DELETE("/equipment/:equipmentId", equipH.Delete)
 	}
 
 	// Public rate limit on non-authed non-auth endpoints

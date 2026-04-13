@@ -5,11 +5,13 @@ import { Slot } from "radix-ui";
 import { cn } from "@/shared/lib/utils";
 
 const buttonVariants = cva(
-  "group/button cursor-pointer inline-flex shrink-0 items-center justify-center rounded-none border border-transparent bg-clip-padding text-xs font-medium whitespace-nowrap transition-colors duration-150 ease-linear outline-none select-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-1 aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button cursor-pointer relative inline-flex shrink-0 items-center justify-center rounded-none border border-transparent bg-clip-padding text-xs font-medium whitespace-nowrap transition-colors duration-150 ease-linear outline-none select-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-1 aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground hover:bg-primary-dim",
+        "sidebar-active":
+          "bg-primary/20 transition-all text-primary hover:bg-primary-dim hover:text-primary-foreground before:absolute before:h-full before:w-2 before:-left-1 before:rounded-none before:bg-primary before:content-['']",
         outline:
           "border-outline-variant bg-transparent text-on-surface hover:bg-surface-container-high",
         secondary: "bg-surface-container-highest text-on-surface hover:bg-surface-container-high",

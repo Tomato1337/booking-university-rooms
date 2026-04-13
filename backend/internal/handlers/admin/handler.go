@@ -99,7 +99,8 @@ func (h *Handler) Reject(c *gin.Context) {
 }
 
 func (h *Handler) GetStats(c *gin.Context) {
-	stats, err := h.service.GetStats(c.Request.Context())
+	period := c.Query("period")
+	stats, err := h.service.GetStats(c.Request.Context(), period)
 	if err != nil {
 		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
 		return

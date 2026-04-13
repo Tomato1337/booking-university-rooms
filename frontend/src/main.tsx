@@ -13,7 +13,8 @@ async function bootstrap() {
     const { authMockHandlers } = await import("@/modules/auth")
     const { roomsMockHandlers } = await import("@/modules/rooms")
     const { bookingsMockHandlers } = await import("@/modules/bookings")
-    await startMockWorker(...authMockHandlers, ...roomsMockHandlers, ...bookingsMockHandlers)
+    const { adminMockHandlers } = await import("@/modules/admin/infrastructure/mocks/handlers")
+    await startMockWorker(...authMockHandlers, ...roomsMockHandlers, ...bookingsMockHandlers, ...adminMockHandlers)
   }
 
   rootFrame.run(checkAuthAction)

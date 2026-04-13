@@ -1,153 +1,243 @@
-import { action, atom, reatomForm, withAbort, wrap } from "@reatom/core";
+import { action, atom, computed, reatomForm, withAsync, withAsyncData, wrap } from "@reatom/core"
 
-import { createBookingSchema } from "../domain/schemas";
+import { createBookingSchema } from "../domain/schemas"
 import type {
   ApiErrorResponse,
   Booking,
-  CancelBookingResult,
   BookingPurpose,
+  CancelBookingResult,
   CreateBookingRequest,
   MyBooking,
-} from "../domain/types";
-import * as bookingsApi from "../infrastructure/bookings-api";
-import { delay } from "@/shared/lib/utils";
+} from "../domain/types"
+import * as bookingsApi from "../infrastructure/bookings-api"
 
-export const createBookingStatusAtom = atom<"idle" | "submitting" | "success" | "error">(
-  "idle",
-  "bookings.create.status",
-);
-export const createBookingErrorAtom = atom<string | null>(null, "bookings.create.error");
-export const lastCreatedBookingAtom = atom<Booking | null>(null, "bookings.create.last");
+const BOOKINGS_TTL_MS = 2 * 60 * 1000
 
-export const myBookingsAtom = atom<MyBooking[]>([], "bookings.my.data");
-export const myBookingsLoadingAtom = atom(false, "bookings.my.loading");
-export const myBookingsErrorAtom = atom<string | null>(null, "bookings.my.error");
-export const myBookingsSearchAtom = atom("", "bookings.my.search");
-
-export const myBookingHistoryAtom = atom<MyBooking[]>([], "bookings.myHistory.data");
-export const myBookingHistoryLoadingAtom = atom(false, "bookings.myHistory.loading");
-export const myBookingHistoryErrorAtom = atom<string | null>(null, "bookings.myHistory.error");
-
-export const cancelBookingStatusAtom = atom<"idle" | "submitting" | "success" | "error">(
-  "idle",
-  "bookings.cancel.status",
-);
-export const cancelBookingErrorAtom = atom<string | null>(null, "bookings.cancel.error");
-
-function toApiErrorMessage(error: unknown, fallback: string): string {
-  const apiError = error as ApiErrorResponse | undefined;
-  const code = apiError?.error?.code;
-  const message = apiError?.error?.message;
-
-  if (message) return message;
-
-  if (code === "BOOKING_CONFLICT") return "Requested time overlaps a confirmed booking";
-  if (code === "BOOKING_IN_PAST") return "Cannot create a booking in the past";
-  if (code === "INVALID_TIME_RANGE") return "End time must be after start time";
-  if (code === "CAPACITY_EXCEEDED") return "Attendee count exceeds room capacity";
-  if (code === "VALIDATION_ERROR") return "Please check the form fields";
-  if (code === "RATE_LIMIT_EXCEEDED") return "Too many requests, try again later";
-  if (code === "BOOKING_ALREADY_PROCESSED") return "Booking has already been processed";
-  if (code === "NOT_OWNER") return "You can only cancel your own bookings";
-  if (code === "BOOKING_NOT_FOUND") return "Booking not found";
-
-  return fallback;
+interface BookingsCacheEntry {
+  data: MyBooking[]
+  updatedAt: number
 }
 
-export const createBookingAction = action(async (body: CreateBookingRequest) => {
-  createBookingStatusAtom.set("submitting");
-  createBookingErrorAtom.set(null);
-  lastCreatedBookingAtom.set(null);
+function isFresh(entry: BookingsCacheEntry): boolean {
+  return Date.now() - entry.updatedAt < BOOKINGS_TTL_MS
+}
 
-  await wrap(delay(1000)); // Simulate network delay
-  const { data, error } = await wrap(bookingsApi.createBooking(body));
+function normalizeSearch(value: string): string {
+  return value.trim().toLowerCase()
+}
 
-  if (error || !data) {
-    createBookingStatusAtom.set("error");
-    createBookingErrorAtom.set(toApiErrorMessage(error, "Booking failed"));
-    return false;
+function toApiErrorMessage(error: unknown, fallback: string): string {
+  const apiError = error as ApiErrorResponse | undefined
+  const code = apiError?.error?.code
+  const message = apiError?.error?.message
+
+  if (message) return message
+
+  if (code === "BOOKING_CONFLICT") return "Requested time overlaps a confirmed booking"
+  if (code === "BOOKING_IN_PAST") return "Cannot create a booking in the past"
+  if (code === "INVALID_TIME_RANGE") return "End time must be after start time"
+  if (code === "CAPACITY_EXCEEDED") return "Attendee count exceeds room capacity"
+  if (code === "VALIDATION_ERROR") return "Please check the form fields"
+  if (code === "RATE_LIMIT_EXCEEDED") return "Too many requests, try again later"
+  if (code === "BOOKING_ALREADY_PROCESSED") return "Booking has already been processed"
+  if (code === "NOT_OWNER") return "You can only cancel your own bookings"
+  if (code === "BOOKING_NOT_FOUND") return "Booking not found"
+
+  return fallback
+}
+
+const bookingsCacheAtom = atom<Map<string, BookingsCacheEntry>>(new Map(), "bookings.cache")
+const bookingsHistoryCacheAtom = atom<Map<string, BookingsCacheEntry>>(
+  new Map(),
+  "bookings.historyCache",
+)
+
+export const createBookingErrorAtom = atom<string | null>(null, "bookings.create.error")
+export const lastCreatedBookingAtom = atom<Booking | null>(null, "bookings.create.last")
+
+export const myBookingsSearchAtom = atom("", "bookings.my.search")
+export const bookingsPageSearchAtom = atom("", "bookings.page.search")
+
+const activeBookingsResource = computed(async () => {
+  const search = normalizeSearch(myBookingsSearchAtom())
+  const cached = bookingsCacheAtom().get(search)
+  if (cached && isFresh(cached)) {
+    return cached.data
   }
-
-  lastCreatedBookingAtom.set(data.data);
-  createBookingStatusAtom.set("success");
-  return true;
-}, "bookings.create");
-
-export const fetchMyBookingsAction = action(async () => {
-  await wrap(delay(300)); // Debounce search input
-
-  myBookingsLoadingAtom.set(true);
-  myBookingsErrorAtom.set(null);
 
   const { data, error } = await wrap(
     bookingsApi.getMyBookings({
-      search: myBookingsSearchAtom() || undefined,
+      search: search || undefined,
       limit: 50,
     }),
-  );
+  )
 
   if (error || !data) {
-    myBookingsAtom.set([]);
-    myBookingsErrorAtom.set(toApiErrorMessage(error, "Failed to load bookings"));
-    myBookingsLoadingAtom.set(false);
-    return;
+    throw new Error(toApiErrorMessage(error, "Failed to load bookings"))
   }
 
-  myBookingsAtom.set(data.data);
-  myBookingsLoadingAtom.set(false);
-}, "bookings.my.fetch").extend(withAbort());
+  bookingsCacheAtom.set((cache) => {
+    const next = new Map(cache)
+    next.set(search, {
+      data: data.data,
+      updatedAt: Date.now(),
+    })
+    return next
+  })
 
-export const fetchMyBookingHistoryAction = action(async () => {
-  await wrap(delay(300)); // Debounce search input
+  return data.data
+}, "bookings.my.resource").extend(
+  withAsyncData({
+    initState: [] as MyBooking[],
+    status: true,
+    resetError: "onCall",
+    parseError: (error) => (error instanceof Error ? error : new Error(String(error))),
+  }),
+)
 
-  myBookingHistoryLoadingAtom.set(true);
-  myBookingHistoryErrorAtom.set(null);
+const historyBookingsResource = computed(async () => {
+  const search = normalizeSearch(myBookingsSearchAtom())
+  const cached = bookingsHistoryCacheAtom().get(search)
+  if (cached && isFresh(cached)) {
+    return cached.data
+  }
 
   const { data, error } = await wrap(
     bookingsApi.getMyBookingHistory({
-      search: myBookingsSearchAtom() || undefined,
+      search: search || undefined,
       limit: 50,
     }),
-  );
+  )
 
   if (error || !data) {
-    myBookingHistoryAtom.set([]);
-    myBookingHistoryErrorAtom.set(toApiErrorMessage(error, "Failed to load booking history"));
-    myBookingHistoryLoadingAtom.set(false);
-    return;
+    throw new Error(toApiErrorMessage(error, "Failed to load booking history"))
   }
 
-  myBookingHistoryAtom.set(data.data);
-  myBookingHistoryLoadingAtom.set(false);
-}, "bookings.myHistory.fetch").extend(withAbort());
+  bookingsHistoryCacheAtom.set((cache) => {
+    const next = new Map(cache)
+    next.set(search, {
+      data: data.data,
+      updatedAt: Date.now(),
+    })
+    return next
+  })
+
+  return data.data
+}, "bookings.myHistory.resource").extend(
+  withAsyncData({
+    initState: [] as MyBooking[],
+    status: true,
+    resetError: "onCall",
+    parseError: (error) => (error instanceof Error ? error : new Error(String(error))),
+  }),
+)
+
+export const myBookingsAtom = computed(() => activeBookingsResource.data(), "bookings.my.data")
+export const myBookingsLoadingAtom = computed(
+  () => !activeBookingsResource.ready(),
+  "bookings.my.loading",
+)
+export const myBookingsErrorAtom = computed(() => {
+  const error = activeBookingsResource.error()
+  return error?.message ?? null
+}, "bookings.my.error")
+
+export const myBookingHistoryAtom = computed(
+  () => historyBookingsResource.data(),
+  "bookings.myHistory.data",
+)
+export const myBookingHistoryLoadingAtom = computed(
+  () => !historyBookingsResource.ready(),
+  "bookings.myHistory.loading",
+)
+export const myBookingHistoryErrorAtom = computed(() => {
+  const error = historyBookingsResource.error()
+  return error?.message ?? null
+}, "bookings.myHistory.error")
+
+export const createBookingAction = action(async (body: CreateBookingRequest) => {
+  createBookingErrorAtom.set(null)
+  lastCreatedBookingAtom.set(null)
+
+  const { data, error } = await wrap(bookingsApi.createBooking(body))
+
+  if (error || !data) {
+    const message = toApiErrorMessage(error, "Booking failed")
+    createBookingErrorAtom.set(message)
+    throw new Error(message)
+  }
+
+  const created = data.data
+  lastCreatedBookingAtom.set(created)
+
+  bookingsCacheAtom.set(() => new Map())
+  bookingsHistoryCacheAtom.set(() => new Map())
+
+  void wrap(activeBookingsResource.retry()).catch(() => null)
+  void wrap(historyBookingsResource.retry()).catch(() => null)
+
+  return created
+}, "bookings.create").extend(withAsync({ status: true }))
+
+export const fetchMyBookingsAction = action(async () => {
+  return await wrap(activeBookingsResource.retry())
+}, "bookings.my.fetch").extend(withAsync({ status: true }))
+
+export const fetchMyBookingHistoryAction = action(async () => {
+  return await wrap(historyBookingsResource.retry())
+}, "bookings.myHistory.fetch").extend(withAsync({ status: true }))
 
 export const cancelBookingAction = action(async (bookingId: string) => {
-  cancelBookingStatusAtom.set("submitting");
-  cancelBookingErrorAtom.set(null);
-
-  const { data, error } = await wrap(bookingsApi.cancelBooking(bookingId));
+  const { data, error } = await wrap(bookingsApi.cancelBooking(bookingId))
 
   if (error || !data) {
-    cancelBookingStatusAtom.set("error");
-    cancelBookingErrorAtom.set(toApiErrorMessage(error, "Failed to cancel booking"));
-    return null;
+    throw new Error(toApiErrorMessage(error, "Failed to cancel booking"))
   }
 
-  const result = data.data as CancelBookingResult;
+  const result = data.data as CancelBookingResult
 
-  myBookingsAtom.set(myBookingsAtom().filter((booking) => booking.id !== bookingId));
+  bookingsCacheAtom.set(() => new Map())
+  bookingsHistoryCacheAtom.set(() => new Map())
 
-  cancelBookingStatusAtom.set("success");
-  return result;
-}, "bookings.cancel");
+  void wrap(activeBookingsResource.retry()).catch(() => null)
+  void wrap(historyBookingsResource.retry()).catch(() => null)
+
+  return result
+}, "bookings.cancel").extend(withAsync({ status: true }))
+
+export const createBookingStatusAtom = computed(() => {
+  const status = createBookingAction.status()
+  if (status.isPending) return "submitting"
+  if (status.isRejected) return "error"
+  if (status.isFulfilled) return "success"
+  return "idle"
+}, "bookings.create.status")
+
+export const cancelBookingStatusAtom = computed(() => {
+  const status = cancelBookingAction.status()
+  if (status.isPending) return "submitting"
+  if (status.isRejected) return "error"
+  if (status.isFulfilled) return "success"
+  return "idle"
+}, "bookings.cancel.status")
+
+export const cancelBookingErrorAtom = computed(() => {
+  const error = cancelBookingAction.error()
+  return error instanceof Error ? error.message : null
+}, "bookings.cancel.error")
 
 export const setCreateBookingTimeRangeAction = action(
   ({ startTime, endTime }: { startTime: string; endTime: string }) => {
-    createBookingForm.fields.startTime.set(startTime);
-    createBookingForm.fields.endTime.set(endTime);
+    createBookingForm.fields.startTime.set(startTime)
+    createBookingForm.fields.endTime.set(endTime)
   },
   "bookings.create.setTimeRange",
-);
+)
+
+export const invalidateBookingsCacheAction = action(() => {
+  bookingsCacheAtom.set(() => new Map())
+  bookingsHistoryCacheAtom.set(() => new Map())
+}, "bookings.invalidateCache")
 
 export const createBookingForm = reatomForm(
   {
@@ -162,9 +252,9 @@ export const createBookingForm = reatomForm(
     validateOnBlur: true,
     schema: createBookingSchema,
   },
-);
+)
 
 // Small helper for page-level manual validation.
 export function validateCreateBooking(values: unknown) {
-  return createBookingSchema.safeParse(values);
+  return createBookingSchema.safeParse(values)
 }
