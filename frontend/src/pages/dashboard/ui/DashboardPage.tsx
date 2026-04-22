@@ -56,7 +56,7 @@ const DashboardPage = reatomComponent(() => {
   const t = tAtom();
 
   return (
-    <div data-slot="dashboard-page" className="flex min-h-full flex-col gap-10 px-6 py-8 md:px-10">
+    <div data-slot="dashboard-page" className="flex min-h-full min-w-0 flex-col gap-10 px-6 py-8 md:px-10 overflow-hidden">
       <section className="flex flex-col gap-6">
         <div>
           <h2 className="mb-2 text-[3.5rem] font-black uppercase leading-[0.9] tracking-tighter">

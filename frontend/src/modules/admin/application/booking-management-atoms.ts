@@ -150,7 +150,7 @@ export const pendingBookingsQuery = computed(async () => {
   }
 
   return {
-    items: data.data,
+    items: data.data ?? [],
     meta: data.meta,
     requestKey: createPendingRequestKey(query),
     requestCursor: query.cursor ?? null,
@@ -341,7 +341,7 @@ export const historyBookingsQuery = computed(async () => {
   }
 
   return {
-    items: data.data,
+    items: data.data ?? [],
     meta: data.meta,
     requestKey: createHistoryRequestKey(query),
     requestCursor: query.cursor ?? null,

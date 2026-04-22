@@ -246,6 +246,11 @@ export const en: Dictionary = {
         dayOfWeekDesc: "Weekly demand distribution",
         occupancyTitle: "Occupancy by Building",
         occupancyDesc: "Building load (horizontal bars)"
+      },
+      tooltips: {
+        bookings: "Bookings",
+        occupancy: "Occupancy",
+        room: "Room"
       }
     }
   },

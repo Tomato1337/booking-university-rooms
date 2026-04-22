@@ -180,7 +180,7 @@ const equipmentResource = computed(async () => {
   }
 
   equipmentCacheAtom.set({
-    items: data.data,
+    items: data.data ?? [],
     updatedAt: Date.now(),
   });
 
@@ -218,7 +218,7 @@ const roomsPageResource = computed(async () => {
   }
 
   const payload: RoomsPagePayload = {
-    items: data.data,
+    items: data.data ?? [],
     meta: data.meta,
     requestKey: key,
     requestCursor: query.cursor ?? null,

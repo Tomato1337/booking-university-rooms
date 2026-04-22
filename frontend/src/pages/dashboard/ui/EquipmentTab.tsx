@@ -57,7 +57,7 @@ export const EquipmentTab = reatomComponent(() => {
 
   const wrapOpenDeleteDialog = useWrap((item: EquipmentItem) => {
     const usage = rooms
-      .filter((room) => room.equipment.some((eq) => eq.id === item.id))
+      .filter((room) => (room.equipment ?? []).some((eq) => eq.id === item.id))
       .map((room) => ({ id: room.id, name: room.name }));
 
     setDeleteDialog({

@@ -120,7 +120,7 @@ const App = reatomComponent(() => {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <div className="flex w-full flex-col relative">
+      <div className="flex min-w-0 w-full flex-col relative overflow-hidden">
         <header className="sticky top-0 z-20 flex min-h-18 items-center gap-4 border-b border-surface-container-high bg-sidebar px-6">
           <SidebarTrigger className="ml-1" />
           {currentPage?.parent && (
@@ -138,7 +138,7 @@ const App = reatomComponent(() => {
             {currentPage?.title ?? ""}
           </h1>
         </header>
-        <main className="flex-1 overflow-y-auto">{rootRoute.render() as ReactNode}</main>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">{rootRoute.render() as ReactNode}</main>
       </div>
     </SidebarProvider>
   );

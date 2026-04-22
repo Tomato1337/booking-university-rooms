@@ -184,9 +184,9 @@ export const StatisticsTab = reatomComponent(() => {
                   labelLine={false}
                 />
                 <Tooltip
-                  formatter={(value: number, name: string) => [value, name.toUpperCase()]}
+                  formatter={(value: number, name: string) => [value, (name ?? "").toUpperCase()]}
                 />
-                <Legend formatter={(value) => value.toUpperCase()} />
+                <Legend formatter={(value) => (value ?? "").toUpperCase()} />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
@@ -210,8 +210,8 @@ export const StatisticsTab = reatomComponent(() => {
                 />
                 <YAxis tick={{ fill: "var(--on-surface-variant)", fontSize: 11 }} />
                 <Tooltip
-                  formatter={(value: number) => [value, "BOOKINGS"]}
-                  labelFormatter={(label: string) => `ROOM: ${label}`}
+                  formatter={(value: number) => [value, t.admin.statistics.tooltips.bookings.toUpperCase()]}
+                  labelFormatter={(label: string) => `${t.admin.statistics.tooltips.room.toUpperCase()}: ${label}`}
                 />
                 <Bar dataKey="count" fill="var(--chart-1)" radius={[2, 2, 0, 0]} />
               </BarChart>
@@ -234,8 +234,8 @@ export const StatisticsTab = reatomComponent(() => {
                 />
                 <YAxis tick={{ fill: "var(--on-surface-variant)", fontSize: 11 }} />
                 <Tooltip
-                  formatter={(value: number) => [value, "BOOKINGS"]}
-                  labelFormatter={(label: string) => label.toUpperCase()}
+                  formatter={(value: number) => [value, t.admin.statistics.tooltips.bookings.toUpperCase()]}
+                  labelFormatter={(label: string) => (label ?? "").toUpperCase()}
                 />
                 <Bar dataKey="count" fill="var(--chart-3)" radius={[2, 2, 0, 0]} />
               </BarChart>
@@ -268,8 +268,8 @@ export const StatisticsTab = reatomComponent(() => {
                   width={90}
                 />
                 <Tooltip
-                  formatter={(value: number) => [`${value}%`, "OCCUPANCY"]}
-                  labelFormatter={(label: string) => label.toUpperCase()}
+                  formatter={(value: number) => [`${value}%`, t.admin.statistics.tooltips.occupancy.toUpperCase()]}
+                  labelFormatter={(label: string) => (label ?? "").toUpperCase()}
                 />
                 <Bar dataKey="occupancyRate" fill="var(--chart-2)" radius={[0, 2, 2, 0]} />
               </BarChart>

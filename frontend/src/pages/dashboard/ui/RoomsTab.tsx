@@ -154,7 +154,7 @@ export const RoomsTab = reatomComponent(() => {
         placeholder={t.admin.rooms.searchPlaceholder}
       />
 
-      <div className="bg-surface-container-low mb-4">
+      <div className="bg-surface-container-low mb-4 overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -176,9 +176,9 @@ export const RoomsTab = reatomComponent(() => {
                 </TableCell>
               </TableRow>
             ) : rooms.length > 0 ? (
-              rooms.map((room) => {
+              rooms.filter(Boolean).map((room) => {
                 const roomEquipment = room.equipment ?? [];
-                const isInactive = room.availability.label.toLowerCase().includes("inactive");
+                const isInactive = !room.availability || room.availability.label.toLowerCase().includes("inactive") || !room.availability.isAvailable;
 
                 return (
                   <TableRow key={room.id} data-slot="admin-room-row">

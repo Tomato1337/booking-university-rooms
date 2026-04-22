@@ -244,6 +244,11 @@ export const ru = {
         dayOfWeekDesc: "Распределение спроса по дням",
         occupancyTitle: "Заполняемость по зданиям",
         occupancyDesc: "Нагрузка по зданиям (горизонтальные бары)"
+      },
+      tooltips: {
+        bookings: "Бронирования",
+        occupancy: "Заполняемость",
+        room: "Аудитория"
       }
     }
   },

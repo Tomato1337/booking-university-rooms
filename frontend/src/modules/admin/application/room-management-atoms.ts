@@ -181,7 +181,7 @@ export const adminRoomsQuery = computed(async () => {
   }
 
   return {
-    items: data.data,
+    items: data.data ?? [],
     meta: data.meta,
     requestKey: createAdminRoomRequestKey(query),
     requestCursor: query.cursor ?? null,
