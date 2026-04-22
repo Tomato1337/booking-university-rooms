@@ -1,9 +1,10 @@
 import "./index.css";
 
+import { useEffect } from "react";
 import type { ReactNode } from "react";
 
 import { urlAtom, withChangeHook } from "@reatom/core";
-import { reatomComponent } from "@reatom/react";
+import { reatomComponent, useWrap } from "@reatom/react";
 import { IconLoader2 } from "@tabler/icons-react";
 
 import { authStatusAtom, currentUserAtom } from "@/modules/auth";
@@ -57,6 +58,36 @@ const pageMeta: PageMeta[] = [
 const App = reatomComponent(() => {
   const status = authStatusAtom();
   const roomsBackHref = roomsBackHrefAtom();
+  const user = currentUserAtom();
+
+  const isUnauthenticated = status === "unauthenticated";
+  const isAuthRoute = authRoute.match();
+  const isDashboardRoute = dashboardRoute.match();
+  const role = user?.role;
+
+  const wrapRedirectToAuth = useWrap(() => {
+    if (isUnauthenticated && !isAuthRoute) {
+      authRoute.go(undefined, true);
+    }
+  });
+
+  const wrapRedirectFromAuth = useWrap(() => {
+    if (status !== "authenticated") return;
+
+    if (isAuthRoute) {
+      dashboardRoute.go(undefined, true);
+    } else if (isDashboardRoute && role !== "admin") {
+      roomsRoute.go(undefined, true);
+    }
+  });
+
+  useEffect(() => {
+    wrapRedirectToAuth();
+  }, [isUnauthenticated, isAuthRoute, wrapRedirectToAuth]);
+
+  useEffect(() => {
+    wrapRedirectFromAuth();
+  }, [status, isAuthRoute, isDashboardRoute, role, wrapRedirectFromAuth]);
 
   if (status === "loading" || status === "idle") {
     return (
@@ -67,19 +98,7 @@ const App = reatomComponent(() => {
   }
 
   if (status === "unauthenticated") {
-    if (!authRoute.match()) {
-      authRoute.go(undefined, true);
-    }
     return <>{authRoute.render()}</>;
-  }
-
-  // authenticated — redirect away from auth page
-  if (authRoute.match()) {
-    dashboardRoute.go(undefined, true);
-  }
-
-  if (dashboardRoute.match() && currentUserAtom()?.role !== "admin") {
-    roomsRoute.go(undefined, true);
   }
 
   const currentPage = pageMeta.find(({ route }) => route.match());

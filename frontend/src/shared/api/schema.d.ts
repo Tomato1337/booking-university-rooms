@@ -265,6 +265,60 @@ export interface paths {
         patch: operations["cancelBooking"];
         trace?: never;
     };
+    "/admin/rooms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search all rooms (admin)
+         * @description Returns a paginated list of rooms, including inactive ones.
+         */
+        get: operations["adminSearchRooms"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/rooms/{roomId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Permanently delete a room */
+        delete: operations["hardDeleteRoom"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/rooms/{roomId}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Reactivate an inactive room */
+        patch: operations["reactivateRoom"];
+        trace?: never;
+    };
     "/admin/bookings/pending": {
         parameters: {
             query?: never;
@@ -1585,6 +1639,92 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+        };
+    };
+    adminSearchRooms: {
+        parameters: {
+            query?: {
+                /** @description Free-text search */
+                search?: components["parameters"]["SearchParam"];
+                /** @description Filter by status */
+                status?: "active" | "inactive" | "all";
+                /** @description Number of items per page */
+                limit?: components["parameters"]["LimitParam"];
+                /** @description Cursor from a previous response's `meta.nextCursor` */
+                cursor?: components["parameters"]["CursorParam"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated room list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["RoomCard"][];
+                        meta: components["schemas"]["CursorPaginationMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    hardDeleteRoom: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Room UUID */
+                roomId: components["parameters"]["RoomIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Room permanently deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    reactivateRoom: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Room UUID */
+                roomId: components["parameters"]["RoomIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Room reactivated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["RoomFull"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getPendingBookings: {

@@ -38,7 +38,13 @@ interface EquipmentCacheEntry {
 }
 
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  const tz = import.meta.env.VITE_TZ || "Europe/Moscow";
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 function isFresh(updatedAt: number, ttlMs: number): boolean {
@@ -265,7 +271,12 @@ roomsPageResource.onFulfill.extend(
 );
 
 export const fetchEquipmentAction = action(async () => {
-  return await wrap(equipmentResource.retry());
+  try {
+    return await wrap(equipmentResource.retry());
+  } catch (error: any) {
+    if (error?.name === "AbortError") return null;
+    throw error;
+  }
 }, "rooms.fetchEquipment");
 
 export const searchRoomsAction = action(async () => {
@@ -281,7 +292,12 @@ export const searchRoomsAction = action(async () => {
 
   roomsRequestQueryAtom.set(requestQuery);
   lastAppliedFiltersAtom.set(roomsFiltersAtom());
-  return await wrap(roomsPageResource.retry());
+  try {
+    return await wrap(roomsPageResource.retry());
+  } catch (error: any) {
+    if (error?.name === "AbortError") return null;
+    throw error;
+  }
 }, "rooms.search");
 
 export const activateRoomsPageAction = action(async () => {
@@ -295,6 +311,11 @@ export const activateRoomsPageAction = action(async () => {
 
   try {
     await wrap(searchRoomsAction());
+  } catch (error: any) {
+    if (error?.name === "AbortError") {
+      return;
+    }
+    throw error;
   } finally {
     roomsSearchInputActiveAtom.set(true);
   }
@@ -357,7 +378,12 @@ export const loadMoreRoomsAction = action(async () => {
     return roomsPageResource.data();
   }
 
-  return await wrap(roomsPageResource.retry());
+  try {
+    return await wrap(roomsPageResource.retry());
+  } catch (error: any) {
+    if (error?.name === "AbortError") return null;
+    throw error;
+  }
 }, "rooms.loadMore");
 
 export const invalidateRoomsCacheAction = action(() => {

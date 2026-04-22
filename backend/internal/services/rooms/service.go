@@ -2,6 +2,8 @@ package rooms
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -94,7 +96,7 @@ func (s *Service) Search(ctx context.Context, input SearchInput, currentUserID s
 
 	whereClause := "WHERE " + strings.Join(conditions, " AND ")
 	query := fmt.Sprintf(`
-		SELECT r.id, r.name, r.room_type, r.capacity, r.building, r.floor, r.open_time::text, r.close_time::text
+		SELECT r.id, r.name, r.room_type, r.capacity, r.building, r.floor, to_char(r.open_time, 'HH24:MI'), to_char(r.close_time, 'HH24:MI')
 		FROM rooms r
 		%s
 		ORDER BY r.name ASC, r.id ASC
@@ -189,7 +191,7 @@ func (s *Service) GetDetail(ctx context.Context, roomIDStr, date, currentUserID 
 	var room models.RoomDetail
 	var photos []string
 	err = s.db.QueryRow(ctx,
-		`SELECT id, name, description, room_type, capacity, building, floor, photos, open_time::text, close_time::text
+		`SELECT id, name, description, room_type, capacity, building, floor, photos, to_char(open_time, 'HH24:MI'), to_char(close_time, 'HH24:MI')
 		 FROM rooms WHERE id = $1 AND is_active = true`,
 		roomID,
 	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.Capacity, &room.Building, &room.Floor, &photos, &room.OpenTime, &room.CloseTime)
@@ -226,7 +228,7 @@ func (s *Service) Create(ctx context.Context, input CreateRoomInput) (*models.Ro
 	err := s.db.QueryRow(ctx,
 		`INSERT INTO rooms (name, description, room_type, capacity, building, floor, photos, open_time, close_time)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE(NULLIF($8, ''), '08:00')::time, COALESCE(NULLIF($9, ''), '20:00')::time)
-		 RETURNING id, name, description, room_type, capacity, building, floor, photos, is_active, created_at, updated_at, open_time::text, close_time::text`,
+		 RETURNING id, name, description, room_type, capacity, building, floor, photos, is_active, created_at, updated_at, to_char(open_time, 'HH24:MI'), to_char(close_time, 'HH24:MI')`,
 		input.Name, input.Description, input.RoomType, input.Capacity, input.Building, input.Floor, input.Photos, input.OpenTime, input.CloseTime,
 	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.Capacity, &room.Building, &room.Floor, &photos, &room.IsActive, &room.CreatedAt, &room.UpdatedAt, &room.OpenTime, &room.CloseTime)
 	if err != nil {
@@ -262,7 +264,7 @@ func (s *Service) Update(ctx context.Context, roomIDStr string, input CreateRoom
 	err = s.db.QueryRow(ctx,
 		`UPDATE rooms SET name=$1, description=$2, room_type=$3, capacity=$4, building=$5, floor=$6, photos=$7, open_time=COALESCE(NULLIF($8, ''), '08:00')::time, close_time=COALESCE(NULLIF($9, ''), '20:00')::time, updated_at=now()
 		 WHERE id=$10 AND is_active=true
-		 RETURNING id, name, description, room_type, capacity, building, floor, photos, is_active, created_at, updated_at, open_time::text, close_time::text`,
+		 RETURNING id, name, description, room_type, capacity, building, floor, photos, is_active, created_at, updated_at, to_char(open_time, 'HH24:MI'), to_char(close_time, 'HH24:MI')`,
 		input.Name, input.Description, input.RoomType, input.Capacity, input.Building, input.Floor, input.Photos, input.OpenTime, input.CloseTime, roomID,
 	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.Capacity, &room.Building, &room.Floor, &photos, &room.IsActive, &room.CreatedAt, &room.UpdatedAt, &room.OpenTime, &room.CloseTime)
 	if err != nil {
@@ -383,7 +385,7 @@ type bookingSlot struct {
 
 func (s *Service) buildTimeline(ctx context.Context, roomID uuid.UUID, date, currentUserID, openTime, closeTime string) ([]models.TimeSlot, []models.UserBookingSummary, error) {
 	rows, err := s.db.Query(ctx,
-		`SELECT id, user_id, title, start_time::text, end_time::text, status
+		`SELECT id, user_id, title, to_char(start_time, 'HH24:MI'), to_char(end_time, 'HH24:MI'), status
 		 FROM bookings
 		 WHERE room_id = $1 AND booking_date = $2 AND status IN ('confirmed', 'pending')
 		 ORDER BY start_time ASC`,
@@ -481,7 +483,7 @@ func determineSlotStatus(b bookingSlot, currentUserID string) models.TimeSlotSta
 
 func (s *Service) computeAvailability(ctx context.Context, roomID uuid.UUID, date, timeFrom, timeTo, openTime, closeTime string) (*models.RoomAvailability, error) {
 	rows, err := s.db.Query(ctx,
-		`SELECT start_time::text, end_time::text
+		`SELECT to_char(start_time, 'HH24:MI'), to_char(end_time, 'HH24:MI')
 		 FROM bookings
 		 WHERE room_id = $1 AND booking_date = $2 AND status = 'confirmed'
 		 ORDER BY start_time ASC`,
@@ -594,4 +596,177 @@ type CreateRoomInput struct {
 	OpenTime     string
 	CloseTime    string
 	EquipmentIDs []uuid.UUID
+}
+
+type AdminSearchInput struct {
+	Search string
+	Status string // "active", "inactive", or "all"
+	Limit  int
+	Cursor string
+}
+
+func (s *Service) AdminSearch(ctx context.Context, input AdminSearchInput) (*SearchResult, error) {
+	limit := input.Limit
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+
+	args := []any{}
+	argIdx := 1
+	conditions := []string{}
+
+	if input.Status == "active" {
+		conditions = append(conditions, "r.is_active = true")
+	} else if input.Status == "inactive" {
+		conditions = append(conditions, "r.is_active = false")
+	} // else "all", no filter
+
+	if input.Search != "" {
+		conditions = append(conditions, fmt.Sprintf("(r.name ILIKE $%d OR r.building ILIKE $%d)", argIdx, argIdx))
+		args = append(args, "%"+input.Search+"%")
+		argIdx++
+	}
+
+	cursorUUID, err := uuid.Parse(input.Cursor)
+	if err == nil {
+		conditions = append(conditions, fmt.Sprintf("r.id > $%d", argIdx))
+		args = append(args, cursorUUID)
+		argIdx++
+	}
+
+	whereClause := ""
+	if len(conditions) > 0 {
+		whereClause = "WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	query := fmt.Sprintf(`
+		SELECT
+			r.id, r.name, r.room_type, r.capacity, r.building, r.floor, r.is_active,
+			COALESCE(
+				json_agg(
+					json_build_object('id', e.id, 'name', e.name, 'icon', e.icon)
+				) FILTER (WHERE e.id IS NOT NULL),
+				'[]'
+			) as equipment
+		FROM rooms r
+		LEFT JOIN room_equipment re ON r.id = re.room_id
+		LEFT JOIN equipment e ON re.equipment_id = e.id
+		%s
+		GROUP BY r.id
+		ORDER BY r.name ASC, r.id ASC
+		LIMIT $%d
+	`, whereClause, argIdx)
+
+	args = append(args, limit+1)
+
+	rows, err := s.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("admin search rooms: %w", err)
+	}
+	defer rows.Close()
+
+	var rooms []models.RoomCard
+	for rows.Next() {
+		var room models.RoomCard
+		var eqBytes []byte
+		var isActive bool
+
+		if err := rows.Scan(
+			&room.ID, &room.Name, &room.RoomType, &room.Capacity,
+			&room.Building, &room.Floor, &isActive, &eqBytes,
+		); err != nil {
+			return nil, fmt.Errorf("scan admin room: %w", err)
+		}
+
+		if err := json.Unmarshal(eqBytes, &room.Equipment); err != nil {
+			return nil, fmt.Errorf("unmarshal eq: %w", err)
+		}
+
+		if isActive {
+			room.Availability = models.RoomAvailability{IsAvailable: true, Label: "ACTIVE"}
+		} else {
+			room.Availability = models.RoomAvailability{IsAvailable: false, Label: "INACTIVE"}
+		}
+
+		rooms = append(rooms, room)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	hasMore := false
+	var nextCursor *string
+	if len(rooms) > limit {
+		hasMore = true
+		rooms = rooms[:limit]
+		c := rooms[len(rooms)-1].ID.String()
+		nextCursor = &c
+	}
+
+	return &SearchResult{
+		Rooms:      rooms,
+		HasMore:    hasMore,
+		NextCursor: nextCursor,
+	}, nil
+}
+
+func (s *Service) Reactivate(ctx context.Context, roomIDStr string) (*models.Room, error) {
+	roomID, err := uuid.Parse(roomIDStr)
+	if err != nil {
+		return nil, ErrRoomNotFound
+	}
+
+	room := &models.Room{}
+	var photos []string
+	err = s.db.QueryRow(ctx,
+		`UPDATE rooms SET is_active=true, updated_at=now() WHERE id=$1
+		 RETURNING id, name, description, room_type, capacity, building, floor, photos, is_active, created_at, updated_at, to_char(open_time, 'HH24:MI'), to_char(close_time, 'HH24:MI')`,
+		roomID,
+	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.Capacity, &room.Building, &room.Floor, &photos, &room.IsActive, &room.CreatedAt, &room.UpdatedAt, &room.OpenTime, &room.CloseTime)
+
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, ErrRoomNotFound
+		}
+		return nil, fmt.Errorf("reactivate room: %w", err)
+	}
+	if photos == nil {
+		photos = []string{}
+	}
+	room.Photos = photos
+
+	equip, err := s.getRoomEquipment(ctx, room.ID)
+	if err != nil {
+		return nil, err
+	}
+	room.Equipment = equip
+	return room, nil
+}
+
+var ErrRoomHasBookings = errors.New("room has bookings")
+
+func (s *Service) HardDelete(ctx context.Context, roomIDStr string) error {
+	roomID, err := uuid.Parse(roomIDStr)
+	if err != nil {
+		return ErrRoomNotFound
+	}
+
+	var count int
+	err = s.db.QueryRow(ctx, "SELECT count(*) FROM bookings WHERE room_id = $1", roomID).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("check bookings: %w", err)
+	}
+	if count > 0 {
+		return ErrRoomHasBookings
+	}
+
+	tag, err := s.db.Exec(ctx, "DELETE FROM rooms WHERE id=$1", roomID)
+	if err != nil {
+		return fmt.Errorf("hard delete room: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrRoomNotFound
+	}
+	return nil
 }

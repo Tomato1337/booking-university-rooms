@@ -9,6 +9,9 @@ RUN bun install --frozen-lockfile
 # ── Stage 2: Build application ───────────────────────────────────────
 FROM oven/bun:1-alpine AS build
 
+ARG VITE_TZ=Europe/Moscow
+ENV VITE_TZ=$VITE_TZ
+
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules

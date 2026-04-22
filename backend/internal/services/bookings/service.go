@@ -60,7 +60,7 @@ func (s *Service) Create(ctx context.Context, userID string, input CreateInput) 
 	if err != nil {
 		return nil, ErrInvalidTimeRange
 	}
-	if bookingStart.Before(time.Now().UTC()) {
+	if bookingStart.Before(time.Now().UTC().Add(-24 * time.Hour)) {
 		return nil, ErrBookingInPast
 	}
 
@@ -103,8 +103,7 @@ func (s *Service) Create(ctx context.Context, userID string, input CreateInput) 
 		   AND booking_date = $2
 		   AND status = 'confirmed'
 		   AND start_time < $3
-		   AND end_time > $4
-		 FOR UPDATE`,
+		   AND end_time > $4`,
 		input.RoomID, input.BookingDate, input.EndTime, input.StartTime,
 	).Scan(&conflictCount)
 	if err != nil {
@@ -123,7 +122,7 @@ func (s *Service) Create(ctx context.Context, userID string, input CreateInput) 
 	err = tx.QueryRow(ctx,
 		`INSERT INTO bookings (user_id, room_id, title, purpose, booking_date, start_time, end_time, attendee_count, status)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending')
-		 RETURNING id, user_id, room_id, title, purpose, booking_date::text, start_time::text, end_time::text,
+		 RETURNING id, user_id, room_id, title, purpose, booking_date::text, to_char(start_time, 'HH24:MI'), to_char(end_time, 'HH24:MI'),
 		           attendee_count, status, admin_id, status_reason, created_at, updated_at`,
 		userUUID, input.RoomID, input.Title, input.Purpose, input.BookingDate,
 		input.StartTime, input.EndTime, input.AttendeeCount,
@@ -154,7 +153,7 @@ func (s *Service) ListMy(ctx context.Context, input ListMyInput) (*ListResult, e
 	conditions := []string{
 		`user_id = $1`,
 		`status IN ('pending', 'confirmed')`,
-		`(booking_date > CURRENT_DATE OR (booking_date = CURRENT_DATE AND end_time > CURRENT_TIME))`,
+		`(booking_date > CURRENT_DATE - 1 OR (booking_date = CURRENT_DATE - 1 AND end_time > CURRENT_TIME))`,
 	}
 
 	conditions, args, argIdx = applySearch(conditions, args, argIdx, input.Search)
@@ -180,8 +179,8 @@ func (s *Service) ListMyHistory(ctx context.Context, input ListMyInput) (*ListRe
 	conditions := []string{
 		`user_id = $1`,
 		`(status IN ('rejected', 'cancelled')
-		  OR booking_date < CURRENT_DATE
-		  OR (booking_date = CURRENT_DATE AND end_time <= CURRENT_TIME))`,
+		  OR booking_date < CURRENT_DATE - 1
+		  OR (booking_date = CURRENT_DATE - 1 AND end_time <= CURRENT_TIME))`,
 	}
 
 	conditions, args, argIdx = applySearch(conditions, args, argIdx, input.Search)
@@ -207,7 +206,7 @@ func (s *Service) Cancel(ctx context.Context, bookingIDStr, userID string, isAdm
 
 	booking := &models.Booking{}
 	err = s.db.QueryRow(ctx,
-		`SELECT id, user_id, room_id, status, booking_date::text, start_time::text, end_time::text, updated_at
+		`SELECT id, user_id, room_id, status, booking_date::text, to_char(start_time, 'HH24:MI'), to_char(end_time, 'HH24:MI'), updated_at
 		 FROM bookings WHERE id = $1`,
 		bookingID,
 	).Scan(&booking.ID, &booking.UserID, &booking.RoomID,
@@ -229,7 +228,7 @@ func (s *Service) Cancel(ctx context.Context, bookingIDStr, userID string, isAdm
 
 	// Check not already started
 	startDT, err := time.ParseInLocation("2006-01-02 15:04", booking.BookingDate+" "+booking.StartTime, time.UTC)
-	if err == nil && startDT.Before(time.Now().UTC()) {
+	if err == nil && startDT.Before(time.Now().UTC().Add(-24*time.Hour)) {
 		return nil, ErrBookingInPast
 	}
 
@@ -314,7 +313,7 @@ func buildBookingQuery(conditions []string, argIdx, limit int, order string) str
 	where := "WHERE " + strings.Join(conditions, " AND ")
 	return fmt.Sprintf(`
 		SELECT b.id, b.room_id, r.name, r.building, r.room_type,
-		       b.title, b.booking_date::text, b.start_time::text, b.end_time::text,
+		       b.title, b.booking_date::text, to_char(b.start_time, 'HH24:MI'), to_char(b.end_time, 'HH24:MI'),
 		       b.status, b.created_at
 		FROM bookings b
 		JOIN rooms r ON r.id = b.room_id

@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 
-import { IconSearch } from "@tabler/icons-react";
 import { reatomComponent, useWrap } from "@reatom/react";
 
 import {
@@ -23,7 +22,7 @@ import { roomDetailRoute } from "@/pages/room-detail";
 import { rootRoute } from "@/shared/router";
 import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
-import { Input } from "@/shared/ui/input";
+import Search from "@/shared/ui/search";
 
 function RoomCardSkeleton() {
   return (
@@ -61,7 +60,6 @@ const RoomsPage = reatomComponent(() => {
   const wrapActivatePage = useWrap(() => activateRoomsPageAction());
   const wrapDeactivatePage = useWrap(() => deactivateRoomsPageAction());
 
-  const searchHTMLRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     wrapActivatePage();
@@ -130,7 +128,7 @@ const RoomsPage = reatomComponent(() => {
       </section>
 
       {/* Results section */}
-      <section className="flex flex-1 flex-col gap-6">
+      <section className="flex flex-1 flex-col">
         <div className="flex items-end justify-between border-b border-outline-variant/10 pb-4">
           <h3 className="text-[1.75rem] font-black uppercase tracking-tighter">
             Availability Results
@@ -141,10 +139,8 @@ const RoomsPage = reatomComponent(() => {
         </div>
 
         {/* Search by room name */}
-        <div
+        {/* <div
           onClick={() => {
-            if (searchHTMLRef.current) {
-              searchHTMLRef.current.focus();
             }
           }}
           className="flex items-center gap-3 bg-surface-container-high px-4 py-3"
@@ -153,7 +149,6 @@ const RoomsPage = reatomComponent(() => {
             <IconSearch size={18} className="shrink-0 text-on-surface-variant" />
           </label>
           <Input
-            ref={searchHTMLRef}
             type="text"
             id="room-search"
             value={search}
@@ -161,10 +156,15 @@ const RoomsPage = reatomComponent(() => {
             placeholder="SEARCH ROOM BY NAME..."
             className="w-full border-none bg-transparent text-xs font-bold uppercase tracking-widest text-on-surface outline-none placeholder:text-on-surface-variant/50"
           />
-        </div>
+        </div> */}
+        <Search
+          query={search}
+          wrapSearch={wrapUpdateSearch}
+          placeholder={"SEARCH ROOM BY NAME..."}
+        />
 
         {/* Room cards list */}
-        <div className="flex flex-1 flex-col gap-4">
+        <div className="flex flex-1 flex-col gap-1">
           {showSkeletons && (
             <>
               <RoomCardSkeleton />

@@ -29,8 +29,10 @@ export const AppSidebar = reatomComponent(() => {
 
   return (
     <Sidebar>
-      <SidebarHeader className="px-4 py-3.75">
-        <Logo />
+      <SidebarHeader className="">
+        <a href={dashboardRoute.path()} className="flex items-center gap-2 cursor-pointer">
+          <Logo />
+        </a>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup className="flex flex-col gap-1">

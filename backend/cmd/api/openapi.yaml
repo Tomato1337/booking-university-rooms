@@ -219,14 +219,14 @@ components:
                         format: uri
                 openTime:
                     type: string
-                    pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
+                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
                     example: "08:00"
-                    description: Room opens at this time
+                    description: "Room opens at this time"
                 closeTime:
                     type: string
-                    pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
+                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
                     example: "20:00"
-                    description: Room closes at this time
+                    description: "Room closes at this time"
                 equipment:
                     type: array
                     items:
@@ -487,81 +487,48 @@ components:
                 bookingsByStatus:
                     type: array
                     items:
-                        $ref: "#/components/schemas/BookingStatusCount"
+                        type: object
+                        required: [status, count]
+                        properties:
+                            status:
+                                type: string
+                            count:
+                                type: integer
                 popularRooms:
                     type: array
                     items:
-                        $ref: "#/components/schemas/PopularRoom"
+                        type: object
+                        required: [id, name, building, count]
+                        properties:
+                            id:
+                                type: string
+                                format: uuid
+                            name:
+                                type: string
+                            building:
+                                type: string
+                            count:
+                                type: integer
                 bookingsByDayOfWeek:
                     type: array
                     items:
-                        $ref: "#/components/schemas/DayOfWeekCount"
+                        type: object
+                        required: [day, count]
+                        properties:
+                            day:
+                                type: string
+                            count:
+                                type: integer
                 occupancyByBuilding:
                     type: array
                     items:
-                        $ref: "#/components/schemas/BuildingOccupancy"
-
-        BookingStatusCount:
-            type: object
-            required: [status, count]
-            properties:
-                status:
-                    type: string
-                count:
-                    type: integer
-
-        PopularRoom:
-            type: object
-            required: [id, name, building, count]
-            properties:
-                id:
-                    type: string
-                    format: uuid
-                name:
-                    type: string
-                building:
-                    type: string
-                count:
-                    type: integer
-
-        DayOfWeekCount:
-            type: object
-            required: [day, count]
-            properties:
-                day:
-                    type: string
-                count:
-                    type: integer
-
-        BuildingOccupancy:
-            type: object
-            required: [building, occupancyRate]
-            properties:
-                building:
-                    type: string
-                occupancyRate:
-                    type: integer
-
-        EquipmentUsageRoom:
-            type: object
-            required: [id, name]
-            properties:
-                id:
-                    type: string
-                    format: uuid
-                name:
-                    type: string
-
-        EquipmentDeleteResult:
-            type: object
-            required: [equipment, usedInRooms]
-            properties:
-                equipment:
-                    $ref: "#/components/schemas/EquipmentItem"
-                usedInRooms:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/EquipmentUsageRoom"
+                        type: object
+                        required: [building, occupancyRate]
+                        properties:
+                            building:
+                                type: string
+                            occupancyRate:
+                                type: integer
 
         RoomFull:
             type: object
@@ -596,19 +563,21 @@ components:
                     type: string
                 floor:
                     type: integer
+                openTime:
+                    type: string
+                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
+                    example: "08:00"
+                    description: "Room opens at this time"
+                closeTime:
+                    type: string
+                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
+                    example: "20:00"
+                    description: "Room closes at this time"
                 photos:
                     type: array
                     items:
                         type: string
                         format: uri
-                openTime:
-                    type: string
-                    pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
-                    example: "08:00"
-                closeTime:
-                    type: string
-                    pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
-                    example: "20:00"
                 equipment:
                     type: array
                     items:
@@ -687,7 +656,7 @@ components:
 
         CreateRoomRequest:
             type: object
-            required: [name, roomType, capacity, building, floor]
+            required: [name, roomType, capacity, building, floor, openTime, closeTime]
             properties:
                 name:
                     type: string
@@ -695,6 +664,7 @@ components:
                     maxLength: 100
                 description:
                     type: string
+                    nullable: true
                 roomType:
                     $ref: "#/components/schemas/RoomType"
                 capacity:
@@ -703,16 +673,15 @@ components:
                 building:
                     type: string
                     minLength: 1
-                    maxLength: 200
                 floor:
                     type: integer
                 openTime:
                     type: string
-                    pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
+                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
                     example: "08:00"
                 closeTime:
                     type: string
-                    pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
+                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
                     example: "20:00"
                 photos:
                     type: array
@@ -727,7 +696,6 @@ components:
 
         UpdateRoomRequest:
             type: object
-            required: [name, roomType, capacity, building, floor]
             properties:
                 name:
                     type: string
@@ -735,6 +703,7 @@ components:
                     maxLength: 100
                 description:
                     type: string
+                    nullable: true
                 roomType:
                     $ref: "#/components/schemas/RoomType"
                 capacity:
@@ -743,16 +712,15 @@ components:
                 building:
                     type: string
                     minLength: 1
-                    maxLength: 200
                 floor:
                     type: integer
                 openTime:
                     type: string
-                    pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
+                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
                     example: "08:00"
                 closeTime:
                     type: string
-                    pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
+                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
                     example: "20:00"
                 photos:
                     type: array
@@ -1657,6 +1625,92 @@ paths:
                                     message: Cannot cancel a booking that has already started
 
     # ── Admin ───────────────────────────────────
+    /admin/rooms:
+        get:
+            operationId: adminSearchRooms
+            tags: [Admin]
+            summary: Search all rooms (admin)
+            description: Returns a paginated list of rooms, including inactive ones.
+            security:
+                - BearerAuth: []
+            parameters:
+                - $ref: "#/components/parameters/SearchParam"
+                - name: status
+                  in: query
+                  schema:
+                      type: string
+                      enum: [active, inactive, all]
+                      default: all
+                  description: Filter by status
+                - $ref: "#/components/parameters/LimitParam"
+                - $ref: "#/components/parameters/CursorParam"
+            responses:
+                "200":
+                    description: Paginated room list
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data, meta]
+                                properties:
+                                    data:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/RoomCard"
+                                    meta:
+                                        $ref: "#/components/schemas/CursorPaginationMeta"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+
+    /admin/rooms/{roomId}:
+        delete:
+            operationId: hardDeleteRoom
+            tags: [Admin]
+            summary: Permanently delete a room
+            security:
+                - BearerAuth: []
+            parameters:
+                - $ref: "#/components/parameters/RoomIdParam"
+            responses:
+                "204":
+                    description: Room permanently deleted
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+                "404":
+                    $ref: "#/components/responses/NotFound"
+
+    /admin/rooms/{roomId}/reactivate:
+        patch:
+            operationId: reactivateRoom
+            tags: [Admin]
+            summary: Reactivate an inactive room
+            security:
+                - BearerAuth: []
+            parameters:
+                - $ref: "#/components/parameters/RoomIdParam"
+            responses:
+                "200":
+                    description: Room reactivated
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        $ref: "#/components/schemas/RoomFull"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+                "404":
+                    $ref: "#/components/responses/NotFound"
+
+
     /admin/bookings/pending:
         get:
             operationId: getPendingBookings
@@ -1672,6 +1726,38 @@ paths:
             responses:
                 "200":
                     description: Paginated pending bookings with total count
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data, meta]
+                                properties:
+                                    data:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/AdminPendingBooking"
+                                    meta:
+                                        $ref: "#/components/schemas/CursorPaginationMetaWithTotal"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+
+    /admin/bookings/history:
+        get:
+            operationId: getAdminBookingHistory
+            tags: [Admin]
+            summary: List admin booking history
+            description: Admin dashboard — paginated list of all processed bookings (confirmed, rejected, cancelled).
+            security:
+                - BearerAuth: []
+            parameters:
+                - $ref: "#/components/parameters/SearchParam"
+                - $ref: "#/components/parameters/LimitParam"
+                - $ref: "#/components/parameters/CursorParam"
+            responses:
+                "200":
+                    description: Paginated booking history with total count
                     content:
                         application/json:
                             schema:
@@ -1877,7 +1963,7 @@ paths:
                                     example: Projector
                                 icon:
                                     type: string
-                                    example: IconVideo
+                                    example: icon-projector
             responses:
                 "201":
                     description: Created equipment item
@@ -1885,7 +1971,6 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [data]
                                 properties:
                                     data:
                                         $ref: "#/components/schemas/EquipmentItem"
@@ -1895,16 +1980,6 @@ paths:
                     $ref: "#/components/responses/Unauthorized"
                 "403":
                     $ref: "#/components/responses/Forbidden"
-                "409":
-                    description: Equipment name already exists
-                    content:
-                        application/json:
-                            schema:
-                                $ref: "#/components/schemas/ErrorResponse"
-                            example:
-                                error:
-                                    code: EQUIPMENT_NAME_TAKEN
-                                    message: Equipment name already exists
 
     /admin/equipment/{equipmentId}:
         put:
@@ -1934,7 +2009,7 @@ paths:
                                     example: High-res Projector
                                 icon:
                                     type: string
-                                    example: IconPresentation
+                                    example: icon-projector
             responses:
                 "200":
                     description: Updated equipment item
@@ -1942,7 +2017,6 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [data]
                                 properties:
                                     data:
                                         $ref: "#/components/schemas/EquipmentItem"
@@ -1954,21 +2028,11 @@ paths:
                     $ref: "#/components/responses/Forbidden"
                 "404":
                     $ref: "#/components/responses/NotFound"
-                "409":
-                    description: Equipment name already exists
-                    content:
-                        application/json:
-                            schema:
-                                $ref: "#/components/schemas/ErrorResponse"
-                            example:
-                                error:
-                                    code: EQUIPMENT_NAME_TAKEN
-                                    message: Equipment name already exists
         delete:
             operationId: deleteEquipment
             tags: [Admin]
             summary: Delete equipment
-            description: Deletes equipment and returns affected rooms where it was used.
+            description: Soft-deletes or completely removes an equipment item.
             security:
                 - BearerAuth: []
             parameters:
@@ -1979,16 +2043,8 @@ paths:
                       type: string
                       format: uuid
             responses:
-                "200":
+                "204":
                     description: Equipment deleted successfully
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [data]
-                                properties:
-                                    data:
-                                        $ref: "#/components/schemas/EquipmentDeleteResult"
                 "401":
                     $ref: "#/components/responses/Unauthorized"
                 "403":

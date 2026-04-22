@@ -76,7 +76,12 @@ export const roomDetailErrorAtom = computed(() => {
 
 export const loadRoomDetailAction = action(async (params: LoadRoomDetailParams) => {
   roomDetailParamsAtom.set(params);
-  return await wrap(roomDetailResource.retry());
+  try {
+    return await wrap(roomDetailResource.retry());
+  } catch (error: any) {
+    if (error?.name === "AbortError") return null;
+    throw error;
+  }
 }, "roomDetail.load");
 
 export const invalidateRoomDetailCacheAction = action((params?: LoadRoomDetailParams) => {
@@ -99,7 +104,12 @@ export const refreshRoomDetailAction = action(async () => {
   if (!params) return null;
 
   invalidateRoomDetailCacheAction(params);
-  return await wrap(roomDetailResource.retry());
+  try {
+    return await wrap(roomDetailResource.retry());
+  } catch (error: any) {
+    if (error?.name === "AbortError") return null;
+    throw error;
+  }
 }, "roomDetail.refresh");
 
 export const cancelMyBookingFromRoomDetailAction = action(async (bookingId: string) => {

@@ -10,6 +10,7 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import Logo from "@/shared/ui/logo";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
+import { dashboardRoute } from "@/pages/dashboard";
 
 type AuthTab = "login" | "register";
 
@@ -45,14 +46,16 @@ function AuthBranding() {
       />
 
       <div className="relative z-10">
-        <Logo />
+        <a href={dashboardRoute.path()} className="flex items-center gap-2 cursor-pointer">
+          <Logo />
+        </a>
       </div>
 
       <div className="relative z-10 flex flex-1 flex-col justify-center">
         <h1 className="mb-8 text-[7rem] font-black leading-[0.85] tracking-tighter text-on-surface">
-          UNI
+          MTUCI
           <br />
-          BOOK
+          <span className="text-primary">SPACE</span>
         </h1>
         <p className="max-w-md text-lg font-medium leading-relaxed text-on-surface-variant">
           The next-generation space management protocol for the modern academic ecosystem. Precision
@@ -331,7 +334,9 @@ const AuthPage = reatomComponent(() => {
         </div>
 
         <div className="absolute bottom-10 left-10 lg:hidden">
-          <Logo />
+          <a href={dashboardRoute.path()} className="flex items-center gap-2 cursor-pointer">
+            <Logo />
+          </a>
         </div>
       </section>
     </main>

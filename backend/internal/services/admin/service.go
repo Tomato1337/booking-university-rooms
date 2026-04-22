@@ -104,7 +104,7 @@ func (s *Service) ListPending(ctx context.Context, input ListPendingInput) (*Lis
 		SELECT b.id,
 		       u.id, u.first_name, u.last_name, u.department,
 		       r.id, r.name, r.building,
-		       b.title, b.purpose, b.booking_date::text, b.start_time::text, b.end_time::text,
+		       b.title, b.purpose, b.booking_date::text, to_char(b.start_time, 'HH24:MI'), to_char(b.end_time, 'HH24:MI'),
 		       b.attendee_count, b.status, b.created_at
 		FROM bookings b
 		JOIN users u ON u.id = b.user_id
@@ -192,7 +192,7 @@ func (s *Service) Approve(ctx context.Context, bookingIDStr, adminIDStr string) 
 		status      models.BookingStatus
 	}
 	err = tx.QueryRow(ctx,
-		`SELECT id, room_id, booking_date::text, start_time::text, end_time::text, status
+		`SELECT id, room_id, booking_date::text, to_char(start_time, 'HH24:MI'), to_char(end_time, 'HH24:MI'), status
 		 FROM bookings WHERE id = $1 FOR UPDATE`,
 		bookingID,
 	).Scan(&b.id, &b.roomID, &b.bookingDate, &b.startTime, &b.endTime, &b.status)
@@ -209,7 +209,7 @@ func (s *Service) Approve(ctx context.Context, bookingIDStr, adminIDStr string) 
 
 	// Check booking is not in the past
 	startDT, err := time.ParseInLocation("2006-01-02 15:04", b.bookingDate+" "+b.startTime, time.UTC)
-	if err == nil && startDT.Before(time.Now().UTC()) {
+	if err == nil && startDT.Before(time.Now().UTC().Add(-24*time.Hour)) {
 		return nil, ErrBookingInPast
 	}
 
@@ -222,8 +222,7 @@ func (s *Service) Approve(ctx context.Context, bookingIDStr, adminIDStr string) 
 		   AND status = 'confirmed'
 		   AND start_time < $3
 		   AND end_time > $4
-		   AND id != $5
-		 FOR UPDATE`,
+		   AND id != $5`,
 		b.roomID, b.bookingDate, b.endTime, b.startTime, bookingID,
 	).Scan(&conflictCount)
 	if err != nil {
@@ -257,7 +256,7 @@ func (s *Service) Approve(ctx context.Context, bookingIDStr, adminIDStr string) 
 		   AND id != $4
 		   AND start_time < $5
 		   AND end_time > $6
-		 RETURNING id, user_id, title, start_time::text, end_time::text, status_reason`,
+		 RETURNING id, user_id, title, to_char(start_time, 'HH24:MI'), to_char(end_time, 'HH24:MI'), status_reason`,
 		adminID, b.roomID, b.bookingDate, bookingID, b.endTime, b.startTime,
 	)
 	if err != nil {

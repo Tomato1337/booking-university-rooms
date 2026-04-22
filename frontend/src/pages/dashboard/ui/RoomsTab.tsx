@@ -1,51 +1,84 @@
-import { IconPencil, IconPlus, IconSearch, IconTrash } from "@tabler/icons-react";
-
+import { IconPencil, IconPlus, IconTrash, IconTrashX, IconRefresh } from "@tabler/icons-react";
 import { reatomComponent, useWrap } from "@reatom/react";
-import { useMemo, useState } from "react";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 import {
+  adminRoomSearchAtom,
+  adminRoomStatusTabAtom,
+  adminRoomsHasMoreAtom,
+  adminRoomsListAtom,
   adminRoomsQuery,
   closeRoomFormAction,
   deleteRoomMutation,
+  hardDeleteRoomMutation,
+  loadMoreAdminRoomsAction,
   openCreateRoomFormAction,
   openEditRoomFormAction,
+  reactivateRoomMutation,
+  searchAdminRoomsAction,
   RoomForm,
   roomFormModeAtom,
   roomFormOpenAtom,
+  setAdminRoomStatusTabAction,
+  updateAdminRoomSearchAction,
 } from "@/modules/admin";
 import { getEquipmentIcon } from "@/modules/rooms";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
-import { Input } from "@/shared/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
-
-function normalizeSearch(value: string): string {
-  return value.trim().toLowerCase();
-}
+import Search from "@/shared/ui/search";
+import { cn } from "@/shared/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/shared/ui/alert-dialog";
 
 export const RoomsTab = reatomComponent(() => {
-  const rooms = adminRoomsQuery.data() ?? [];
+  const rooms = adminRoomsListAtom();
+  const hasMore = adminRoomsHasMoreAtom();
   const status = adminRoomsQuery.status();
   const deleteStatus = deleteRoomMutation.status();
+  const hardDeleteStatus = hardDeleteRoomMutation.status();
+  const reactivateStatus = reactivateRoomMutation.status();
+  
   const roomFormOpen = roomFormOpenAtom();
   const roomFormMode = roomFormModeAtom();
 
-  const [search, setSearch] = useState("");
+  const search = adminRoomSearchAtom();
+  const activeTab = adminRoomStatusTabAtom();
 
-  const normalizedSearch = normalizeSearch(search);
+  const [deactivateRoomId, setDeactivateRoomId] = useState<string | null>(null);
+  const [hardDeleteRoomId, setHardDeleteRoomId] = useState<string | null>(null);
 
-  const filteredRooms = useMemo(() => {
-    if (!normalizedSearch) return rooms;
+  const wrapDeactivate = useWrap(async () => {
+    if (!deactivateRoomId) return;
+    await deleteRoomMutation(deactivateRoomId);
+    toast.success("Room successfully deactivated.");
+    setDeactivateRoomId(null);
+  });
 
-    return rooms.filter((room) => {
-      const roomName = room.name.toLowerCase();
-      const building = room.building.toLowerCase();
-      return roomName.includes(normalizedSearch) || building.includes(normalizedSearch);
-    });
-  }, [normalizedSearch, rooms]);
+  const wrapHardDelete = useWrap(async () => {
+    if (!hardDeleteRoomId) return;
+    try {
+      await hardDeleteRoomMutation(hardDeleteRoomId);
+      toast.success("Room permanently deleted.");
+      setHardDeleteRoomId(null);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to delete room. It might have bookings.");
+      setHardDeleteRoomId(null);
+    }
+  });
 
-  const wrapDeactivate = useWrap(async (roomId: string) => {
-    await deleteRoomMutation(roomId);
+  const wrapReactivate = useWrap(async (roomId: string) => {
+    await reactivateRoomMutation(roomId);
+    toast.success("Room successfully reactivated.");
   });
 
   const wrapOpenCreateForm = useWrap(() => {
@@ -60,9 +93,29 @@ export const RoomsTab = reatomComponent(() => {
     closeRoomFormAction();
   });
 
+  const wrapSearch = useWrap((value: string) => {
+    updateAdminRoomSearchAction(value);
+  });
+
+  const wrapChangeTab = useWrap((tab: "active" | "inactive") => {
+    setAdminRoomStatusTabAction(tab);
+  });
+
+  const wrapLoadMore = useWrap(() => {
+    loadMoreAdminRoomsAction();
+  });
+
+  const wrapActivate = useWrap(() => {
+    searchAdminRoomsAction();
+  });
+
+  useEffect(() => {
+    wrapActivate();
+  }, []);
+
   return (
-    <section data-slot="dashboard-rooms-tab" className="flex flex-1 flex-col gap-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <section data-slot="dashboard-rooms-tab" className="flex flex-1 flex-col">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
         <h3 className="text-[1.75rem] font-black uppercase tracking-tighter">Rooms</h3>
 
         <Button type="button" onClick={wrapOpenCreateForm}>
@@ -71,18 +124,35 @@ export const RoomsTab = reatomComponent(() => {
         </Button>
       </div>
 
-      <div className="flex items-center gap-3 bg-surface-container px-6 py-4">
-        <IconSearch size={18} className="shrink-0 text-primary" />
-        <Input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="SEARCH BY ROOM OR BUILDING..."
-          className="border-none bg-transparent text-sm font-bold uppercase tracking-widest"
-        />
+      <div className="mb-4 flex items-center gap-6 border-b border-border pb-4">
+        <Button
+          variant="tab"
+          className={cn("-ml-2", {
+            "text-primary font-black": activeTab === "active",
+          })}
+          onClick={() => wrapChangeTab("active")}
+        >
+          Active Rooms
+        </Button>
+        <Button
+          variant="tab"
+          className={cn({
+            "text-primary font-black": activeTab === "inactive",
+          })}
+          onClick={() => wrapChangeTab("inactive")}
+        >
+          Inactive Rooms
+        </Button>
       </div>
 
-      <div className="bg-surface-container-low">
+      <Search
+        className="bg-surface-container-high mb-4"
+        query={search}
+        wrapSearch={wrapSearch}
+        placeholder={"SEARCH BY ROOM OR BUILDING..."}
+      />
+
+      <div className="bg-surface-container-low mb-4">
         <Table>
           <TableHeader>
             <TableRow>
@@ -103,8 +173,8 @@ export const RoomsTab = reatomComponent(() => {
                   Loading rooms...
                 </TableCell>
               </TableRow>
-            ) : filteredRooms.length > 0 ? (
-              filteredRooms.map((room) => {
+            ) : rooms.length > 0 ? (
+              rooms.map((room) => {
                 const roomEquipment = room.equipment ?? [];
                 const isInactive = room.availability.label.toLowerCase().includes("inactive");
 
@@ -140,25 +210,50 @@ export const RoomsTab = reatomComponent(() => {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => wrapOpenEditForm(room)}
-                        >
-                          <IconPencil className="size-4" />
-                          Edit
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="destructive"
-                          disabled={deleteStatus.isPending}
-                          onClick={() => wrapDeactivate(room.id)}
-                        >
-                          <IconTrash className="size-4" />
-                          Deactivate
-                        </Button>
+                        {isInactive ? (
+                          <>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => wrapReactivate(room.id)}
+                              disabled={reactivateStatus.isPending}
+                            >
+                              <IconRefresh className="size-4" />
+                              Restore
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => setHardDeleteRoomId(room.id)}
+                            >
+                              <IconTrashX className="size-4" />
+                              Delete
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => wrapOpenEditForm(room)}
+                            >
+                              <IconPencil className="size-4" />
+                              Edit
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => setDeactivateRoomId(room.id)}
+                            >
+                              <IconTrash className="size-4" />
+                              Deactivate
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -175,11 +270,73 @@ export const RoomsTab = reatomComponent(() => {
         </Table>
       </div>
 
+      {hasMore && (
+        <div className="flex justify-center pb-8">
+          <Button
+            variant="outline"
+            onClick={wrapLoadMore}
+            disabled={status.isPending}
+          >
+            {status.isPending ? "Loading..." : "Load More"}
+          </Button>
+        </div>
+      )}
+
       <RoomForm
         open={roomFormOpen}
         onOpenChange={(open) => !open && wrapCloseForm()}
         mode={roomFormMode}
       />
+
+      <AlertDialog
+        open={!!deactivateRoomId}
+        onOpenChange={(open) => !open && setDeactivateRoomId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deactivate Room?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to deactivate this room? It will be moved to the inactive list.
+              Existing bookings will not be cancelled.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteStatus.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleteStatus.isPending}
+              onClick={wrapDeactivate}
+            >
+              {deleteStatus.isPending ? "Deactivating..." : "Deactivate"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!hardDeleteRoomId}
+        onOpenChange={(open) => !open && setHardDeleteRoomId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently Delete Room?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently remove the room from the database.
+              Rooms with existing bookings cannot be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={hardDeleteStatus.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={hardDeleteStatus.isPending}
+              onClick={wrapHardDelete}
+            >
+              {hardDeleteStatus.isPending ? "Deleting..." : "Delete Permanently"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }, "RoomsTab");

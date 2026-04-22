@@ -16,6 +16,12 @@ const buttonVariants = cva(
           "border-outline-variant bg-transparent text-on-surface hover:bg-surface-container-high",
         secondary: "bg-surface-container-highest text-on-surface hover:bg-surface-container-high",
         ghost: "text-on-surface-variant hover:bg-surface-container hover:text-on-surface",
+        //      "text-sm font-bold -ml-2 uppercase tracking-widest transition-colors duration-150 ease-linear hover:text-on-surface",
+        //   {
+        //     "text-primary font-black": activeTab === "active",
+        //     "text-on-surface-variant": activeTab !== "active",
+        //   },
+        tab: "text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-sm font-bold uppercase tracking-widest transition-colors duration-150 ease-linear hover:text-on-surface",
         destructive: "bg-secondary/15 text-secondary hover:bg-secondary/25",
         link: "text-primary underline-offset-4 hover:underline",
       },

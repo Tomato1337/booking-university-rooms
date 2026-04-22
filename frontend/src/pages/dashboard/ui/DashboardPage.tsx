@@ -8,6 +8,8 @@ import { BookingsTab } from "./BookingsTab";
 import { EquipmentTab } from "./EquipmentTab";
 import { RoomsTab } from "./RoomsTab";
 import { StatisticsTab } from "./StatisticsTab";
+import { Button } from "@/shared/ui/button";
+import { cn } from "@/shared/lib/utils";
 
 const dashboardTabs: AdminTab[] = ["bookings", "rooms", "equipment", "statistics"];
 
@@ -29,20 +31,18 @@ const DashboardTabs = reatomComponent(() => {
   return (
     <div className="flex items-center gap-6">
       {dashboardTabs.map((tab) => {
-        const isActive = tab === activeTab;
         return (
-          <button
+          <Button
             key={tab}
             type="button"
+            variant={"tab"}
+            className={cn("-ml-2", {
+              "text-primary font-black": tab === activeTab,
+            })}
             onClick={() => wrapSetTab(tab)}
-            className={
-              isActive
-                ? "text-sm font-black uppercase tracking-widest text-primary"
-                : "text-sm font-bold uppercase tracking-widest text-on-surface-variant transition-colors duration-150 ease-linear hover:text-on-surface"
-            }
           >
             {tab}
-          </button>
+          </Button>
         );
       })}
     </div>

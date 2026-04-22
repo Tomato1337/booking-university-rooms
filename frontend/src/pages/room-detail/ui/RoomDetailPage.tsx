@@ -187,7 +187,11 @@ const RoomDetailPage = reatomComponent(() => {
 
   const wrapLoad = useWrap((nextRoomId: string, nextDate: string) => {
     const today = todayUtcStr();
-    const safeDate = nextDate < today ? today : nextDate;
+    const safeDate = new Date(nextDate) < new Date(today) ? today : nextDate;
+    if (safeDate !== nextDate) {
+      roomDetailRoute.go({ roomId: nextRoomId, date: safeDate }, true);
+      return null;
+    }
     return loadRoomDetailAction({ roomId: nextRoomId, date: safeDate });
   });
 
@@ -247,7 +251,7 @@ const RoomDetailPage = reatomComponent(() => {
             <PopoverTrigger asChild>
               <Button
                 variant="ghost"
-                className="h-auto px-6 py-4 text-xs font-black uppercase tracking-widest"
+                className="h-auto px-6 py-4 -mr-6 text-xs font-black uppercase tracking-widest"
               >
                 {date}
               </Button>

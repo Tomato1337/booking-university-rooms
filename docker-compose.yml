@@ -4,16 +4,20 @@
 
 services:
   # ── Frontend (nginx + Vite SPA) ──────────────────────────────────
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   container_name: bur-frontend
-  #   ports:
-  #     - "${FRONTEND_PORT:-5173}:80"
-  #   networks:
-  #     - frontend-net
-  #   restart: unless-stopped
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_TZ=${TZ:-Europe/Moscow}
+    container_name: bur-frontend
+    environment:
+      TZ: "${TZ:-Europe/Moscow}"
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    networks:
+      - frontend-net
+    restart: unless-stopped
 
   # ── Backend API ──────────────────────────────────────────────────
   backend:
@@ -27,6 +31,7 @@ services:
       PORT: "3000"
       HOST: "0.0.0.0"
       ENV: "${ENV:-production}"
+      TZ: "${TZ:-Europe/Moscow}"
       DATABASE_URL: "postgresql://${POSTGRES_USER:-bur}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-bur}?sslmode=disable"
       JWT_SECRET: "${JWT_SECRET:?Set JWT_SECRET}"
       JWT_REFRESH_SECRET: "${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET}"
@@ -49,6 +54,7 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-bur}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      TZ: "${TZ:-Europe/Moscow}"
     ports:
       - "5455:5432"
     volumes:

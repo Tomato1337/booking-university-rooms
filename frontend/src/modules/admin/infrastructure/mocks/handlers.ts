@@ -200,7 +200,86 @@ export const deleteAdminEquipment = {
   }),
 }
 
+export const listAdminRooms = {
+  default: http.get("/admin/rooms", ({ request, response }) => {
+    const url = new URL(request.url)
+    const search = url.searchParams.get("search")?.toLowerCase() || ""
+    const status = url.searchParams.get("status") || "all"
+    const limitStr = url.searchParams.get("limit")
+    const limit = limitStr ? parseInt(limitStr, 10) : 20
+    const cursorStr = url.searchParams.get("cursor")
+    const cursor = cursorStr ? parseInt(cursorStr, 10) : 0
+
+    let filtered = adminMockState.rooms
+
+    if (status === "active") {
+      filtered = filtered.filter(r => r.isActive !== false)
+    } else if (status === "inactive") {
+      filtered = filtered.filter(r => r.isActive === false)
+    }
+
+    if (search) {
+      filtered = filtered.filter(r => r.name.toLowerCase().includes(search) || r.building.toLowerCase().includes(search))
+    }
+
+    const data = filtered.slice(cursor, cursor + limit).map(room => {
+      // Map to RoomCard format
+      return {
+        id: room.id,
+        name: room.name,
+        roomType: room.roomType,
+        capacity: room.capacity,
+        building: room.building,
+        floor: room.floor,
+        equipment: room.equipment,
+        availability: {
+          isAvailable: room.isActive !== false,
+          label: room.isActive !== false ? "AVAILABLE" : "INACTIVE"
+        },
+        isActive: room.isActive !== false
+      }
+    })
+
+    const nextCursor = cursor + limit < filtered.length ? String(cursor + limit) : null
+
+    return response(200).json({
+      data: data as any,
+      meta: {
+        hasMore: nextCursor !== null,
+        nextCursor
+      }
+    })
+  }),
+}
+
+export const reactivateAdminRoom = {
+  default: http.patch("/admin/rooms/{roomId}/reactivate", ({ params, response }) => {
+    const roomId = String(params.roomId)
+    const room = adminMockState.rooms.find(r => r.id === roomId)
+    if (!room) {
+      return response(404).json({ error: { code: "ROOM_NOT_FOUND", message: "Not found" } })
+    }
+    room.isActive = true
+    return response(200).json({ data: room })
+  }),
+}
+
+export const hardDeleteAdminRoom = {
+  default: http.delete("/admin/rooms/{roomId}", ({ params, response }) => {
+    const roomId = String(params.roomId)
+    const index = adminMockState.rooms.findIndex((room) => room.id === roomId)
+    if (index < 0) {
+      return response(404).json({ error: { code: "ROOM_NOT_FOUND", message: "Not found" } })
+    }
+    adminMockState.rooms.splice(index, 1)
+    return response(204).empty()
+  }),
+}
+
 export const adminMockHandlers = [
+  listAdminRooms.default,
+  reactivateAdminRoom.default,
+  hardDeleteAdminRoom.default,
   getAdminPendingBookings.default,
   getAdminHistoryBookings.default,
   approveAdminBooking.default,

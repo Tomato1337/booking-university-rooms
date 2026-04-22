@@ -87,6 +87,11 @@ type BookingCursorPayload struct {
 	ID          string `json:"id"`
 }
 
+type AdminHistoryCursorPayload struct {
+	UpdatedAt string `json:"updated_at"`
+	ID        string `json:"id"`
+}
+
 type AdminCursorPayload struct {
 	CreatedAt string `json:"created_at"`
 	ID        string `json:"id"`
@@ -118,6 +123,18 @@ func DecodeBookingCursor(cursor string) (*BookingCursorPayload, error) {
 		return nil, err
 	}
 	var p BookingCursorPayload
+	if err := json.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+func DecodeAdminHistoryCursor(cursor string) (*AdminHistoryCursorPayload, error) {
+	data, err := base64.StdEncoding.DecodeString(cursor)
+	if err != nil {
+		return nil, err
+	}
+	var p AdminHistoryCursorPayload
 	if err := json.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}

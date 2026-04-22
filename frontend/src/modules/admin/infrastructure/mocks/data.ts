@@ -4,7 +4,7 @@ import { mockRooms, mockEquipment, mockRoomMetaById, invalidateAllMockRoomDetail
 type AdminPendingBooking = components["schemas"]["AdminPendingBooking"];
 type AdminStats = components["schemas"]["AdminStats"];
 type EquipmentItem = components["schemas"]["EquipmentItem"];
-type RoomFull = components["schemas"]["RoomFull"];
+type RoomFull = components["schemas"]["RoomFull"] & { isActive?: boolean };
 type CreateRoomRequest = components["schemas"]["CreateRoomRequest"];
 type UpdateRoomRequest = components["schemas"]["UpdateRoomRequest"];
 type ApproveResponse =
@@ -538,6 +538,7 @@ export function createRoomItem(body: CreateRoomRequest): RoomFull {
     photos: body.photos,
     equipment: eqByIds(body.equipmentIds ?? []),
     createdAt: new Date().toISOString(),
+    isActive: true,
   };
 
   adminMockState.rooms.push(room);
@@ -622,7 +623,7 @@ export function deleteRoomItem(roomId: string): boolean {
   const index = adminMockState.rooms.findIndex((room) => room.id === roomId);
   if (index < 0) return false;
 
-  adminMockState.rooms.splice(index, 1);
+  adminMockState.rooms[index].isActive = false;
   adminMockState.stats.totalActiveRooms = Math.max(0, adminMockState.stats.totalActiveRooms - 1);
 
   const publicIndex = mockRooms.findIndex((room) => room.id === roomId);
@@ -630,7 +631,6 @@ export function deleteRoomItem(roomId: string): boolean {
     mockRooms.splice(publicIndex, 1);
   }
 
-  delete mockRoomMetaById[roomId];
   invalidateAllMockRoomDetails(roomId);
 
   return true;

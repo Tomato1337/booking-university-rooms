@@ -1,4 +1,3 @@
-import { IconSearch } from "@tabler/icons-react";
 
 import { reatomComponent, useWrap } from "@reatom/react";
 import { useEffect, useState } from "react";
@@ -33,6 +32,9 @@ import {
   AlertDialogTitle,
 } from "@/shared/ui/alert-dialog";
 import { wrap } from "@reatom/core";
+import Search from "@/shared/ui/search";
+import { Button } from "@/shared/ui/button";
+import { cn } from "@/shared/lib/utils";
 type BookingsTab = "active" | "history";
 
 function formatBookingDate(value: string): string {
@@ -73,6 +75,7 @@ const BookingsPage = reatomComponent(() => {
   const query = bookingsPageSearchAtom();
   const activeBookings = myBookingsAtom().map(toBookingRowData);
   const historyBookings = myBookingHistoryAtom().map(toBookingRowData);
+
 
   const currentRows = activeTab === "active" ? activeBookings : historyBookings;
   const isLoading =
@@ -139,7 +142,7 @@ const BookingsPage = reatomComponent(() => {
   });
 
   return (
-    <div data-slot="bookings-page" className="flex min-h-full flex-col gap-10 px-6 py-8 md:px-10">
+    <div data-slot="bookings-page" className="flex min-h-full flex-col gap-6 px-6 py-8 md:px-10">
       {/* Hero title section */}
       <section className="flex flex-col gap-6">
         <div>
@@ -151,44 +154,33 @@ const BookingsPage = reatomComponent(() => {
 
         {/* Tabs: Active / History */}
         <div className="flex items-center gap-6">
-          <button
+          <Button
             type="button"
-            className={
-              activeTab === "active"
-                ? "text-sm font-black uppercase tracking-widest text-primary"
-                : "text-sm font-bold uppercase tracking-widest text-on-surface-variant transition-colors duration-150 ease-linear hover:text-on-surface"
-            }
+            variant={"tab"}
+            className={cn("-ml-2", {
+              "text-primary font-black": activeTab === "active",
+            })}
             onClick={() => wrapSelectTab("active")}
           >
             Active
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className={
-              activeTab === "history"
-                ? "text-sm font-black uppercase tracking-widest text-primary"
-                : "text-sm font-bold uppercase tracking-widest text-on-surface-variant transition-colors duration-150 ease-linear hover:text-on-surface"
-            }
+            variant={"tab"}
+            className={cn("-ml-2", {
+              "text-primary font-black": activeTab === "history",
+            })}
             onClick={() => wrapSelectTab("history")}
           >
             History
-          </button>
+          </Button>
         </div>
       </section>
 
       {/* Table section */}
       <section className="flex flex-1 flex-col">
         {/* Search bar inside table */}
-        <div className="flex items-center gap-3 bg-surface-container px-6 py-4">
-          <IconSearch size={18} className="shrink-0 text-primary" />
-          <input
-            type="text"
-            value={query}
-            onChange={useWrap((e) => wrapSearch(e.target.value))}
-            placeholder="SEARCH BOOKINGS BY ROOM, DATE, OR ID..."
-            className="w-full bg-transparent text-sm font-bold uppercase tracking-widest text-on-surface outline-none placeholder:text-on-surface-variant/50"
-          />
-        </div>
+        <Search query={query} wrapSearch={wrapSearch} placeholder="SEARCH BY NAME..." />
 
         {loadError && (
           <div className="border-l-2 border-secondary bg-surface-container-low px-6 py-4">

@@ -198,3 +198,63 @@ func (h *Handler) Delete(c *gin.Context) {
 
 	c.Status(http.StatusNoContent)
 }
+
+func (h *Handler) AdminSearch(c *gin.Context) {
+	input := roomssvc.AdminSearchInput{
+		Search: c.Query("search"),
+		Status: c.Query("status"),
+		Cursor: c.Query("cursor"),
+	}
+
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil {
+			input.Limit = l
+		}
+	}
+	if input.Limit == 0 {
+		input.Limit = 20
+	}
+
+	res, err := h.service.AdminSearch(c.Request.Context(), input)
+	if err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		return
+	}
+
+	utils.RespondSuccessWithMeta(c, http.StatusOK, res.Rooms, utils.CursorMeta{HasMore: res.HasMore, NextCursor: res.NextCursor})
+}
+
+func (h *Handler) Reactivate(c *gin.Context) {
+	roomID := c.Param("roomId")
+
+	room, err := h.service.Reactivate(c.Request.Context(), roomID)
+	if err != nil {
+		if err == roomssvc.ErrRoomNotFound {
+			utils.RespondError(c, http.StatusNotFound, "ROOM_NOT_FOUND", "Room not found")
+			return
+		}
+		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		return
+	}
+
+	utils.RespondSuccess(c, http.StatusOK, room)
+}
+
+func (h *Handler) HardDelete(c *gin.Context) {
+	roomID := c.Param("roomId")
+
+	if err := h.service.HardDelete(c.Request.Context(), roomID); err != nil {
+		if err == roomssvc.ErrRoomNotFound {
+			utils.RespondError(c, http.StatusNotFound, "ROOM_NOT_FOUND", "Room not found")
+			return
+		}
+		if err == roomssvc.ErrRoomHasBookings {
+			utils.RespondError(c, http.StatusConflict, "ROOM_HAS_BOOKINGS", "Cannot permanently delete room with existing bookings")
+			return
+		}
+		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}

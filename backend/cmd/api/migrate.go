@@ -12,6 +12,12 @@ import (
 //go:embed migrations/000001_init.sql
 var initSQL []byte
 
+//go:embed migrations/000002_add_room_hours.sql
+var addRoomHoursSQL []byte
+
+//go:embed migrations/000003_seed_data.sql
+var seedDataSQL []byte
+
 func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	// Create migrations tracking table if needed
 	_, err := pool.Exec(ctx, `
@@ -29,6 +35,8 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		sql     []byte
 	}{
 		{"000001_init", initSQL},
+		{"000002_add_room_hours", addRoomHoursSQL},
+		{"000003_seed_data", seedDataSQL},
 	}
 
 	for _, m := range migrations {

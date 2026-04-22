@@ -29,9 +29,20 @@ export {
 } from "./application/booking-management-atoms"
 export { adminStatsQuery, statsPeriodAtom } from "./application/stats-atoms"
 export {
+  adminRoomPagesAtom,
+  adminRoomSearchAtom,
+  adminRoomStatusTabAtom,
+  adminRoomsHasMoreAtom,
+  adminRoomsListAtom,
   adminRoomsQuery,
   createRoomMutation,
   deleteRoomMutation,
+  hardDeleteRoomMutation,
+  loadMoreAdminRoomsAction,
+  reactivateRoomMutation,
+  searchAdminRoomsAction,
+  setAdminRoomStatusTabAction,
+  updateAdminRoomSearchAction,
   updateRoomMutation,
 } from "./application/room-management-atoms"
 export {

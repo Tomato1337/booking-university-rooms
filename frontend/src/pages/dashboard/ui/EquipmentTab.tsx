@@ -4,13 +4,13 @@ import {
   IconTrash,
   IconAlertTriangle,
   IconExclamationCircle,
-} from "@tabler/icons-react"
+} from "@tabler/icons-react";
 
-import { reatomComponent, useWrap } from "@reatom/react"
-import { useState } from "react"
+import { reatomComponent, useWrap } from "@reatom/react";
+import { useState, useEffect } from "react";
 
 import {
-  adminRoomsQuery,
+  adminRoomsListAtom,
   closeEquipmentFormAction,
   deleteEquipmentMutation,
   equipmentFormModeAtom,
@@ -18,11 +18,12 @@ import {
   openCreateEquipmentFormAction,
   openEditEquipmentFormAction,
   equipmentListQuery,
+  searchAdminRoomsAction,
   type EquipmentDeleteResult,
   type EquipmentItem,
-} from "@/modules/admin"
-import { EquipmentForm } from "@/modules/admin"
-import { getEquipmentIcon } from "@/modules/rooms"
+} from "@/modules/admin";
+import { EquipmentForm } from "@/modules/admin";
+import { getEquipmentIcon } from "@/modules/rooms";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,68 +33,71 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/shared/ui/alert-dialog"
-import { Button } from "@/shared/ui/button"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/shared/ui/table"
+} from "@/shared/ui/alert-dialog";
+import { Button } from "@/shared/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 
 interface DeleteDialogState {
-  equipment: EquipmentItem
-  usage: EquipmentDeleteResult["usedInRooms"]
-  confirmed: boolean
+  equipment: EquipmentItem;
+  usage: EquipmentDeleteResult["usedInRooms"];
+  confirmed: boolean;
 }
 
 export const EquipmentTab = reatomComponent(() => {
-  const equipment = equipmentListQuery.data()
-  const status = equipmentListQuery.status()
-  const rooms = adminRoomsQuery.data()
-  const deleteStatus = deleteEquipmentMutation.status()
-  const equipmentFormOpen = equipmentFormOpenAtom()
-  const equipmentFormMode = equipmentFormModeAtom()
+  const equipment = equipmentListQuery.data();
+  const status = equipmentListQuery.status();
+  const rooms = adminRoomsListAtom();
+  const deleteStatus = deleteEquipmentMutation.status();
+  const equipmentFormOpen = equipmentFormOpenAtom();
+  const equipmentFormMode = equipmentFormModeAtom();
 
-  const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState | null>(null)
+  const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState | null>(null);
 
   const wrapOpenDeleteDialog = useWrap((item: EquipmentItem) => {
     const usage = rooms
       .filter((room) => room.equipment.some((eq) => eq.id === item.id))
-      .map((room) => ({ id: room.id, name: room.name }))
+      .map((room) => ({ id: room.id, name: room.name }));
 
     setDeleteDialog({
       equipment: item,
       usage,
       confirmed: false,
-    })
-  })
+    });
+  });
 
   const wrapConfirmDelete = useWrap(async () => {
-    if (!deleteDialog) return
+    if (!deleteDialog) return;
 
-    await deleteEquipmentMutation(deleteDialog.equipment.id)
+    await deleteEquipmentMutation(deleteDialog.equipment.id);
 
     setDeleteDialog({
       equipment: deleteDialog.equipment,
       usage: deleteDialog.usage,
       confirmed: true,
-    })
-  })
+    });
+  });
 
   const wrapOpenCreateForm = useWrap(() => {
-    openCreateEquipmentFormAction()
-  })
+    openCreateEquipmentFormAction();
+  });
 
   const wrapOpenEditForm = useWrap((item: EquipmentItem) => {
-    openEditEquipmentFormAction(item)
-  })
+    openEditEquipmentFormAction(item);
+  });
 
   const wrapCloseForm = useWrap(() => {
-    closeEquipmentFormAction()
-  })
+    closeEquipmentFormAction();
+  });
+
+  const wrapActivate = useWrap(() => {
+    if (rooms.length === 0) {
+      searchAdminRoomsAction();
+    }
+  });
+
+  useEffect(() => {
+    wrapActivate();
+  }, []);
 
   return (
     <section data-slot="dashboard-equipment-tab" className="flex flex-1 flex-col gap-6">
@@ -124,7 +128,7 @@ export const EquipmentTab = reatomComponent(() => {
               </TableRow>
             ) : equipment.length > 0 ? (
               equipment.map((item) => {
-                const EquipmentIcon = getEquipmentIcon(item.icon)
+                const EquipmentIcon = getEquipmentIcon(item.icon);
 
                 return (
                   <TableRow key={item.id} data-slot="admin-equipment-row">
@@ -133,7 +137,9 @@ export const EquipmentTab = reatomComponent(() => {
                         <EquipmentIcon size={16} />
                       </span>
                     </TableCell>
-                    <TableCell className="font-bold uppercase tracking-wider">{item.name}</TableCell>
+                    <TableCell className="font-bold uppercase tracking-wider">
+                      {item.name}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button
@@ -158,7 +164,7 @@ export const EquipmentTab = reatomComponent(() => {
                       </div>
                     </TableCell>
                   </TableRow>
-                )
+                );
               })
             ) : (
               <TableRow>
@@ -180,7 +186,7 @@ export const EquipmentTab = reatomComponent(() => {
       <AlertDialog
         open={Boolean(deleteDialog)}
         onOpenChange={(open) => {
-          if (!open) setDeleteDialog(null)
+          if (!open) setDeleteDialog(null);
         }}
       >
         <AlertDialogContent size="sm" data-slot="equipment-delete-warning-dialog">
@@ -198,13 +204,15 @@ export const EquipmentTab = reatomComponent(() => {
                     {deleteDialog.equipment.name} has been removed from catalogue.
                   </span>
                   <span className="mt-2 block">
-                    Cascade behavior applied: equipment relationships were removed from linked rooms.
+                    Cascade behavior applied: equipment relationships were removed from linked
+                    rooms.
                   </span>
                 </>
               ) : (
                 <>
                   <span className="block">
-                    Delete {deleteDialog?.equipment.name}? This action updates room-equipment relationships.
+                    Delete {deleteDialog?.equipment.name}? This action updates room-equipment
+                    relationships.
                   </span>
                   <span className="mt-2 block">
                     Cascade behavior: linked rooms will no longer include this equipment.
@@ -233,8 +241,8 @@ export const EquipmentTab = reatomComponent(() => {
             {deleteDialog?.confirmed ? (
               <AlertDialogAction
                 onClick={(e) => {
-                  e.preventDefault()
-                  setDeleteDialog(null)
+                  e.preventDefault();
+                  setDeleteDialog(null);
                 }}
               >
                 Done
@@ -244,8 +252,8 @@ export const EquipmentTab = reatomComponent(() => {
                 variant="destructive"
                 disabled={deleteStatus.isPending}
                 onClick={(e) => {
-                  e.preventDefault()
-                  void wrapConfirmDelete()
+                  e.preventDefault();
+                  void wrapConfirmDelete();
                 }}
               >
                 {deleteStatus.isPending ? "Deleting..." : "Confirm Delete"}
@@ -255,5 +263,5 @@ export const EquipmentTab = reatomComponent(() => {
         </AlertDialogContent>
       </AlertDialog>
     </section>
-  )
-}, "EquipmentTab")
+  );
+}, "EquipmentTab");

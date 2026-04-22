@@ -31,3 +31,35 @@ export function deleteRoom(roomId: string) {
     params: { path: { roomId } },
   })
 }
+
+export interface ListAdminRoomsQuery {
+  search?: string;
+  status?: "active" | "inactive" | "all";
+  limit?: number;
+  cursor?: string;
+}
+
+export function listAdminRooms(query: ListAdminRoomsQuery) {
+  return apiClient.GET("/admin/rooms", {
+    params: {
+      query: {
+        search: query.search,
+        status: query.status,
+        limit: query.limit,
+        cursor: query.cursor,
+      },
+    },
+  });
+}
+
+export function reactivateRoom(roomId: string) {
+  return apiClient.PATCH("/admin/rooms/{roomId}/reactivate", {
+    params: { path: { roomId } },
+  });
+}
+
+export function hardDeleteRoom(roomId: string) {
+  return apiClient.DELETE("/admin/rooms/{roomId}", {
+    params: { path: { roomId } },
+  });
+}

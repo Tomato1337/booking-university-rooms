@@ -146,7 +146,11 @@ func main() {
 	// Admin
 	admin := api.Group("/admin", middleware.Authenticate(cfg.JWTSecret), middleware.RequireRole("admin"))
 	{
+		admin.GET("/rooms", roomsH.AdminSearch)
+		admin.DELETE("/rooms/:roomId", roomsH.HardDelete)
+		admin.PATCH("/rooms/:roomId/reactivate", roomsH.Reactivate)
 		admin.GET("/bookings/pending", adminH.ListPending)
+		admin.GET("/bookings/history", adminH.ListHistory)
 		admin.PATCH("/bookings/:bookingId/approve", adminH.Approve)
 		admin.PATCH("/bookings/:bookingId/reject", adminH.Reject)
 		admin.GET("/stats", adminH.GetStats)

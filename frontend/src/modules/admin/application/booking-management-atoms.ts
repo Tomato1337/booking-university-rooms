@@ -3,7 +3,6 @@ import {
   atom,
   computed,
   sleep,
-  withAbort,
   withAsync,
   withAsyncData,
   withCallHook,
@@ -42,7 +41,6 @@ function createPendingRequestKey(query: adminApi.ListPendingQuery): string {
 }
 
 export const pendingSearchAtom = atom("", "pendingSearchAtom");
-const pendingSearchRevisionAtom = atom(0, "pendingSearchRevisionAtom");
 
 const pendingCursorInputAtom = atom<string | null>(null, "pendingCursorInputAtom");
 const pendingRequestQueryAtom = atom<adminApi.ListPendingQuery | null>(
@@ -106,22 +104,33 @@ export const loadMorePendingBookingsAction = action(async () => {
   return await wrap(pendingBookingsQuery.retry());
 }, "loadMorePendingBookingsAction").extend(withAsync({ status: true }));
 
-export const updatePendingSearchAction = action(async (value: string) => {
-  pendingSearchAtom.set(value);
-  const nextRevision = pendingSearchRevisionAtom() + 1;
-  pendingSearchRevisionAtom.set(nextRevision);
-
+const searchPendingBookingsByTypingAction = action(async () => {
   await wrap(sleep(PENDING_SEARCH_DEBOUNCE_MS));
 
-  if (pendingSearchRevisionAtom() !== nextRevision) {
+  const nextSearch = pendingSearchAtom().trim();
+  const appliedSearch = (pendingRequestQueryAtom()?.search ?? "").trim();
+  if (nextSearch === appliedSearch) {
     return null;
   }
 
-  return await wrap(searchPendingBookingsAction());
-}, "updatePendingSearchAction").extend(withAsync({ status: true }), withAbort());
+  try {
+    return await wrap(searchPendingBookingsAction());
+  } catch {
+    return null;
+  }
+}, "searchPendingBookingsByTypingAction").extend(withAsyncData({ initState: null }));
+
+export const updatePendingSearchAction = action(async (value: string) => {
+  pendingSearchAtom.set(value);
+
+  try {
+    return await wrap(searchPendingBookingsByTypingAction());
+  } catch {
+    return null;
+  }
+}, "updatePendingSearchAction");
 
 export const pendingBookingsQuery = computed(async () => {
-  pendingSearchRevisionAtom();
   pendingCursorInputAtom();
 
   const query = pendingRequestQueryAtom();
@@ -185,6 +194,7 @@ export const approveBookingMutation = action(async (bookingId: string) => {
   }
 
   await wrap(searchPendingBookingsAction());
+  await wrap(searchHistoryBookingsAction());
   await wrap(adminStatsQuery.retry());
   return data.data;
 }, "approveBookingMutation").extend(withAsync({ status: true }));
@@ -197,6 +207,7 @@ export const rejectBookingMutation = action(
     }
 
     await wrap(searchPendingBookingsAction());
+    await wrap(searchHistoryBookingsAction());
     await wrap(adminStatsQuery.retry());
     return data.data;
   },
@@ -221,7 +232,6 @@ function createHistoryRequestKey(query: adminApi.ListPendingQuery): string {
 }
 
 export const historySearchAtom = atom("", "historySearchAtom");
-const historySearchRevisionAtom = atom(0, "historySearchRevisionAtom");
 
 const historyCursorInputAtom = atom<string | null>(null, "historyCursorInputAtom");
 const historyRequestQueryAtom = atom<adminApi.ListPendingQuery | null>(
@@ -285,22 +295,33 @@ export const loadMoreHistoryBookingsAction = action(async () => {
   return await wrap(historyBookingsQuery.retry());
 }, "loadMoreHistoryBookingsAction").extend(withAsync({ status: true }));
 
-export const updateHistorySearchAction = action(async (value: string) => {
-  historySearchAtom.set(value);
-  const nextRevision = historySearchRevisionAtom() + 1;
-  historySearchRevisionAtom.set(nextRevision);
-
+const searchHistoryBookingsByTypingAction = action(async () => {
   await wrap(sleep(HISTORY_SEARCH_DEBOUNCE_MS));
 
-  if (historySearchRevisionAtom() !== nextRevision) {
+  const nextSearch = historySearchAtom().trim();
+  const appliedSearch = (historyRequestQueryAtom()?.search ?? "").trim();
+  if (nextSearch === appliedSearch) {
     return null;
   }
 
-  return await wrap(searchHistoryBookingsAction());
-}, "updateHistorySearchAction").extend(withAsync({ status: true }));
+  try {
+    return await wrap(searchHistoryBookingsAction());
+  } catch {
+    return null;
+  }
+}, "searchHistoryBookingsByTypingAction").extend(withAsyncData({ initState: null }));
+
+export const updateHistorySearchAction = action(async (value: string) => {
+  historySearchAtom.set(value);
+
+  try {
+    return await wrap(searchHistoryBookingsByTypingAction());
+  } catch {
+    return null;
+  }
+}, "updateHistorySearchAction");
 
 export const historyBookingsQuery = computed(async () => {
-  historySearchRevisionAtom();
   historyCursorInputAtom();
 
   const query = historyRequestQueryAtom();

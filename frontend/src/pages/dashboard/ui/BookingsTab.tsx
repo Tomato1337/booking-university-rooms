@@ -1,4 +1,4 @@
-import { IconSearch } from "@tabler/icons-react";
+
 
 import { reatomComponent, useWrap } from "@reatom/react";
 import { useEffect, useRef, useState } from "react";
@@ -21,8 +21,10 @@ import {
   searchHistoryBookingsAction,
   updateHistorySearchAction,
 } from "@/modules/admin";
-import { Input } from "@/shared/ui/input";
 import { MetricCard, MetricLabel, MetricValue } from "@/shared/ui/metric-card";
+import { Button } from "@/shared/ui/button";
+import Search from "@/shared/ui/search";
+import { cn } from "@/shared/lib/utils";
 
 type BookingsTabType = "active" | "history";
 
@@ -30,7 +32,7 @@ export const BookingsTab = reatomComponent(() => {
   const [activeTab, setActiveTab] = useState<BookingsTabType>("active");
 
   const stats = adminStatsQuery.data();
-  
+
   const pendingBookings = pendingBookingsListAtom();
   const pendingQuery = pendingSearchAtom();
   const hasMorePending = pendingHasMoreAtom();
@@ -42,12 +44,12 @@ export const BookingsTab = reatomComponent(() => {
   const historyStatus = historyBookingsQuery.status();
 
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const currentBookings = activeTab === "active" ? pendingBookings : historyBookings;
   const currentQuery = activeTab === "active" ? pendingQuery : historyQuery;
   const hasMore = activeTab === "active" ? hasMorePending : hasMoreHistory;
-  const isFirstPending = activeTab === "active" ? pendingStatus.isFirstPending : historyStatus.isFirstPending;
+  const isFirstPending =
+    activeTab === "active" ? pendingStatus.isFirstPending : historyStatus.isFirstPending;
   const isPending = activeTab === "active" ? pendingStatus.isPending : historyStatus.isPending;
 
   const wrapSearch = useWrap((value: string) => {
@@ -120,50 +122,36 @@ export const BookingsTab = reatomComponent(() => {
         <div className="flex items-center justify-between">
           <h3 className="text-[1.75rem] font-black uppercase tracking-tighter">Bookings</h3>
           <div className="flex items-center gap-6">
-            <button
+            <Button
               type="button"
-              className={
-                activeTab === "active"
-                  ? "text-sm font-black uppercase tracking-widest text-primary"
-                  : "text-sm font-bold uppercase tracking-widest text-on-surface-variant transition-colors duration-150 ease-linear hover:text-on-surface"
-              }
+              variant={"tab"}
+              className={cn("-mr-2", {
+                "text-primary font-black": activeTab === "active",
+              })}
               onClick={() => setActiveTab("active")}
             >
               Active
-            </button>
-            <button
+            </Button>
+
+            <Button
               type="button"
-              className={
-                activeTab === "history"
-                  ? "text-sm font-black uppercase tracking-widest text-primary"
-                  : "text-sm font-bold uppercase tracking-widest text-on-surface-variant transition-colors duration-150 ease-linear hover:text-on-surface"
-              }
+              variant={"tab"}
+              className={cn("-mr-2", {
+                "text-primary font-black": activeTab === "history",
+              })}
               onClick={() => setActiveTab("history")}
             >
               History
-            </button>
+            </Button>
           </div>
         </div>
 
         <div className="flex flex-col">
-          <div
-            onClick={() => {
-              if (searchInputRef.current) {
-                searchInputRef.current.focus();
-              }
-            }}
-            className="flex items-center gap-3 bg-surface-container px-6 py-4"
-          >
-            <IconSearch size={18} className="shrink-0 text-primary" />
-            <Input
-              ref={searchInputRef}
-              type="text"
-              value={currentQuery}
-              onChange={useWrap((e) => wrapSearch(e.target.value))}
-              placeholder="SEARCH BY USER, ROOM, BUILDING, OR TITLE..."
-              className="w-full border-none bg-transparent text-sm font-bold uppercase tracking-widest text-on-surface outline-none placeholder:text-on-surface-variant/50"
-            />
-          </div>
+          <Search
+            query={currentQuery}
+            wrapSearch={wrapSearch}
+            placeholder={"SEARCH BY USER, ROOM, BUILDING, OR TITLE..."}
+          />
 
           <div className="hidden bg-surface-container-high px-8 pl-10 py-4 md:grid md:grid-cols-5 gap-4">
             <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
@@ -192,10 +180,10 @@ export const BookingsTab = reatomComponent(() => {
               </div>
             ) : currentBookings.length > 0 ? (
               currentBookings.map((booking) => (
-                <AdminBookingRow 
-                  key={booking.id} 
-                  booking={booking} 
-                  isHistory={activeTab === "history"} 
+                <AdminBookingRow
+                  key={booking.id}
+                  booking={booking}
+                  isHistory={activeTab === "history"}
                 />
               ))
             ) : (

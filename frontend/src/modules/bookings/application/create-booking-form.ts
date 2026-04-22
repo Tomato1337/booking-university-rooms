@@ -180,11 +180,21 @@ export const createBookingAction = action(async (body: CreateBookingRequest) => 
 }, "bookings.create").extend(withAsync({ status: true }))
 
 export const fetchMyBookingsAction = action(async () => {
-  return await wrap(activeBookingsResource.retry())
+  try {
+    return await wrap(activeBookingsResource.retry())
+  } catch (error: any) {
+    if (error?.name === "AbortError") return null
+    throw error
+  }
 }, "bookings.my.fetch").extend(withAsync({ status: true }))
 
 export const fetchMyBookingHistoryAction = action(async () => {
-  return await wrap(historyBookingsResource.retry())
+  try {
+    return await wrap(historyBookingsResource.retry())
+  } catch (error: any) {
+    if (error?.name === "AbortError") return null
+    throw error
+  }
 }, "bookings.myHistory.fetch").extend(withAsync({ status: true }))
 
 export const cancelBookingAction = action(async (bookingId: string) => {
