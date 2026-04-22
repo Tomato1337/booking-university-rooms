@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
-import { reatomComponent, useWrap } from "@reatom/react";
-
+import { reatomComponent, useWrap, useAtom } from "@reatom/react";
+import { tAtom } from "@/modules/i18n";
 import {
   activateRoomsPageAction,
   deactivateRoomsPageAction,
@@ -48,6 +48,7 @@ function RoomCardSkeleton() {
 }
 
 const RoomsPage = reatomComponent(() => {
+  const [t] = useAtom(tAtom);
   const rooms = roomsListAtom();
   const loading = roomsLoadingAtom();
   const hasMore = roomsHasMoreAtom();
@@ -111,7 +112,7 @@ const RoomsPage = reatomComponent(() => {
       <section className="flex flex-col gap-8">
         <div>
           <h2 className="mb-2 text-[3.5rem] font-black uppercase leading-[0.9] tracking-tighter">
-            Room Search
+            {t.rooms.title}
           </h2>
           <div className="h-2 w-16 bg-primary" />
         </div>
@@ -123,7 +124,7 @@ const RoomsPage = reatomComponent(() => {
           disabled={!isEditable()}
           className="h-auto w-full py-8 text-[1.75rem] font-black uppercase tracking-tighter"
         >
-          Find Available Rooms
+          {t.rooms.findAvailable}
         </Button>
       </section>
 
@@ -131,10 +132,10 @@ const RoomsPage = reatomComponent(() => {
       <section className="flex flex-1 flex-col">
         <div className="flex items-end justify-between border-b border-outline-variant/10 pb-4">
           <h3 className="text-[1.75rem] font-black uppercase tracking-tighter">
-            Availability Results
+            {t.rooms.resultsTitle}
           </h3>
           <span className="text-xs font-bold uppercase tracking-[0.2em] text-on-surface-variant">
-            {rooms.length} Matches Found
+            {t.rooms.matchesFound.replace("{count}", String(rooms.length))}
           </span>
         </div>
 
@@ -153,14 +154,14 @@ const RoomsPage = reatomComponent(() => {
             id="room-search"
             value={search}
             onChange={useWrap((e) => wrapUpdateSearch(e.target.value))}
-            placeholder="SEARCH ROOM BY NAME..."
+            placeholder={t.rooms.searchPlaceholder}
             className="w-full border-none bg-transparent text-xs font-bold uppercase tracking-widest text-on-surface outline-none placeholder:text-on-surface-variant/50"
           />
         </div> */}
         <Search
           query={search}
           wrapSearch={wrapUpdateSearch}
-          placeholder={"SEARCH ROOM BY NAME..."}
+          placeholder={t.rooms.searchPlaceholder}
         />
 
         {/* Room cards list */}
@@ -183,7 +184,7 @@ const RoomsPage = reatomComponent(() => {
           {showEmpty && (
             <div className="flex flex-1 items-center justify-center py-20">
               <p className="text-sm font-bold uppercase tracking-widest text-on-surface-variant">
-                No rooms match your filters
+                {t.rooms.noMatches}
               </p>
             </div>
           )}

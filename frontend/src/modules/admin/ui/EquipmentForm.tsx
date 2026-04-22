@@ -11,8 +11,9 @@ import {
 } from "@tabler/icons-react"
 
 import { wrap } from "@reatom/core"
-import { bindField, reatomComponent, useWrap } from "@reatom/react"
+import { bindField, reatomComponent, useWrap, useAtom } from "@reatom/react"
 import type * as React from "react"
+import { tAtom } from "@/modules/i18n"
 
 import {
   equipmentForm,
@@ -36,20 +37,32 @@ import {
 
 interface IconOption {
   value: string
-  label: string
+  key: keyof typeof ICON_MAP
   Icon: React.ComponentType<{ className?: string; size?: number }>
 }
 
+const ICON_MAP = {
+  video: IconVideo,
+  presentation: IconPresentation,
+  broadcast: IconBroadcast,
+  desktop: IconDeviceDesktop,
+  microphone: IconMicrophone,
+  wifi: IconWifi,
+  volume: IconVolume,
+  terminal: IconTerminal2,
+  chalkboard: IconChalkboard,
+} as const
+
 const ICON_OPTIONS: IconOption[] = [
-  { value: "IconVideo", label: "Video", Icon: IconVideo },
-  { value: "IconPresentation", label: "Presentation", Icon: IconPresentation },
-  { value: "IconBroadcast", label: "Broadcast", Icon: IconBroadcast },
-  { value: "IconDeviceDesktop", label: "Desktop", Icon: IconDeviceDesktop },
-  { value: "IconMicrophone", label: "Microphone", Icon: IconMicrophone },
-  { value: "IconWifi", label: "Wi-Fi", Icon: IconWifi },
-  { value: "IconVolume", label: "Audio", Icon: IconVolume },
-  { value: "IconTerminal2", label: "Terminal", Icon: IconTerminal2 },
-  { value: "IconChalkboard", label: "Chalkboard", Icon: IconChalkboard },
+  { value: "IconVideo", key: "video", Icon: IconVideo },
+  { value: "IconPresentation", key: "presentation", Icon: IconPresentation },
+  { value: "IconBroadcast", key: "broadcast", Icon: IconBroadcast },
+  { value: "IconDeviceDesktop", key: "desktop", Icon: IconDeviceDesktop },
+  { value: "IconMicrophone", key: "microphone", Icon: IconMicrophone },
+  { value: "IconWifi", key: "wifi", Icon: IconWifi },
+  { value: "IconVolume", key: "volume", Icon: IconVolume },
+  { value: "IconTerminal2", key: "terminal", Icon: IconTerminal2 },
+  { value: "IconChalkboard", key: "chalkboard", Icon: IconChalkboard },
 ]
 
 export interface EquipmentFormProps {
@@ -59,6 +72,7 @@ export interface EquipmentFormProps {
 }
 
 export const EquipmentForm = reatomComponent<EquipmentFormProps>(({ open, onOpenChange, mode }) => {
+  const [t] = useAtom(tAtom)
   const fields = equipmentForm.fields
 
   const createStatus = createEquipmentMutation.status()
@@ -114,23 +128,25 @@ export const EquipmentForm = reatomComponent<EquipmentFormProps>(({ open, onOpen
     >
       <SheetContent side="right" className="w-full max-w-xl bg-surface-container-low">
         <SheetHeader>
-          <SheetTitle>{mode === "edit" ? "Edit Equipment" : "Create Equipment"}</SheetTitle>
+          <SheetTitle>{mode === "edit" ? t.admin.equipment.form.editTitle : t.admin.equipment.form.createTitle}</SheetTitle>
           <SheetDescription>
-            Define a reusable equipment entry and choose its Tabler icon.
+            {t.admin.equipment.form.description}
           </SheetDescription>
         </SheetHeader>
 
         <div data-slot="equipment-form" className="flex flex-col gap-5 p-4">
           <label className="flex flex-col gap-2">
-            <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Name</span>
-            <Input {...nameBind} aria-invalid={!!nameError} placeholder="e.g. Projector" />
+            <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">{t.admin.equipment.form.name}</span>
+            <Input {...nameBind} aria-invalid={!!nameError} placeholder={t.admin.equipment.form.namePlaceholder} />
             {nameError && (
-              <p className="text-xs font-bold uppercase tracking-widest text-secondary">{nameError}</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-secondary">
+                {(t.validation as Record<string, string>)[nameError] ?? nameError}
+              </p>
             )}
           </label>
 
           <label className="flex flex-col gap-2">
-            <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Icon</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">{t.admin.equipment.form.icon}</span>
             <select
               value={fields.icon()}
               onChange={(e) => wrapChangeIcon(e.target.value)}
@@ -139,18 +155,20 @@ export const EquipmentForm = reatomComponent<EquipmentFormProps>(({ open, onOpen
             >
               {ICON_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {(t.admin.equipment.icons as Record<string, string>)[option.key]}
                 </option>
               ))}
             </select>
             {iconError && (
-              <p className="text-xs font-bold uppercase tracking-widest text-secondary">{iconError}</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-secondary">
+                {(t.validation as Record<string, string>)[iconError] ?? iconError}
+              </p>
             )}
           </label>
 
           <div className="bg-surface-container p-3">
             <p className="mb-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-              Preview
+              {t.admin.equipment.form.preview}
             </p>
             <div className="flex items-center gap-3 text-on-surface">
               {SelectedIcon && (
@@ -158,17 +176,17 @@ export const EquipmentForm = reatomComponent<EquipmentFormProps>(({ open, onOpen
                   <SelectedIcon size={18} />
                 </span>
               )}
-              <span className="text-sm font-bold uppercase tracking-wider">{fields.name() || "Equipment"}</span>
+              <span className="text-sm font-bold uppercase tracking-wider">{fields.name() || t.admin.equipment.form.defaultName}</span>
             </div>
           </div>
         </div>
 
         <SheetFooter>
           <Button type="button" variant="outline" onClick={wrapCloseSheet}>
-            Cancel
+            {t.admin.equipment.form.cancel}
           </Button>
           <Button type="button" disabled={submitting} onClick={wrapSubmit}>
-            {submitting ? "Saving..." : mode === "edit" ? "Save Changes" : "Create Equipment"}
+            {submitting ? t.admin.equipment.form.saving : mode === "edit" ? t.admin.equipment.form.saveChanges : t.admin.equipment.form.create}
           </Button>
         </SheetFooter>
       </SheetContent>

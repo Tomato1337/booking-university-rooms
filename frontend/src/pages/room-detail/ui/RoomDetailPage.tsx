@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { createElement } from "react";
 
-import { reatomComponent, useWrap } from "@reatom/react";
+import { reatomComponent, useWrap, useAtom } from "@reatom/react";
 
 import {
   cancelBookingErrorAtom,
@@ -40,6 +40,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import { z } from "zod/v4";
 import { cn, parseDateStr, todayUtcStr, toUtcDateStr } from "@/shared/lib/utils";
 import { wrap } from "@reatom/core";
+import { tAtom, localeAtom } from "@/modules/i18n";
+import { ru, enUS } from "date-fns/locale";
 
 function EquipmentIcon({ icon }: { icon: string }) {
   const Icon = getEquipmentIcon(icon);
@@ -47,6 +49,7 @@ function EquipmentIcon({ icon }: { icon: string }) {
 }
 
 const YourBookingsPanel = reatomComponent(() => {
+  const [t] = useAtom(tAtom);
   const detail = roomDetailAtom();
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [bookingToCancel, setBookingToCancel] = useState<{
@@ -82,7 +85,7 @@ const YourBookingsPanel = reatomComponent(() => {
     >
       <header className="flex items-center justify-between gap-3">
         <h3 className="text-[1.4rem] font-black uppercase tracking-tight text-on-surface">
-          Your Bookings Today
+          {t.roomDetail.yourBookings}
         </h3>
         <span className="text-[1.4rem] font-bold uppercase tracking-[0.2em] text-on-surface-variant">
           {detail.userBookingsToday.length}
@@ -120,7 +123,7 @@ const YourBookingsPanel = reatomComponent(() => {
               variant="outline"
               onClick={() => wrapOpenCancel({ id: booking.id, title: booking.title })}
             >
-              Cancel
+              {t.roomDetail.actions.cancel}
             </Button>
           </article>
         ))}
@@ -129,11 +132,11 @@ const YourBookingsPanel = reatomComponent(() => {
       <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
         <AlertDialogContent size="sm">
           <AlertDialogHeader>
-            <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
+            <AlertDialogTitle>{t.roomDetail.alerts.cancelTitle}</AlertDialogTitle>
             <AlertDialogDescription>
               {bookingToCancel
-                ? `Cancel "${bookingToCancel.title}" from your bookings today?`
-                : "Cancel this booking?"}
+                ? t.roomDetail.alerts.cancelDescNamed.replace("{title}", bookingToCancel.title)
+                : t.roomDetail.alerts.cancelDesc}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {cancelError && (
@@ -142,7 +145,7 @@ const YourBookingsPanel = reatomComponent(() => {
             </p>
           )}
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep Booking</AlertDialogCancel>
+            <AlertDialogCancel>{t.roomDetail.alerts.keepBooking}</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={(e) => {
@@ -150,7 +153,7 @@ const YourBookingsPanel = reatomComponent(() => {
                 wrapCancel();
               }}
             >
-              {cancelStatus === "submitting" ? "Cancelling..." : "Yes, cancel"}
+              {cancelStatus === "submitting" ? t.roomDetail.alerts.cancelling : t.roomDetail.alerts.confirmCancel}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -175,6 +178,9 @@ export const roomDetailRoute = rootRoute.reatomRoute(
 );
 
 const RoomDetailPage = reatomComponent(() => {
+  const [t] = useAtom(tAtom);
+  const [locale] = useAtom(localeAtom);
+  const dfLocale = locale === "ru" ? ru : enUS;
   const params = roomDetailRoute();
   const detail = roomDetailAtom();
   const loading = roomDetailLoadingAtom();
@@ -243,7 +249,7 @@ const RoomDetailPage = reatomComponent(() => {
               {detail ? `${detail.building} / Level ${String(detail.floor).padStart(2, "0")}` : ""}
             </span>
             <h1 className="text-[3.5rem] font-black uppercase leading-[1.1] tracking-tighter">
-              {detail ? detail.name : loading ? "LOADING..." : ""}
+              {detail ? detail.name : loading ? t.roomDetail.loadingTitle : ""}
             </h1>
           </div>
 
@@ -264,6 +270,7 @@ const RoomDetailPage = reatomComponent(() => {
                 disabled={{ before: today }}
                 startMonth={parseDateStr(date) ?? today}
                 defaultMonth={parseDateStr(date) ?? today}
+                locale={dfLocale}
               />
             </PopoverContent>
           </Popover>
@@ -280,35 +287,35 @@ const RoomDetailPage = reatomComponent(() => {
 
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 z-10">
         <div className="flex flex-col gap-10 lg:col-span-8">
-          <div className="grid grid-cols-1 gap-[1px] bg-surface-container-low p-[1px] md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-px bg-surface-container-low p-px md:grid-cols-3">
             <div className="flex flex-col gap-2 bg-surface-container p-6">
               <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                Capacity
+                {t.roomDetail.capacity}
               </span>
               <div className="flex items-end gap-2">
                 <span className="text-2xl font-bold">{detail?.capacity ?? "--"}</span>
-                <span className="pb-1 text-on-surface-variant">Persons</span>
+                <span className="pb-1 text-on-surface-variant">{t.roomDetail.persons}</span>
               </div>
             </div>
             <div className="flex flex-col gap-2 bg-surface-container p-6">
               <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                Type
+                {t.roomDetail.type}
               </span>
               <span className="text-2xl font-bold">{detail?.roomType ?? "--"}</span>
             </div>
             <div className="flex flex-col gap-2 bg-surface-container p-6">
               <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                Condition
+                {t.roomDetail.condition}
               </span>
               <div className="flex items-center gap-2">
                 <div className="h-2 w-2 rounded-full bg-primary" />
-                <span className="text-2xl font-bold">Pristine</span>
+                <span className="text-2xl font-bold">{t.roomDetail.pristine}</span>
               </div>
             </div>
           </div>
 
           <section className="flex flex-col gap-6">
-            <h2 className="text-[1.75rem] font-bold tracking-tight">Equipment Inventory</h2>
+            <h2 className="text-[1.75rem] font-bold tracking-tight">{t.roomDetail.equipment}</h2>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               {(detail?.equipment ?? []).map((item) => (
                 <div
@@ -323,7 +330,7 @@ const RoomDetailPage = reatomComponent(() => {
           </section>
 
           <TimeGrid
-            title="Daily Occupancy"
+            title={t.roomDetail.occupancy}
             subtitle={`${detail?.openTime ?? "08:00"} — ${detail?.closeTime ?? "20:00"} / ${date}`}
             slots={slots}
             onSlotSelect={wrapSelectSlot}

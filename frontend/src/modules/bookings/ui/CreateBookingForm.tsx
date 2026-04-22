@@ -2,8 +2,9 @@ import type { ComponentProps } from "react";
 import { useMemo } from "react";
 
 import { IconArrowRight } from "@tabler/icons-react";
-import { bindField, reatomComponent, useWrap } from "@reatom/react";
+import { bindField, reatomComponent, useAtom, useWrap } from "@reatom/react";
 
+import { tAtom } from "@/modules/i18n";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -27,12 +28,12 @@ interface CreateBookingFormProps extends ComponentProps<"div"> {
   onBooked(): void;
 }
 
-const PURPOSE_LABELS: Record<BookingPurpose, string> = {
-  academic_lecture: "Academic Lecture",
-  research_workshop: "Research Workshop",
-  collaborative_study: "Collaborative Study",
-  technical_assessment: "Technical Assessment",
-};
+const PURPOSE_KEYS: BookingPurpose[] = [
+  "academic_lecture",
+  "research_workshop",
+  "collaborative_study",
+  "technical_assessment",
+];
 
 function overlaps(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
   return aStart < bEnd && aEnd > bStart;
@@ -51,11 +52,17 @@ const CreateBookingForm = reatomComponent(
   }: CreateBookingFormProps) => {
     const status = createBookingStatusAtom();
     const error = createBookingErrorAtom();
+    const [t] = useAtom(tAtom);
 
     const fields = createBookingForm.fields;
-    const { error: titleError, ...titleBind } = bindField(fields.title);
-    const { error: startError, ...startBind } = bindField(fields.startTime);
-    const { error: endError, ...endBind } = bindField(fields.endTime);
+    const { error: titleErrorRaw, ...titleBind } = bindField(fields.title);
+    const { error: startErrorRaw, ...startBind } = bindField(fields.startTime);
+    const { error: endErrorRaw, ...endBind } = bindField(fields.endTime);
+
+    const tsErrors = t.booking.form.errors as Record<string, string>;
+    const titleError = titleErrorRaw ? (tsErrors[titleErrorRaw] ?? titleErrorRaw) : null;
+    const startError = startErrorRaw ? (tsErrors[startErrorRaw] ?? startErrorRaw) : null;
+    const endError = endErrorRaw ? (tsErrors[endErrorRaw] ?? endErrorRaw) : null;
 
     const attendee = fields.attendeeCount();
     const purpose = fields.purpose();
@@ -123,9 +130,9 @@ const CreateBookingForm = reatomComponent(
       >
         <div>
           <h3 className="mb-2 text-[1.75rem] font-black uppercase leading-tight tracking-tight">
-            Request Access
+            {t.booking.form.title}
           </h3>
-          <p className="text-sm text-on-surface-variant">Fill in the session parameters below.</p>
+          <p className="text-sm text-on-surface-variant">{t.booking.form.subtitle}</p>
         </div>
 
         <form
@@ -137,11 +144,11 @@ const CreateBookingForm = reatomComponent(
         >
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-              Session Title
+              {t.booking.form.sessionTitle}
             </label>
             <Input
               className="h-auto border-0 p-4 text-lg font-bold placeholder:text-outline/40"
-              placeholder="e.g. Advanced AI Seminar"
+              placeholder={t.booking.form.sessionTitlePlaceholder}
               aria-invalid={!!titleError}
               {...titleBind}
             />
@@ -154,7 +161,7 @@ const CreateBookingForm = reatomComponent(
 
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-              Purpose
+              {t.booking.form.purpose}
             </label>
             <Select
               value={purpose}
@@ -164,9 +171,9 @@ const CreateBookingForm = reatomComponent(
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {(Object.keys(PURPOSE_LABELS) as BookingPurpose[]).map((key) => (
+                {PURPOSE_KEYS.map((key) => (
                   <SelectItem key={key} value={key}>
-                    {PURPOSE_LABELS[key]}
+                    {t.booking.purposes[key]}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -176,7 +183,7 @@ const CreateBookingForm = reatomComponent(
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
               <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                Start Time
+                {t.booking.form.startTime}
               </label>
               <Input
                 type="time"
@@ -197,7 +204,7 @@ const CreateBookingForm = reatomComponent(
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                End Time
+                {t.booking.form.endTime}
               </label>
               <Input
                 type="time"
@@ -221,7 +228,7 @@ const CreateBookingForm = reatomComponent(
           {overlapPending && !conflictOccupied && !conflictYours && (
             <div className="border-l-2 border-tertiary bg-surface-container-low p-4">
               <p className="text-[0.7rem] font-bold uppercase tracking-widest text-tertiary">
-                WARNING: overlaps pending. Request may be rejected later.
+                {t.booking.alerts.overlapPending}
               </p>
             </div>
           )}
@@ -229,7 +236,7 @@ const CreateBookingForm = reatomComponent(
           {conflictYours && (
             <div className="border-l-2 border-secondary bg-surface-container-low p-4">
               <p className="text-[0.7rem] font-bold uppercase tracking-widest text-secondary">
-                ERROR: overlaps your booking. Choose another time.
+                {t.booking.alerts.overlapYours}
               </p>
             </div>
           )}
@@ -237,20 +244,20 @@ const CreateBookingForm = reatomComponent(
           {conflictOccupied && (
             <div className="border-l-2 border-secondary bg-surface-container-low p-4">
               <p className="text-[0.7rem] font-bold uppercase tracking-widest text-secondary">
-                ERROR: overlaps occupied slot. Choose another time.
+                {t.booking.alerts.overlapOccupied}
               </p>
             </div>
           )}
 
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-              Attendee Count
+              {t.booking.form.attendeeCount}
             </label>
             <Input
               type="number"
               min={1}
               className="h-auto border-0 p-4 text-lg font-bold placeholder:text-outline/40"
-              placeholder="e.g. 35"
+              placeholder={t.booking.form.attendeePlaceholder}
               value={attendee ?? ""}
               onChange={useWrap((e) => {
                 const next = e.target.value;
@@ -259,7 +266,7 @@ const CreateBookingForm = reatomComponent(
             />
             {attendeeExceedsCapacity && (
               <p className="text-xs font-bold uppercase tracking-widest text-secondary">
-                Attendee count exceeds room capacity ({roomCapacity})
+                {t.booking.alerts.attendeeExceedsCapacity.replace("{roomCapacity}", String(roomCapacity))}
               </p>
             )}
           </div>
@@ -277,15 +284,15 @@ const CreateBookingForm = reatomComponent(
             disabled={!canSubmit}
             className="mt-4 h-auto w-full py-5 text-lg font-black uppercase tracking-widest"
           >
-            Confirm Booking
+            {t.booking.form.submit}
             <IconArrowRight className="size-5" />
           </Button>
         </form>
 
         <div className="border-l-2 border-primary bg-surface-container-low p-4">
           <p className="text-[0.7rem] leading-relaxed text-on-surface-variant">
-            <span className="font-bold text-primary">NOTE:</span> Booking is subject to faculty
-            approval. A response will be issued within 24 hours of submission.
+            <span className="font-bold text-primary">{t.booking.form.noteLabel} </span>
+            {t.booking.form.noteDescription}
           </p>
         </div>
       </div>

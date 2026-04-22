@@ -6,7 +6,7 @@ import {
   IconExclamationCircle,
 } from "@tabler/icons-react";
 
-import { reatomComponent, useWrap } from "@reatom/react";
+import { reatomComponent, useWrap, useAtom } from "@reatom/react";
 import { useState, useEffect } from "react";
 
 import {
@@ -23,6 +23,7 @@ import {
   type EquipmentItem,
 } from "@/modules/admin";
 import { EquipmentForm } from "@/modules/admin";
+import { tAtom } from "@/modules/i18n";
 import { getEquipmentIcon } from "@/modules/rooms";
 import {
   AlertDialog,
@@ -44,6 +45,7 @@ interface DeleteDialogState {
 }
 
 export const EquipmentTab = reatomComponent(() => {
+  const [t] = useAtom(tAtom);
   const equipment = equipmentListQuery.data();
   const status = equipmentListQuery.status();
   const rooms = adminRoomsListAtom();
@@ -97,16 +99,16 @@ export const EquipmentTab = reatomComponent(() => {
 
   useEffect(() => {
     wrapActivate();
-  }, []);
+  }, [wrapActivate]);
 
   return (
     <section data-slot="dashboard-equipment-tab" className="flex flex-1 flex-col gap-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <h3 className="text-[1.75rem] font-black uppercase tracking-tighter">Equipment</h3>
+        <h3 className="text-[1.75rem] font-black uppercase tracking-tighter">{t.admin.equipment.title}</h3>
 
         <Button type="button" onClick={wrapOpenCreateForm}>
           <IconPlus className="size-4" />
-          Create Equipment
+          {t.admin.equipment.create}
         </Button>
       </div>
 
@@ -114,16 +116,16 @@ export const EquipmentTab = reatomComponent(() => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Icon</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>{t.admin.equipment.columns.icon}</TableHead>
+              <TableHead>{t.admin.equipment.columns.name}</TableHead>
+              <TableHead className="text-right">{t.admin.equipment.columns.actions}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {status.isFirstPending ? (
               <TableRow>
                 <TableCell colSpan={3} className="py-12 text-center text-on-surface-variant">
-                  Loading equipment...
+                  {t.admin.equipment.loading}
                 </TableCell>
               </TableRow>
             ) : equipment.length > 0 ? (
@@ -149,7 +151,7 @@ export const EquipmentTab = reatomComponent(() => {
                           onClick={() => wrapOpenEditForm(item)}
                         >
                           <IconPencil className="size-4" />
-                          Edit
+                          {t.admin.equipment.actions.edit}
                         </Button>
                         <Button
                           type="button"
@@ -159,7 +161,7 @@ export const EquipmentTab = reatomComponent(() => {
                           onClick={() => wrapOpenDeleteDialog(item)}
                         >
                           <IconTrash className="size-4" />
-                          Delete
+                          {t.admin.equipment.actions.delete}
                         </Button>
                       </div>
                     </TableCell>
@@ -169,7 +171,7 @@ export const EquipmentTab = reatomComponent(() => {
             ) : (
               <TableRow>
                 <TableCell colSpan={3} className="py-12 text-center text-on-surface-variant">
-                  No equipment items
+                  {t.admin.equipment.noEquipment}
                 </TableCell>
               </TableRow>
             )}
@@ -194,28 +196,26 @@ export const EquipmentTab = reatomComponent(() => {
             <AlertDialogTitle>
               <span className="inline-flex items-center gap-2">
                 <IconAlertTriangle className="size-4 text-tertiary" />
-                Equipment delete summary
+                {t.admin.equipment.alerts.deleteSummary}
               </span>
             </AlertDialogTitle>
             <AlertDialogDescription>
               {deleteDialog?.confirmed ? (
                 <>
                   <span className="block">
-                    {deleteDialog.equipment.name} has been removed from catalogue.
+                    {t.admin.equipment.alerts.removed.replace("{name}", deleteDialog.equipment.name)}
                   </span>
                   <span className="mt-2 block">
-                    Cascade behavior applied: equipment relationships were removed from linked
-                    rooms.
+                    {t.admin.equipment.alerts.cascadeDone}
                   </span>
                 </>
               ) : (
                 <>
                   <span className="block">
-                    Delete {deleteDialog?.equipment.name}? This action updates room-equipment
-                    relationships.
+                    {t.admin.equipment.alerts.deleteConfirmText.replace("{name}", deleteDialog?.equipment.name || "")}
                   </span>
                   <span className="mt-2 block">
-                    Cascade behavior: linked rooms will no longer include this equipment.
+                    {t.admin.equipment.alerts.cascadeWarning}
                   </span>
                 </>
               )}
@@ -226,7 +226,7 @@ export const EquipmentTab = reatomComponent(() => {
             <div className="bg-surface-container px-3 py-2">
               <p className="mb-2 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-secondary">
                 <IconExclamationCircle className="size-4" />
-                {deleteDialog.confirmed ? "Was used in rooms" : "In use by rooms"}
+                {deleteDialog.confirmed ? t.admin.equipment.alerts.wasUsed : t.admin.equipment.alerts.inUse}
               </p>
               <ul className="space-y-1 text-xs uppercase tracking-wider text-on-surface-variant">
                 {deleteDialog.usage.map((room) => (
@@ -237,7 +237,7 @@ export const EquipmentTab = reatomComponent(() => {
           ) : null}
 
           <AlertDialogFooter>
-            <AlertDialogCancel>Close</AlertDialogCancel>
+            <AlertDialogCancel>{t.admin.equipment.alerts.close}</AlertDialogCancel>
             {deleteDialog?.confirmed ? (
               <AlertDialogAction
                 onClick={(e) => {
@@ -245,7 +245,7 @@ export const EquipmentTab = reatomComponent(() => {
                   setDeleteDialog(null);
                 }}
               >
-                Done
+                {t.admin.equipment.alerts.done}
               </AlertDialogAction>
             ) : (
               <AlertDialogAction
@@ -256,7 +256,7 @@ export const EquipmentTab = reatomComponent(() => {
                   void wrapConfirmDelete();
                 }}
               >
-                {deleteStatus.isPending ? "Deleting..." : "Confirm Delete"}
+                {deleteStatus.isPending ? t.admin.equipment.alerts.deleting : t.admin.equipment.alerts.confirmDelete}
               </AlertDialogAction>
             )}
           </AlertDialogFooter>

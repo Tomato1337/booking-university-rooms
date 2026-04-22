@@ -11,6 +11,9 @@ import { authStatusAtom, currentUserAtom } from "@/modules/auth";
 import { roomsBackHrefAtom } from "@/modules/rooms";
 import { AppSidebar } from "@/modules/sidebar/ui/AppSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/shared/ui/sidebar";
+import { useAtom } from "@reatom/react";
+import { tAtom } from "@/modules/i18n";
+import { roomDetailAtom } from "@/modules/rooms";
 
 import {
   authRoute,
@@ -44,21 +47,12 @@ interface PageMeta {
   };
 }
 
-const pageMeta: PageMeta[] = [
-  { route: dashboardRoute, title: "Dashboard" },
-  {
-    route: roomDetailRoute,
-    title: "LAB_402_OMEGA",
-    parent: { route: roomsRoute, title: "Room Search" },
-  },
-  { route: roomsRoute, title: "Room Search" },
-  { route: bookingsRoute, title: "My Bookings" },
-];
-
 const App = reatomComponent(() => {
   const status = authStatusAtom();
   const roomsBackHref = roomsBackHrefAtom();
   const user = currentUserAtom();
+  const detail = roomDetailAtom();
+  const [t] = useAtom(tAtom);
 
   const isUnauthenticated = status === "unauthenticated";
   const isAuthRoute = authRoute.match();
@@ -100,6 +94,17 @@ const App = reatomComponent(() => {
   if (status === "unauthenticated") {
     return <>{authRoute.render()}</>;
   }
+
+  const pageMeta: PageMeta[] = [
+    { route: dashboardRoute, title: t.sidebar.dashboard },
+    {
+      route: roomDetailRoute,
+      title: detail?.name ?? "...",
+      parent: { route: roomsRoute, title: t.sidebar.roomSearch },
+    },
+    { route: roomsRoute, title: t.sidebar.roomSearch },
+    { route: bookingsRoute, title: t.sidebar.myBookings },
+  ];
 
   const currentPage = pageMeta.find(({ route }) => route.match());
   const roomsHref = roomsRoute.path();

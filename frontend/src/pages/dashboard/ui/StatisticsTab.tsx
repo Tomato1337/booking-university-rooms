@@ -1,4 +1,5 @@
-import { reatomComponent, useWrap } from "@reatom/react"
+import { reatomComponent, useWrap, useAtom } from "@reatom/react"
+import { tAtom } from "@/modules/i18n"
 import {
   Bar,
   BarChart,
@@ -60,12 +61,7 @@ type StatsWithCharts = AdminStats & {
   occupancyByBuilding?: BuildingOccupancy[]
 }
 
-const PERIOD_OPTIONS: Array<{ label: string; value: StatsPeriod }> = [
-  { label: "Today", value: "today" },
-  { label: "Week", value: "week" },
-  { label: "Month", value: "month" },
-  { label: "All", value: "all" },
-]
+
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "var(--chart-3)",
@@ -84,8 +80,16 @@ function toStatusChartData(data: BookingStatusCount[]) {
 }
 
 export const StatisticsTab = reatomComponent(() => {
+  const [t] = useAtom(tAtom);
   const status = adminStatsQuery.status()
   const period = statsPeriodAtom()
+
+  const PERIOD_OPTIONS: Array<{ label: string; value: StatsPeriod }> = [
+    { label: t.admin.statistics.periods.today, value: "today" },
+    { label: t.admin.statistics.periods.week, value: "week" },
+    { label: t.admin.statistics.periods.month, value: "month" },
+    { label: t.admin.statistics.periods.all, value: "all" },
+  ]
 
   const wrapSetPeriod = useWrap((nextPeriod: StatsPeriod) => {
     statsPeriodAtom.set(nextPeriod)
@@ -104,7 +108,7 @@ export const StatisticsTab = reatomComponent(() => {
         className="flex min-h-80 items-center justify-center bg-surface-container-low px-8 py-12"
       >
         <p className="text-sm font-bold uppercase tracking-widest text-on-surface-variant">
-          Loading statistics...
+          {t.admin.statistics.loading}
         </p>
       </section>
     )
@@ -114,9 +118,9 @@ export const StatisticsTab = reatomComponent(() => {
     <section data-slot="dashboard-statistics-tab" className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h3 className="text-[1.75rem] font-black uppercase tracking-tighter">Statistics</h3>
+          <h3 className="text-[1.75rem] font-black uppercase tracking-tighter">{t.admin.statistics.title}</h3>
           <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-            Operational metrics for booking moderation and room utilization
+            {t.admin.statistics.subtitle}
           </p>
         </div>
 
@@ -126,7 +130,7 @@ export const StatisticsTab = reatomComponent(() => {
             onValueChange={(value) => wrapSetPeriod(value as StatsPeriod)}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Select period" />
+              <SelectValue placeholder={t.admin.statistics.selectPeriod} />
             </SelectTrigger>
             <SelectContent>
               {PERIOD_OPTIONS.map((option) => (
@@ -141,22 +145,22 @@ export const StatisticsTab = reatomComponent(() => {
 
       <section className="grid grid-cols-1 gap-6 md:grid-cols-4">
         <MetricCard stripe="pending">
-          <MetricLabel>Pending Requests</MetricLabel>
+          <MetricLabel>{t.admin.bookings.metrics.pendingRequests}</MetricLabel>
           <MetricValue>{stats.pendingCount}</MetricValue>
         </MetricCard>
 
         <MetricCard stripe="booked">
-          <MetricLabel>Occupancy Rate</MetricLabel>
+          <MetricLabel>{t.admin.bookings.metrics.occupancyRate}</MetricLabel>
           <MetricValue>{stats.occupancyRate}%</MetricValue>
         </MetricCard>
 
         <MetricCard stripe="available">
-          <MetricLabel>Today Bookings</MetricLabel>
+          <MetricLabel>{t.admin.bookings.metrics.todayBookings}</MetricLabel>
           <MetricValue>{stats.todayBookingsCount}</MetricValue>
         </MetricCard>
 
         <MetricCard stripe="available">
-          <MetricLabel>Active Rooms</MetricLabel>
+          <MetricLabel>{t.admin.bookings.metrics.activeRooms}</MetricLabel>
           <MetricValue>{stats.totalActiveRooms}</MetricValue>
         </MetricCard>
       </section>
@@ -164,8 +168,8 @@ export const StatisticsTab = reatomComponent(() => {
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Bookings by Status</CardTitle>
-            <CardDescription>Distribution of booking states</CardDescription>
+            <CardTitle>{t.admin.statistics.charts.statusTitle}</CardTitle>
+            <CardDescription>{t.admin.statistics.charts.statusDesc}</CardDescription>
           </CardHeader>
           <CardContent className="h-80">
             <ResponsiveContainer width="100%" height="100%">
@@ -190,8 +194,8 @@ export const StatisticsTab = reatomComponent(() => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Popular Rooms</CardTitle>
-            <CardDescription>Top rooms by booking count</CardDescription>
+            <CardTitle>{t.admin.statistics.charts.popularTitle}</CardTitle>
+            <CardDescription>{t.admin.statistics.charts.popularDesc}</CardDescription>
           </CardHeader>
           <CardContent className="h-80">
             <ResponsiveContainer width="100%" height="100%">
@@ -217,8 +221,8 @@ export const StatisticsTab = reatomComponent(() => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Bookings by Day of Week</CardTitle>
-            <CardDescription>Weekly demand distribution</CardDescription>
+            <CardTitle>{t.admin.statistics.charts.dayOfWeekTitle}</CardTitle>
+            <CardDescription>{t.admin.statistics.charts.dayOfWeekDesc}</CardDescription>
           </CardHeader>
           <CardContent className="h-80">
             <ResponsiveContainer width="100%" height="100%">
@@ -241,8 +245,8 @@ export const StatisticsTab = reatomComponent(() => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Occupancy by Building</CardTitle>
-            <CardDescription>Building load (horizontal bars)</CardDescription>
+            <CardTitle>{t.admin.statistics.charts.occupancyTitle}</CardTitle>
+            <CardDescription>{t.admin.statistics.charts.occupancyDesc}</CardDescription>
           </CardHeader>
           <CardContent className="h-80">
             <ResponsiveContainer width="100%" height="100%">

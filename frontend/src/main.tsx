@@ -1,6 +1,7 @@
 import "./setup";
 
 import { reatomContext } from "@reatom/react";
+import { ThemeProvider } from "next-themes";
 import { createRoot } from "react-dom/client";
 
 import { checkAuthAction } from "@/modules/auth";
@@ -27,8 +28,10 @@ async function bootstrap() {
 
   createRoot(document.getElementById("root")!).render(
     <reatomContext.Provider value={rootFrame}>
-      <Toaster />
-      <App />
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+        <Toaster />
+        <App />
+      </ThemeProvider>
     </reatomContext.Provider>,
   );
 }

@@ -1,7 +1,9 @@
 import { type ChangeEvent, useState } from "react";
 
 import { IconCalendar, IconClock, IconUsers } from "@tabler/icons-react";
-import { reatomComponent, useWrap } from "@reatom/react";
+import { reatomComponent, useWrap, useAtom } from "@reatom/react";
+import { tAtom, localeAtom } from "@/modules/i18n";
+import { ru, enUS } from "date-fns/locale";
 
 import {
   equipmentListAtom,
@@ -23,8 +25,8 @@ interface RoomsFiltersProps {
 const filterInputClass =
   "h-9 w-full rounded-sm bg-surface-container-lowest px-3 py-2 text-sm font-bold text-on-surface outline-none transition-colors duration-150 ease-linear placeholder:text-on-surface-variant/50 focus:ring-1 focus:ring-primary/20";
 
-function formatDateLabel(dateStr: string): string {
-  if (!dateStr) return "Pick a date";
+function formatDateLabel(dateStr: string, fallback: string): string {
+  if (!dateStr) return fallback;
   const [y, m, d] = dateStr.split("-").map(Number);
   const dt = new Date(y, m - 1, d);
   return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -44,6 +46,9 @@ function toDateString(date: Date): string {
 }
 
 const RoomsFilters = reatomComponent(({ className }: RoomsFiltersProps) => {
+  const [t] = useAtom(tAtom);
+  const [locale] = useAtom(localeAtom);
+  const dfLocale = locale === "ru" ? ru : enUS;
   const date = roomsDateAtom();
   const timeFrom = roomsTimeFromAtom();
   const timeTo = roomsTimeToAtom();
@@ -82,8 +87,8 @@ const RoomsFilters = reatomComponent(({ className }: RoomsFiltersProps) => {
         <div className="flex flex-col gap-2 bg-surface-container-high p-4">
           <div className="flex items-center gap-2">
             <IconCalendar size={14} className="text-primary" />
-            <span className="text-xs font-bold uppercase tracking-[0.1em] text-on-surface-variant">
-              Date
+            <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+              {t.rooms.filters.date}
             </span>
           </div>
           <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
@@ -96,7 +101,7 @@ const RoomsFilters = reatomComponent(({ className }: RoomsFiltersProps) => {
                   !date && "text-on-surface-variant/50",
                 )}
               >
-                {formatDateLabel(date)}
+                {formatDateLabel(date, t.rooms.filters.pickDate)}
                 <IconCalendar size={14} className="text-on-surface-variant/50" />
               </button>
             </PopoverTrigger>
@@ -108,6 +113,7 @@ const RoomsFilters = reatomComponent(({ className }: RoomsFiltersProps) => {
                 disabled={{ before: today }}
                 startMonth={parseDateAtom(date) ?? today}
                 defaultMonth={parseDateAtom(date) ?? today}
+                locale={dfLocale}
               />
             </PopoverContent>
           </Popover>
@@ -117,8 +123,8 @@ const RoomsFilters = reatomComponent(({ className }: RoomsFiltersProps) => {
         <div className="flex flex-col gap-2 bg-surface-container-high p-4">
           <div className="flex items-center gap-2">
             <IconClock size={14} className="text-primary" />
-            <span className="text-xs font-bold uppercase tracking-[0.1em] text-on-surface-variant">
-              From
+            <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+              {t.rooms.filters.from}
             </span>
           </div>
           <input
@@ -135,8 +141,8 @@ const RoomsFilters = reatomComponent(({ className }: RoomsFiltersProps) => {
         <div className="flex flex-col gap-2 bg-surface-container-high p-4">
           <div className="flex items-center gap-2">
             <IconClock size={14} className="text-primary" />
-            <span className="text-xs font-bold uppercase tracking-[0.1em] text-on-surface-variant">
-              To
+            <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+              {t.rooms.filters.to}
             </span>
           </div>
           <input
@@ -153,8 +159,8 @@ const RoomsFilters = reatomComponent(({ className }: RoomsFiltersProps) => {
         <div className="flex flex-col gap-2 bg-surface-container-high p-4">
           <div className="flex items-center gap-2">
             <IconUsers size={14} className="text-primary" />
-            <span className="text-xs font-bold uppercase tracking-[0.1em] text-on-surface-variant">
-              Min Capacity
+            <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+              {t.rooms.filters.minCapacity}
             </span>
           </div>
           <input
@@ -165,7 +171,7 @@ const RoomsFilters = reatomComponent(({ className }: RoomsFiltersProps) => {
               const val = e.target.value ? Number(e.target.value) : 0;
               roomsMinCapacityAtom.set(val);
             })}
-            placeholder="Any"
+            placeholder={t.rooms.filters.anyCapacity}
             className={filterInputClass}
           />
         </div>
@@ -174,8 +180,8 @@ const RoomsFilters = reatomComponent(({ className }: RoomsFiltersProps) => {
       {/* Equipment toggles */}
       {equipmentList.length > 0 && (
         <div className="flex flex-col gap-3 bg-surface-container-high p-4">
-          <span className="text-xs font-bold uppercase tracking-[0.1em] text-on-surface-variant">
-            Equipment
+          <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+            {t.rooms.filters.equipment}
           </span>
           <div className="flex flex-wrap gap-2">
             {equipmentList.map((item) => {

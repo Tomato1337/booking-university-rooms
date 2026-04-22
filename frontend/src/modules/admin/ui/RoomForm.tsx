@@ -8,7 +8,7 @@ import {
 } from "@tabler/icons-react";
 
 import { wrap } from "@reatom/core";
-import { bindField, reatomComponent, useWrap } from "@reatom/react";
+import { bindField, reatomComponent, useWrap, useAtom } from "@reatom/react";
 
 import { roomForm, roomFormEditingRoomAtom } from "../application/admin-room-form-state";
 import { createRoomMutation, updateRoomMutation } from "../application/room-management-atoms";
@@ -27,17 +27,11 @@ import {
 } from "@/shared/ui/sheet";
 
 import { RoomPhotosUpload } from "./room-photos-upload";
+import { tAtom } from "@/modules/i18n";
 
 type RoomType = "lab" | "auditorium" | "seminar" | "conference" | "studio" | "lecture_hall";
 
-const ROOM_TYPE_OPTIONS: Array<{ value: RoomType; label: string }> = [
-  { value: "lab", label: "Lab" },
-  { value: "auditorium", label: "Auditorium" },
-  { value: "seminar", label: "Seminar" },
-  { value: "conference", label: "Conference" },
-  { value: "studio", label: "Studio" },
-  { value: "lecture_hall", label: "Lecture Hall" },
-];
+
 
 type StringFieldArray = Pick<typeof roomForm.fields.equipmentIds, "array" | "clear" | "create">;
 
@@ -97,8 +91,18 @@ function EquipmentMultiSelect({
 }
 
 export const RoomForm = reatomComponent<RoomFormProps>(({ open, onOpenChange, mode }) => {
+  const [t] = useAtom(tAtom);
   const fields = roomForm.fields;
   const equipment = equipmentListQuery.data();
+
+  const ROOM_TYPE_OPTIONS: Array<{ value: RoomType; label: string }> = [
+    { value: "lab", label: t.admin.rooms.form.types.lab },
+    { value: "auditorium", label: t.admin.rooms.form.types.auditorium },
+    { value: "seminar", label: t.admin.rooms.form.types.seminar },
+    { value: "conference", label: t.admin.rooms.form.types.conference },
+    { value: "studio", label: t.admin.rooms.form.types.studio },
+    { value: "lecture_hall", label: t.admin.rooms.form.types.lecture_hall },
+  ];
 
   const createStatus = createRoomMutation.status();
   const updateStatus = updateRoomMutation.status();
@@ -190,18 +194,18 @@ export const RoomForm = reatomComponent<RoomFormProps>(({ open, onOpenChange, mo
         className="w-full max-w-3xl overflow-y-auto bg-surface-container-low"
       >
         <SheetHeader>
-          <SheetTitle>{mode === "edit" ? "Edit Room" : "Create Room"}</SheetTitle>
+          <SheetTitle>{mode === "edit" ? t.admin.rooms.form.editTitle : t.admin.rooms.form.createTitle}</SheetTitle>
           <SheetDescription>
-            Configure room details, operating hours, equipment, and media.
+            {t.admin.rooms.form.description}
           </SheetDescription>
         </SheetHeader>
 
         <div data-slot="room-form" className="flex flex-col gap-5 p-4">
           <label className="flex flex-col gap-2">
             <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-              <IconHash className="size-4" /> Name
+              <IconHash className="size-4" /> {t.admin.rooms.form.name}
             </span>
-            <Input {...nameBind} aria-invalid={!!nameError} placeholder="e.g. LAB_402B" />
+            <Input {...nameBind} aria-invalid={!!nameError} placeholder={t.admin.rooms.form.namePlaceholder} />
             {nameError && (
               <p className="text-xs uppercase tracking-wider text-secondary">{nameError}</p>
             )}
@@ -209,9 +213,9 @@ export const RoomForm = reatomComponent<RoomFormProps>(({ open, onOpenChange, mo
 
           <label className="flex flex-col gap-2">
             <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-              <IconBuilding className="size-4" /> Building
+              <IconBuilding className="size-4" /> {t.admin.rooms.form.building}
             </span>
-            <Input {...buildingBind} aria-invalid={!!buildingError} placeholder="e.g. Building A" />
+            <Input {...buildingBind} aria-invalid={!!buildingError} placeholder={t.admin.rooms.form.buildingPlaceholder} />
             {buildingError && (
               <p className="text-xs uppercase tracking-wider text-secondary">{buildingError}</p>
             )}
@@ -219,7 +223,7 @@ export const RoomForm = reatomComponent<RoomFormProps>(({ open, onOpenChange, mo
 
           <label className="flex flex-col gap-2">
             <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-              <IconCategory className="size-4" /> Room Type
+              <IconCategory className="size-4" /> {t.admin.rooms.form.roomType}
             </span>
             <select
               value={fields.roomType()}
@@ -237,7 +241,7 @@ export const RoomForm = reatomComponent<RoomFormProps>(({ open, onOpenChange, mo
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <label className="flex flex-col gap-2">
               <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                <IconUsers className="size-4" /> Capacity
+                <IconUsers className="size-4" /> {t.admin.rooms.form.capacity}
               </span>
               <Input
                 {...capacityBind}
@@ -253,7 +257,7 @@ export const RoomForm = reatomComponent<RoomFormProps>(({ open, onOpenChange, mo
 
             <label className="flex flex-col gap-2">
               <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                <IconHash className="size-4" /> Floor
+                <IconHash className="size-4" /> {t.admin.rooms.form.floor}
               </span>
               <Input
                 {...floorBind}
@@ -271,7 +275,7 @@ export const RoomForm = reatomComponent<RoomFormProps>(({ open, onOpenChange, mo
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <label className="flex flex-col gap-2">
               <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                <IconCalendarTime className="size-4" /> Open Time
+                <IconCalendarTime className="size-4" /> {t.admin.rooms.form.openTime}
               </span>
               <Input {...openTimeBind} type="time" aria-invalid={!!openTimeError} />
               {openTimeError && (
@@ -281,7 +285,7 @@ export const RoomForm = reatomComponent<RoomFormProps>(({ open, onOpenChange, mo
 
             <label className="flex flex-col gap-2">
               <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                <IconCalendarTime className="size-4" /> Close Time
+                <IconCalendarTime className="size-4" /> {t.admin.rooms.form.closeTime}
               </span>
               <Input {...closeTimeBind} type="time" aria-invalid={!!closeTimeError} />
               {closeTimeError && (
@@ -292,7 +296,7 @@ export const RoomForm = reatomComponent<RoomFormProps>(({ open, onOpenChange, mo
 
           <label className="flex flex-col gap-2">
             <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-              <IconDeviceDesktop className="size-4" /> Equipment
+              <IconDeviceDesktop className="size-4" /> {t.admin.rooms.form.equipment}
             </span>
             <EquipmentMultiSelect
               value={readStringFieldArray(fields.equipmentIds)}
@@ -303,19 +307,19 @@ export const RoomForm = reatomComponent<RoomFormProps>(({ open, onOpenChange, mo
 
           <label className="flex flex-col gap-2">
             <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-              Description
+              {t.admin.rooms.form.descriptionLabel}
             </span>
             <textarea
               value={fields.description() ?? ""}
               onChange={(e) => wrapChangeDescription(e.target.value)}
-              placeholder="Optional room notes"
+              placeholder={t.admin.rooms.form.descriptionPlaceholder}
               className="min-h-24 w-full resize-y bg-surface-container-lowest px-3 py-2 text-sm text-on-surface outline-none"
             />
           </label>
 
           <label className="flex flex-col gap-2">
             <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-              Photos
+              {t.admin.rooms.form.photos}
             </span>
             <RoomPhotosUpload
               value={readStringFieldArray(fields.photos)}
@@ -326,10 +330,10 @@ export const RoomForm = reatomComponent<RoomFormProps>(({ open, onOpenChange, mo
 
         <SheetFooter>
           <Button type="button" variant="outline" onClick={wrapCloseSheet}>
-            Cancel
+            {t.admin.rooms.form.cancel}
           </Button>
           <Button type="button" disabled={submitting} onClick={wrapSubmit}>
-            {submitting ? "Saving..." : mode === "edit" ? "Save Changes" : "Create Room"}
+            {submitting ? t.admin.rooms.form.saving : mode === "edit" ? t.admin.rooms.form.save : t.admin.rooms.form.create}
           </Button>
         </SheetFooter>
       </SheetContent>

@@ -1,5 +1,5 @@
 
-import { reatomComponent, useWrap } from "@reatom/react";
+import { reatomComponent, useWrap, useAtom } from "@reatom/react";
 import { useEffect, useState } from "react";
 
 import {
@@ -35,6 +35,7 @@ import { wrap } from "@reatom/core";
 import Search from "@/shared/ui/search";
 import { Button } from "@/shared/ui/button";
 import { cn } from "@/shared/lib/utils";
+import { tAtom } from "@/modules/i18n";
 type BookingsTab = "active" | "history";
 
 function formatBookingDate(value: string): string {
@@ -66,6 +67,7 @@ function toBookingRowData(booking: MyBooking) {
 }
 
 const BookingsPage = reatomComponent(() => {
+  const [t] = useAtom(tAtom);
   const [activeTab, setActiveTab] = useState<BookingsTab>("active");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [bookingToCancel, setBookingToCancel] = useState<ReturnType<
@@ -147,7 +149,7 @@ const BookingsPage = reatomComponent(() => {
       <section className="flex flex-col gap-6">
         <div>
           <h2 className="mb-2 text-[3.5rem] font-black uppercase leading-[0.9] tracking-tighter">
-            My Bookings
+            {t.bookings.title}
           </h2>
           <div className="h-2 w-16 bg-primary" />
         </div>
@@ -162,7 +164,7 @@ const BookingsPage = reatomComponent(() => {
             })}
             onClick={() => wrapSelectTab("active")}
           >
-            Active
+            {t.bookings.tabs.active}
           </Button>
           <Button
             type="button"
@@ -172,7 +174,7 @@ const BookingsPage = reatomComponent(() => {
             })}
             onClick={() => wrapSelectTab("history")}
           >
-            History
+            {t.bookings.tabs.history}
           </Button>
         </div>
       </section>
@@ -180,7 +182,7 @@ const BookingsPage = reatomComponent(() => {
       {/* Table section */}
       <section className="flex flex-1 flex-col">
         {/* Search bar inside table */}
-        <Search query={query} wrapSearch={wrapSearch} placeholder="SEARCH BY NAME..." />
+        <Search query={query} wrapSearch={wrapSearch} placeholder={t.bookings.searchPlaceholder} />
 
         {loadError && (
           <div className="border-l-2 border-secondary bg-surface-container-low px-6 py-4">
@@ -193,19 +195,19 @@ const BookingsPage = reatomComponent(() => {
         {/* Table header */}
         <div className="hidden bg-surface-container-high gap-4 px-8 py-4 pl-10 md:grid md:grid-cols-5">
           <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-            Booking Details
+            {t.bookings.columns.details}
           </span>
           <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-            Date &amp; Time
+            {t.bookings.columns.datetime}
           </span>
           <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-            Location
+            {t.bookings.columns.location}
           </span>
           <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-            Status
+            {t.bookings.columns.status}
           </span>
           <span className="text-right text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-            Action
+            {t.bookings.columns.action}
           </span>
         </div>
 
@@ -214,7 +216,7 @@ const BookingsPage = reatomComponent(() => {
           {isLoading ? (
             <div className="flex items-center justify-center bg-surface-container-low py-20">
               <p className="text-sm font-bold uppercase tracking-widest text-on-surface-variant">
-                Loading bookings...
+                {t.bookings.loading}
               </p>
             </div>
           ) : currentRows.length > 0 ? (
@@ -236,8 +238,8 @@ const BookingsPage = reatomComponent(() => {
             <div className="flex items-center justify-center bg-surface-container-low py-20">
               <p className="text-sm font-bold uppercase tracking-widest text-on-surface-variant">
                 {activeTab === "active"
-                  ? "No active bookings match your search"
-                  : "No booking history matches your search"}
+                  ? t.bookings.noActive
+                  : t.bookings.noHistory}
               </p>
             </div>
           )}
@@ -247,11 +249,11 @@ const BookingsPage = reatomComponent(() => {
       <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
+            <AlertDialogTitle>{t.bookings.alerts.cancelTitle}</AlertDialogTitle>
             <AlertDialogDescription>
               {bookingToCancel
-                ? `Are you sure you want to cancel ${bookingToCancel.bookingId} for ${bookingToCancel.roomName}?`
-                : "Are you sure you want to cancel this booking?"}
+                ? t.bookings.alerts.cancelDescNamed.replace("{bookingId}", bookingToCancel.bookingId).replace("{roomName}", bookingToCancel.roomName)
+                : t.bookings.alerts.cancelDesc}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {cancelError && (
@@ -260,7 +262,7 @@ const BookingsPage = reatomComponent(() => {
             </p>
           )}
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep Booking</AlertDialogCancel>
+            <AlertDialogCancel>{t.bookings.alerts.keepBooking}</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={(e) => {
@@ -268,7 +270,7 @@ const BookingsPage = reatomComponent(() => {
                 wrapDoCancel();
               }}
             >
-              {cancelStatus === "submitting" ? "Cancelling..." : "Yes, cancel"}
+              {cancelStatus === "submitting" ? t.bookings.alerts.cancelling : t.bookings.alerts.confirmCancel}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

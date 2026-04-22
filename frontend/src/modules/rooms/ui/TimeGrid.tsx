@@ -1,4 +1,6 @@
 import type { ComponentProps } from "react";
+import { useAtom } from "@reatom/react";
+import { tAtom } from "@/modules/i18n";
 
 import { cn } from "@/shared/lib/utils";
 
@@ -42,14 +44,6 @@ const statusColorMap: Record<TimeSlotStatus, string> = {
   yours_pending: "bg-tertiary border-dashed border-4 border-accent-foreground",
 };
 
-const statusLabelMap: Record<TimeSlotStatus, string> = {
-  available: "Available",
-  booked: "Booked",
-  pending: "Pending",
-  yours: "Your Session",
-  yours_pending: "Your Pending",
-};
-
 const LEGEND_ORDER: TimeSlotStatus[] = ["available", "booked", "pending", "yours", "yours_pending"];
 
 function TimeGrid({
@@ -61,9 +55,10 @@ function TimeGrid({
   className,
   ...props
 }: TimeGridProps) {
+  const [t] = useAtom(tAtom);
   const presentStatuses = new Set(slots.map((s) => s.status));
   const legendItems = LEGEND_ORDER.filter((status) => presentStatuses.has(status)).map(
-    (status) => ({ status, label: statusLabelMap[status] }),
+    (status) => ({ status, label: t.timeGrid[status] }),
   );
 
   return (

@@ -10,8 +10,8 @@ export default function Logo() {
       >
         <polygon
           points="60,30 100,30 130,60 130,100 100,130 60,130 30,100 30,60"
-          stroke="#EAEAEA"
           stroke-width="12"
+          className="stroke-on-surface"
           fill="none"
         />
       </svg>
