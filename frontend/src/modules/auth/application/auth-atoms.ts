@@ -2,11 +2,7 @@ import { action, atom, computed, withAsync, wrap } from "@reatom/core"
 
 import type { AuthStatus, LoginRequest, RegisterRequest, User } from "../domain/types"
 import * as authApi from "../infrastructure/auth-api"
-import {
-  clearAccessToken,
-  setAccessToken,
-  setOnAuthFailure,
-} from "../infrastructure/token-storage"
+import { setOnAuthFailure } from "../infrastructure/token-storage"
 
 export const currentUserAtom = atom<User | null>(null, "currentUserAtom")
 export const authErrorAtom = atom<string | null>(null, "authErrorAtom")
@@ -31,7 +27,6 @@ export const loginAction = action(async (credentials: LoginRequest) => {
     throw new Error("Invalid email or password")
   }
 
-  setAccessToken(data.data.accessToken)
   currentUserAtom.set(data.data.user)
   return data.data.user
 }, "loginAction").extend(withAsync({ status: true }))
@@ -45,14 +40,12 @@ export const registerAction = action(async (credentials: RegisterRequest) => {
     throw new Error("Registration failed")
   }
 
-  setAccessToken(data.data.accessToken)
   currentUserAtom.set(data.data.user)
   return data.data.user
 }, "registerAction").extend(withAsync({ status: true }))
 
 export const logoutAction = action(async () => {
   await wrap(authApi.logout())
-  clearAccessToken()
   currentUserAtom.set(null)
   authErrorAtom.set(null)
   return true

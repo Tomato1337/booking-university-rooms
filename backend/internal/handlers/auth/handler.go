@@ -12,11 +12,12 @@ import (
 
 type Handler struct {
 	service    *authsvc.Service
+	accessTTL  time.Duration
 	refreshTTL time.Duration
 }
 
-func NewHandler(service *authsvc.Service, refreshTTL time.Duration) *Handler {
-	return &Handler{service: service, refreshTTL: refreshTTL}
+func NewHandler(service *authsvc.Service, accessTTL, refreshTTL time.Duration) *Handler {
+	return &Handler{service: service, accessTTL: accessTTL, refreshTTL: refreshTTL}
 }
 
 type registerRequest struct {
@@ -59,6 +60,7 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
+	h.setAccessCookie(c, result.AccessToken)
 	h.setRefreshCookie(c, result.RefreshToken)
 	utils.RespondSuccess(c, http.StatusCreated, gin.H{
 		"user":        result.User,
@@ -93,6 +95,7 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
+	h.setAccessCookie(c, result.AccessToken)
 	h.setRefreshCookie(c, result.RefreshToken)
 	utils.RespondSuccess(c, http.StatusOK, gin.H{
 		"user":        result.User,
@@ -117,6 +120,7 @@ func (h *Handler) Refresh(c *gin.Context) {
 		return
 	}
 
+	h.setAccessCookie(c, result.AccessToken)
 	h.setRefreshCookie(c, result.RefreshToken)
 	utils.RespondSuccess(c, http.StatusOK, gin.H{
 		"accessToken": result.AccessToken,
@@ -126,6 +130,7 @@ func (h *Handler) Refresh(c *gin.Context) {
 func (h *Handler) Logout(c *gin.Context) {
 	rawToken, _ := c.Cookie("refreshToken")
 	_ = h.service.Logout(c.Request.Context(), rawToken)
+	h.clearAccessCookie(c)
 	h.clearRefreshCookie(c)
 	c.Status(http.StatusNoContent)
 }
@@ -140,15 +145,26 @@ func (h *Handler) Me(c *gin.Context) {
 	utils.RespondSuccess(c, http.StatusOK, user)
 }
 
+func (h *Handler) setAccessCookie(c *gin.Context, token string) {
+	maxAge := int(h.accessTTL.Seconds())
+	c.SetSameSite(http.SameSiteStrictMode)
+	c.SetCookie("accessToken", token, maxAge, "/api", "", true, true)
+}
+
 func (h *Handler) setRefreshCookie(c *gin.Context, token string) {
 	maxAge := int(h.refreshTTL.Seconds())
 	c.SetSameSite(http.SameSiteStrictMode)
 	c.SetCookie("refreshToken", token, maxAge, "/api/auth", "", true, true)
 }
 
+func (h *Handler) clearAccessCookie(c *gin.Context) {
+	c.SetSameSite(http.SameSiteStrictMode)
+	c.SetCookie("accessToken", "", -1, "/api", "", true, true)
+}
+
 func (h *Handler) clearRefreshCookie(c *gin.Context) {
 	c.SetSameSite(http.SameSiteStrictMode)
-	c.SetCookie("refreshToken", "", 0, "/api/auth", "", true, true)
+	c.SetCookie("refreshToken", "", -1, "/api/auth", "", true, true)
 }
 
 func isValidPassword(password string) bool {

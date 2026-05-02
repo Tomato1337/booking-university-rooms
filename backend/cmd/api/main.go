@@ -54,7 +54,7 @@ func main() {
 	adminService := adminsvc.NewService(pool)
 
 	// Handlers
-	authH := authhandler.NewHandler(authService, cfg.JWTRefreshTTL)
+	authH := authhandler.NewHandler(authService, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 	roomsH := roomshandler.NewHandler(roomsService)
 	equipH := equipmenthandler.NewHandler(equipmentService)
 	bookingsH := bookingshandler.NewHandler(bookingsService)
@@ -116,7 +116,7 @@ func main() {
 		auth.POST("/register", rateLimitByIP(registerLimiter), authH.Register)
 		auth.POST("/login", rateLimitByIP(loginLimiter), authH.Login)
 		auth.POST("/refresh", rateLimitByIP(refreshLimiter), authH.Refresh)
-		auth.POST("/logout", middleware.Authenticate(cfg.JWTSecret), authH.Logout)
+		auth.POST("/logout", authH.Logout)
 		auth.GET("/me", middleware.Authenticate(cfg.JWTSecret), authH.Me)
 	}
 

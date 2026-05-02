@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * Register a new user
-         * @description Creates a new user account with `user` role. Returns access token in body and sets refresh token cookie.
+         * @description Creates a new user account with `user` role. Returns access token in body for compatibility and sets access/refresh httpOnly cookies.
          */
         post: operations["register"];
         delete?: never;
@@ -35,7 +35,7 @@ export interface paths {
         put?: never;
         /**
          * Log in
-         * @description Authenticates with email/password. Returns access token in body and sets refresh token cookie.
+         * @description Authenticates with email/password. Returns access token in body for compatibility and sets access/refresh httpOnly cookies.
          */
         post: operations["login"];
         delete?: never;
@@ -57,6 +57,7 @@ export interface paths {
          * Refresh access token
          * @description Uses the refresh token from the `refreshToken` httpOnly cookie.
          *     Performs **token rotation**: the old refresh token is revoked and a new one is issued.
+         *     Also sets a fresh `accessToken` httpOnly cookie.
          */
         post: operations["refreshToken"];
         delete?: never;
@@ -76,7 +77,7 @@ export interface paths {
         put?: never;
         /**
          * Log out
-         * @description Revokes the refresh token and clears the cookie.
+         * @description Revokes the refresh token when present and clears access/refresh cookies. Does not require a valid access token.
          */
         post: operations["logout"];
         delete?: never;
@@ -968,7 +969,7 @@ export interface operations {
             /** @description User created successfully */
             201: {
                 headers: {
-                    /** @description refreshToken=<token>; HttpOnly; Secure; SameSite=Strict; Path=/api/auth; Max-Age=2592000 */
+                    /** @description accessToken=<jwt>; HttpOnly; Secure; SameSite=Strict; Path=/api; Max-Age=900 and refreshToken=<token>; HttpOnly; Secure; SameSite=Strict; Path=/api/auth; Max-Age=2592000 */
                     "Set-Cookie"?: string;
                     [name: string]: unknown;
                 };
@@ -1024,7 +1025,7 @@ export interface operations {
             /** @description Login successful */
             200: {
                 headers: {
-                    /** @description refreshToken=<token>; HttpOnly; Secure; SameSite=Strict; Path=/api/auth; Max-Age=2592000 */
+                    /** @description accessToken=<jwt>; HttpOnly; Secure; SameSite=Strict; Path=/api; Max-Age=900 and refreshToken=<token>; HttpOnly; Secure; SameSite=Strict; Path=/api/auth; Max-Age=2592000 */
                     "Set-Cookie"?: string;
                     [name: string]: unknown;
                 };
@@ -1070,7 +1071,7 @@ export interface operations {
             /** @description New tokens issued */
             200: {
                 headers: {
-                    /** @description New refresh token cookie */
+                    /** @description New accessToken and refreshToken cookies */
                     "Set-Cookie"?: string;
                     [name: string]: unknown;
                 };
@@ -1114,13 +1115,12 @@ export interface operations {
             /** @description Logged out successfully */
             204: {
                 headers: {
-                    /** @description refreshToken=; Max-Age=0 (clear cookie) */
+                    /** @description accessToken=; Max-Age=0 and refreshToken=; Max-Age=0 (clear cookies) */
                     "Set-Cookie"?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            401: components["responses"]["Unauthorized"];
         };
     };
     getMe: {

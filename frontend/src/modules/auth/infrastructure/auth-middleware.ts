@@ -2,45 +2,32 @@ import type { Middleware } from "openapi-fetch"
 
 import { apiClient } from "@/shared/api/client"
 
-import {
-  clearAccessToken,
-  fireAuthFailure,
-  getAccessToken,
-  setAccessToken,
-} from "./token-storage"
+import { fireAuthFailure } from "./token-storage"
 
-const NO_AUTH_HEADER = new Set(["/auth/login", "/auth/register", "/auth/refresh"])
 const NO_RETRY_ON_401 = new Set(["/auth/login", "/auth/register", "/auth/refresh", "/auth/logout"])
 
 const requestClones = new WeakMap<Request, Request>()
 
 let isRefreshing = false
 let refreshQueue: Array<{
-  resolve: (token: string) => void
+  resolve: () => void
   reject: (error: Error) => void
 }> = []
 
-function processQueue(token: string | null, error: Error | null): void {
+function processQueue(error: Error | null): void {
   for (const { resolve, reject } of refreshQueue) {
     if (error) {
       reject(error)
     } else {
-      resolve(token!)
+      resolve()
     }
   }
   refreshQueue = []
 }
 
 const authMiddleware: Middleware = {
-  onRequest({ request, schemaPath }) {
+  onRequest({ request }) {
     requestClones.set(request, request.clone())
-
-    if (NO_AUTH_HEADER.has(schemaPath)) return undefined
-
-    const token = getAccessToken()
-    if (token) {
-      request.headers.set("Authorization", `Bearer ${token}`)
-    }
     return undefined
   },
 
@@ -49,12 +36,12 @@ const authMiddleware: Middleware = {
 
     if (isRefreshing) {
       try {
-        const newToken = await new Promise<string>((resolve, reject) => {
+        await new Promise<void>((resolve, reject) => {
           refreshQueue.push({ resolve, reject })
         })
         const clone = requestClones.get(request)
         if (!clone) return undefined
-        clone.headers.set("Authorization", `Bearer ${newToken}`)
+        clone.headers.delete("Authorization")
         return fetch(clone)
       } catch {
         return undefined
@@ -67,23 +54,19 @@ const authMiddleware: Middleware = {
       const { data, error } = await apiClient.POST("/auth/refresh")
 
       if (error || !data) {
-        clearAccessToken()
-        processQueue(null, new Error("Refresh failed"))
+        processQueue(new Error("Refresh failed"))
         fireAuthFailure()
         return undefined
       }
 
-      const newToken = data.data.accessToken
-      setAccessToken(newToken)
-      processQueue(newToken, null)
+      processQueue(null)
 
       const clone = requestClones.get(request)
       if (!clone) return undefined
-      clone.headers.set("Authorization", `Bearer ${newToken}`)
+      clone.headers.delete("Authorization")
       return fetch(clone)
     } catch (err) {
-      clearAccessToken()
-      processQueue(null, err instanceof Error ? err : new Error("Refresh failed"))
+      processQueue(err instanceof Error ? err : new Error("Refresh failed"))
       fireAuthFailure()
       return undefined
     } finally {

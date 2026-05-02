@@ -7,7 +7,8 @@ info:
         and track their status. Administrators approve/reject pending bookings via a dashboard.
 
         ## Authentication
-        - **Access Token**: Short-lived JWT (15 min) sent in `Authorization: Bearer <token>` header.
+        - **Access Token**: Short-lived JWT (15 min) stored in an `httpOnly` cookie.
+          `Authorization: Bearer <token>` remains supported for API clients.
         - **Refresh Token**: Long-lived token (30 days) stored in an `httpOnly` cookie with rotation on each use.
 
         ## Pagination
@@ -50,8 +51,13 @@ components:
             type: http
             scheme: bearer
             bearerFormat: JWT
-            description: Access token issued on login/register/refresh
-        CookieAuth:
+            description: Compatibility access token auth for API clients
+        AccessCookieAuth:
+            type: apiKey
+            in: cookie
+            name: accessToken
+            description: httpOnly access token cookie
+        RefreshCookieAuth:
             type: apiKey
             in: cookie
             name: refreshToken
@@ -964,7 +970,7 @@ paths:
             operationId: register
             tags: [Auth]
             summary: Register a new user
-            description: Creates a new user account with `user` role. Returns access token in body and sets refresh token cookie.
+            description: Creates a new user account with `user` role. Returns access token in body for compatibility and sets access/refresh httpOnly cookies.
             requestBody:
                 required: true
                 content:
@@ -984,7 +990,7 @@ paths:
                         Set-Cookie:
                             schema:
                                 type: string
-                            description: "refreshToken=<token>; HttpOnly; Secure; SameSite=Strict; Path=/api/auth; Max-Age=2592000"
+                            description: "accessToken=<jwt>; HttpOnly; Secure; SameSite=Strict; Path=/api; Max-Age=900 and refreshToken=<token>; HttpOnly; Secure; SameSite=Strict; Path=/api/auth; Max-Age=2592000"
                     content:
                         application/json:
                             schema:
@@ -1019,7 +1025,7 @@ paths:
             operationId: login
             tags: [Auth]
             summary: Log in
-            description: Authenticates with email/password. Returns access token in body and sets refresh token cookie.
+            description: Authenticates with email/password. Returns access token in body for compatibility and sets access/refresh httpOnly cookies.
             requestBody:
                 required: true
                 content:
@@ -1036,7 +1042,7 @@ paths:
                         Set-Cookie:
                             schema:
                                 type: string
-                            description: "refreshToken=<token>; HttpOnly; Secure; SameSite=Strict; Path=/api/auth; Max-Age=2592000"
+                            description: "accessToken=<jwt>; HttpOnly; Secure; SameSite=Strict; Path=/api; Max-Age=900 and refreshToken=<token>; HttpOnly; Secure; SameSite=Strict; Path=/api/auth; Max-Age=2592000"
                     content:
                         application/json:
                             schema:
@@ -1074,8 +1080,9 @@ paths:
             description: |
                 Uses the refresh token from the `refreshToken` httpOnly cookie.
                 Performs **token rotation**: the old refresh token is revoked and a new one is issued.
+                Also sets a fresh `accessToken` httpOnly cookie.
             security:
-                - CookieAuth: []
+                - RefreshCookieAuth: []
             responses:
                 "200":
                     description: New tokens issued
@@ -1083,7 +1090,7 @@ paths:
                         Set-Cookie:
                             schema:
                                 type: string
-                            description: New refresh token cookie
+                            description: New accessToken and refreshToken cookies
                     content:
                         application/json:
                             schema:
@@ -1114,9 +1121,7 @@ paths:
             operationId: logout
             tags: [Auth]
             summary: Log out
-            description: Revokes the refresh token and clears the cookie.
-            security:
-                - BearerAuth: []
+            description: Revokes the refresh token when present and clears access/refresh cookies. Does not require a valid access token.
             responses:
                 "204":
                     description: Logged out successfully
@@ -1124,9 +1129,7 @@ paths:
                         Set-Cookie:
                             schema:
                                 type: string
-                            description: "refreshToken=; Max-Age=0 (clear cookie)"
-                "401":
-                    $ref: "#/components/responses/Unauthorized"
+                            description: "accessToken=; Max-Age=0 and refreshToken=; Max-Age=0 (clear cookies)"
 
     /auth/me:
         get:
@@ -1134,6 +1137,7 @@ paths:
             tags: [Auth]
             summary: Get current user profile
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             responses:
                 "200":
@@ -1159,6 +1163,7 @@ paths:
                 Returns a paginated list of active rooms with computed availability for the given date.
                 Supports filtering by name, time range, equipment, and capacity.
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             parameters:
                 - $ref: "#/components/parameters/DateParam"
@@ -1218,6 +1223,7 @@ paths:
             tags: [Rooms]
             summary: Create a room (admin)
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             requestBody:
                 required: true
@@ -1253,6 +1259,7 @@ paths:
                 Slot statuses: `available`, `occupied` (confirmed by another user),
                 `pending` (pending by another user), `yours` (current user's booking of any status).
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             parameters:
                 - $ref: "#/components/parameters/RoomIdParam"
@@ -1287,6 +1294,7 @@ paths:
             summary: Update a room (admin)
             description: Full replacement of room data.
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             parameters:
                 - $ref: "#/components/parameters/RoomIdParam"
@@ -1322,6 +1330,7 @@ paths:
             summary: Soft-delete a room (admin)
             description: "Sets `is_active = false`. Existing bookings are NOT cancelled."
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             parameters:
                 - $ref: "#/components/parameters/RoomIdParam"
@@ -1343,6 +1352,7 @@ paths:
             summary: List all equipment types
             description: Returns the full equipment catalogue. Used by the frontend for filter rendering.
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             responses:
                 "200":
@@ -1401,6 +1411,7 @@ paths:
 
                 Checked inside a transaction with `SELECT ... FOR UPDATE`.
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             requestBody:
                 required: true
@@ -1505,6 +1516,7 @@ paths:
                 (`pending` or `confirmed`, and `booking_date + end_time` is in the future).
                 Sorted ascending by date/time.
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             parameters:
                 - $ref: "#/components/parameters/SearchParam"
@@ -1537,6 +1549,7 @@ paths:
                 Returns the current user's bookings that are expired, rejected, or cancelled.
                 Sorted descending by date (newest first).
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             parameters:
                 - $ref: "#/components/parameters/SearchParam"
@@ -1570,6 +1583,7 @@ paths:
                 Only `pending` or `confirmed` bookings can be cancelled.
                 Cannot cancel a booking that has already started.
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             parameters:
                 - $ref: "#/components/parameters/BookingIdParam"
@@ -1638,6 +1652,7 @@ paths:
             summary: Search all rooms (admin)
             description: Returns a paginated list of rooms, including inactive ones.
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             parameters:
                 - $ref: "#/components/parameters/SearchParam"
@@ -1676,6 +1691,7 @@ paths:
             tags: [Admin]
             summary: Permanently delete a room
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             parameters:
                 - $ref: "#/components/parameters/RoomIdParam"
@@ -1695,6 +1711,7 @@ paths:
             tags: [Admin]
             summary: Reactivate an inactive room
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             parameters:
                 - $ref: "#/components/parameters/RoomIdParam"
@@ -1724,6 +1741,7 @@ paths:
             summary: List pending booking requests
             description: Admin dashboard — paginated list of all pending bookings with user and room details.
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             parameters:
                 - $ref: "#/components/parameters/SearchParam"
@@ -1756,6 +1774,7 @@ paths:
             summary: List admin booking history
             description: Admin dashboard — paginated list of all processed bookings (confirmed, rejected, cancelled).
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             parameters:
                 - $ref: "#/components/parameters/SearchParam"
@@ -1794,6 +1813,7 @@ paths:
 
                 The response includes the list of auto-rejected bookings.
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             parameters:
                 - $ref: "#/components/parameters/BookingIdParam"
@@ -1895,6 +1915,7 @@ paths:
             tags: [Admin]
             summary: Reject a pending booking
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             parameters:
                 - $ref: "#/components/parameters/BookingIdParam"
@@ -1955,6 +1976,7 @@ paths:
             summary: Create new equipment
             description: Adds a new equipment item to the catalogue.
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             requestBody:
                 required: true
@@ -1994,6 +2016,7 @@ paths:
             summary: Update equipment
             description: Updates an existing equipment item.
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             parameters:
                 - name: equipmentId
@@ -2040,6 +2063,7 @@ paths:
             summary: Delete equipment
             description: Soft-deletes or completely removes an equipment item.
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             parameters:
                 - name: equipmentId
@@ -2065,6 +2089,7 @@ paths:
             summary: Dashboard statistics
             description: Returns aggregate metrics for the admin dashboard (pending count, occupancy rate, etc.)
             security:
+                - AccessCookieAuth: []
                 - BearerAuth: []
             responses:
                 "200":

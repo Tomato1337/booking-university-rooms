@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -17,21 +18,14 @@ const (
 
 func Authenticate(jwtSecret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			utils.RespondError(c, http.StatusUnauthorized, "UNAUTHORIZED", "Missing authorization header")
+		tokenStr, err := accessTokenFromRequest(c)
+		if err != nil {
+			utils.RespondError(c, http.StatusUnauthorized, "UNAUTHORIZED", err.Error())
 			c.Abort()
 			return
 		}
 
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			utils.RespondError(c, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid authorization header format")
-			c.Abort()
-			return
-		}
-
-		claims, err := utils.ParseAccessToken(parts[1], jwtSecret)
+		claims, err := utils.ParseAccessToken(tokenStr, jwtSecret)
 		if err != nil {
 			if strings.Contains(err.Error(), "expired") {
 				utils.RespondError(c, http.StatusUnauthorized, "TOKEN_EXPIRED", "Access token has expired")
@@ -48,6 +42,28 @@ func Authenticate(jwtSecret string) gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+func accessTokenFromRequest(c *gin.Context) (string, error) {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader != "" {
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+			return "", errInvalidAuthorizationHeader
+		}
+		return parts[1], nil
+	}
+
+	token, err := c.Cookie("accessToken")
+	if err != nil || token == "" {
+		return "", errMissingAccessToken
+	}
+	return token, nil
+}
+
+var (
+	errMissingAccessToken         = errors.New("Missing access token")
+	errInvalidAuthorizationHeader = errors.New("Invalid authorization header format")
+)
 
 func RequireRole(role string) gin.HandlerFunc {
 	return func(c *gin.Context) {
