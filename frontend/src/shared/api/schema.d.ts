@@ -103,6 +103,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/media/rooms/{objectKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get room photo
+         * @description Proxies a room photo stored in MinIO. Browser clients use this backend URL instead of direct MinIO access.
+         */
+        get: operations["getRoomPhoto"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms": {
         parameters: {
             query?: never;
@@ -527,10 +547,12 @@ export interface components {
             id: string;
             /** @example LAB_402B */
             name: string;
+            description?: string | null;
             roomType: components["schemas"]["RoomType"];
             capacity: number;
             building: string;
             floor: number;
+            photos?: string[];
             equipment: components["schemas"]["EquipmentItem"][];
             availability: components["schemas"]["RoomAvailability"];
         };
@@ -791,6 +813,28 @@ export interface components {
             closeTime?: string;
             photos?: string[];
             equipmentIds?: string[];
+        };
+        CreateRoomMultipartRequest: {
+            name: string;
+            description?: string | null;
+            roomType: components["schemas"]["RoomType"];
+            capacity: number;
+            building: string;
+            floor: number;
+            /** @example 08:00 */
+            openTime: string;
+            /** @example 20:00 */
+            closeTime: string;
+            /**
+             * Format: binary
+             * @description Single PNG/JPG/WEBP image, max 5MB.
+             */
+            photo?: string;
+            equipmentIds?: string[];
+        };
+        UpdateRoomMultipartRequest: components["schemas"]["CreateRoomMultipartRequest"] & {
+            /** @description When true and no `photo` is sent, clears the current room photo. */
+            removePhoto?: boolean;
         };
         RejectBookingRequest: {
             reason?: string;
@@ -1146,6 +1190,40 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
         };
     };
+    getRoomPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Room photo object path, e.g. `{roomId}/{fileName}`. */
+                objectKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Room photo bytes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                    "image/jpeg": string;
+                    "image/webp": string;
+                };
+            };
+            /** @description Media not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     searchRooms: {
         parameters: {
             query?: {
@@ -1209,6 +1287,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CreateRoomRequest"];
+                "multipart/form-data": components["schemas"]["CreateRoomMultipartRequest"];
             };
         };
         responses: {
@@ -1287,6 +1366,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["UpdateRoomRequest"];
+                "multipart/form-data": components["schemas"]["UpdateRoomMultipartRequest"];
             };
         };
         responses: {

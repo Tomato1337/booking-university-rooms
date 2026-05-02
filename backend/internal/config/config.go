@@ -23,6 +23,14 @@ type Config struct {
 
 	LogLevel string
 	Env      string
+
+	S3Endpoint          string
+	S3Bucket            string
+	S3AccessKey         string
+	S3SecretKey         string
+	S3UseSSL            bool
+	MediaPublicBasePath string
+	MaxRoomPhotoBytes   int64
 }
 
 func Load() (*Config, error) {
@@ -39,6 +47,10 @@ func Load() (*Config, error) {
 	}
 
 	origins := splitEnv("CORS_ORIGINS", "http://localhost:5173")
+	maxRoomPhotoBytes, err := strconv.ParseInt(getEnv("MAX_ROOM_PHOTO_BYTES", "5242880"), 10, 64)
+	if err != nil || maxRoomPhotoBytes <= 0 {
+		maxRoomPhotoBytes = 5 * 1024 * 1024
+	}
 
 	return &Config{
 		Port:             getEnv("PORT", "3000"),
@@ -51,6 +63,14 @@ func Load() (*Config, error) {
 		CORSOrigins:      origins,
 		LogLevel:         getEnv("LOG_LEVEL", "info"),
 		Env:              getEnv("ENV", "development"),
+
+		S3Endpoint:          getEnv("S3_ENDPOINT", ""),
+		S3Bucket:            getEnv("S3_BUCKET", "room-photos"),
+		S3AccessKey:         getEnv("S3_ACCESS_KEY", ""),
+		S3SecretKey:         getEnv("S3_SECRET_KEY", ""),
+		S3UseSSL:            getEnvBool("S3_USE_SSL", false),
+		MediaPublicBasePath: getEnv("MEDIA_PUBLIC_BASE_PATH", "/api/media"),
+		MaxRoomPhotoBytes:   maxRoomPhotoBytes,
 	}, nil
 }
 

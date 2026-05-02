@@ -1,53 +1,68 @@
-import { IconPhotoPlus, IconUpload, IconX } from "@tabler/icons-react";
+import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
 
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/shared/ui/button";
-import { Input } from "@/shared/ui/input";
 
 export interface RoomPhotosUploadProps {
-  value: string[];
-  onChange: (next: string[]) => void;
+  existingUrl?: string | null;
+  file: File | null;
+  removed: boolean;
+  onFileChange: (file: File | null) => void;
+  onRemove: () => void;
 }
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+const ACCEPTED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 function isValidImage(file: File): boolean {
-  return file.type.startsWith("image/") && file.size <= MAX_FILE_SIZE_BYTES;
+  return ACCEPTED_TYPES.has(file.type) && file.size <= MAX_FILE_SIZE_BYTES;
 }
 
-export function RoomPhotosUpload({ value, onChange }: RoomPhotosUploadProps) {
-  const [urlInput, setUrlInput] = useState("");
+export function RoomPhotosUpload({
+  existingUrl,
+  file,
+  removed,
+  onFileChange,
+  onRemove,
+}: RoomPhotosUploadProps) {
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleFiles = (file: File | null) => {
-    if (!file) return;
+  const objectUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
+  const previewUrl = objectUrl ?? (removed ? null : existingUrl);
 
-    const isValid = isValidImage(file);
+  useEffect(() => {
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [objectUrl]);
 
-    if (!isValid) {
-      setError("Only image files up to 5MB are accepted");
-    } else {
-      setError(null);
+  const handleFile = (nextFile: File | null) => {
+    if (!nextFile) return;
+
+    if (!isValidImage(nextFile)) {
+      setError("Only PNG, JPG, or WEBP images up to 5MB are accepted");
+      return;
     }
 
-    const objectUrls = isValid ? [URL.createObjectURL(file)] : [];
-    onChange(objectUrls);
+    setError(null);
+    onFileChange(nextFile);
   };
 
   return (
-    <div data-slot="room-photos-upload" className="flex flex-col gap-4">
+    <div data-slot="room-photo-upload" className="flex flex-col gap-4">
       <div
         role="button"
         tabIndex={0}
+        onClick={() => inputRef.current?.click()}
         onDragOver={(e) => {
           e.preventDefault();
           e.dataTransfer.dropEffect = "copy";
         }}
         onDrop={(e) => {
           e.preventDefault();
-          handleFiles(e.dataTransfer.files[0]);
+          handleFile(e.dataTransfer.files[0] ?? null);
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
@@ -55,71 +70,57 @@ export function RoomPhotosUpload({ value, onChange }: RoomPhotosUploadProps) {
             inputRef.current?.click();
           }
         }}
-        className="flex min-h-28 flex-col items-center justify-center gap-2 bg-surface-container-high px-4 py-6 text-center transition-colors duration-150 ease-linear hover:bg-surface-container-highest"
+        className="flex min-h-32 flex-col items-center justify-center gap-2 bg-surface-container-high px-4 py-6 text-center transition-colors duration-150 ease-linear hover:bg-surface-container-highest"
       >
-        <IconUpload className="size-5 text-primary" />
-        <p className="text-xs font-bold uppercase tracking-widest text-on-surface">
-          Drag and drop photos or click to upload
-        </p>
-        <p className="text-[0.7rem] uppercase tracking-wider text-on-surface-variant">
-          PNG/JPG/WEBP, max 5MB each
-        </p>
+        {previewUrl ? (
+          <img
+            src={previewUrl}
+            alt="Room preview"
+            className="h-36 w-full object-cover"
+          />
+        ) : (
+          <>
+            <IconUpload className="size-5 text-primary" />
+            <p className="text-xs font-bold uppercase tracking-widest text-on-surface">
+              Drag and drop room photo or click to upload
+            </p>
+            <p className="text-[0.7rem] uppercase tracking-wider text-on-surface-variant">
+              PNG/JPG/WEBP, max 5MB
+            </p>
+          </>
+        )}
       </div>
 
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
-        onChange={(e) => handleFiles(e.target.files?.[0] || null)}
+        accept="image/png,image/jpeg,image/webp"
+        onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
         className="hidden"
       />
 
       <div className="flex items-center gap-2">
-        <Input
-          type="url"
-          placeholder="OR PASTE IMAGE URL..."
-          value={urlInput}
-          onChange={(e) => setUrlInput(e.target.value)}
-        />
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            const normalized = urlInput.trim();
-            if (!normalized) return;
-            onChange([...value, normalized]);
-            setUrlInput("");
-          }}
-        >
-          <IconPhotoPlus className="size-4" />
-          Add
+        <Button type="button" variant="outline" onClick={() => inputRef.current?.click()}>
+          <IconPhoto className="size-4" />
+          {previewUrl ? "Replace" : "Choose"}
         </Button>
+        {previewUrl && (
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={() => {
+              if (inputRef.current) inputRef.current.value = "";
+              onRemove();
+            }}
+          >
+            <IconX className="size-4" />
+            Remove
+          </Button>
+        )}
       </div>
 
       {error && (
         <p className="text-xs font-bold uppercase tracking-widest text-secondary">{error}</p>
-      )}
-
-      {value.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          {value.map((photo, index) => (
-            <div key={`${photo}-${index}`} className="group relative bg-surface-container-high p-1">
-              <img
-                src={photo}
-                alt={`Room preview ${index + 1}`}
-                className="h-24 w-full object-cover"
-              />
-              <button
-                type="button"
-                onClick={() => onChange(value.filter((_, i) => i !== index))}
-                className="absolute top-1 right-1 inline-flex size-6 items-center justify-center bg-secondary/90 text-secondary-foreground opacity-0 transition-opacity duration-150 ease-linear group-hover:opacity-100"
-                aria-label="Remove photo"
-              >
-                <IconX className="size-4" />
-              </button>
-            </div>
-          ))}
-        </div>
       )}
     </div>
   );

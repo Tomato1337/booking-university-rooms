@@ -30,17 +30,22 @@ function defaultValues() {
 export function toInitialValues(room?: RoomCard) {
     if (!room) return defaultValues()
 
+    const roomWithHours = room as RoomCard & {
+        openTime?: string
+        closeTime?: string
+    }
+
     return {
         name: room.name,
         building: room.building,
         roomType: room.roomType,
         capacity: room.capacity,
         floor: room.floor,
-        openTime: '08:00',
-        closeTime: '20:00',
+        openTime: roomWithHours.openTime ?? '08:00',
+        closeTime: roomWithHours.closeTime ?? '20:00',
         equipmentIds: room.equipment.map((item) => item.id),
-        description: '',
-        photos: [],
+        description: room.description ?? '',
+        photos: room.photos ?? [],
     }
 }
 

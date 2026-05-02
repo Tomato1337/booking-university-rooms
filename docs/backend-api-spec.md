@@ -189,7 +189,7 @@ CREATE INDEX idx_rooms_is_active ON rooms (is_active) WHERE is_active = true;
 | `capacity` | INTEGER | NOT NULL, >0 | Максимальная вместимость |
 | `building` | VARCHAR(200) | NOT NULL | Здание / корпус |
 | `floor` | INTEGER | NOT NULL | Этаж |
-| `photos` | TEXT[] | DEFAULT '{}' | Массив URL-ов фотографий |
+| `photos` | TEXT[] | DEFAULT '{}' | Один backend-proxy URL главного фото (`/api/media/rooms/...`); массив сохранён для совместимости |
 | `is_active` | BOOLEAN | NOT NULL, DEFAULT true | Активна ли аудитория |
 | `created_at` | TIMESTAMPTZ | NOT NULL | Дата создания |
 | `updated_at` | TIMESTAMPTZ | NOT NULL | Дата обновления |
@@ -1118,7 +1118,7 @@ LIMIT $limit + 1
 
 **Доступ:** Admin only
 
-**Request Body:**
+**Request Body (`application/json`, совместимость без загрузки файла):**
 
 ```json
 {
@@ -1128,10 +1128,20 @@ LIMIT $limit + 1
   "capacity": 45,
   "building": "Building C",
   "floor": 4,
-  "photos": ["https://storage.example.com/rooms/lab402/photo1.jpg"],
+  "photos": ["/api/media/rooms/room-uuid/photo.jpg"],
   "equipmentIds": ["eq-uuid-1", "eq-uuid-2"]
 }
 ```
+
+**Request Body (`multipart/form-data`, основной UI-flow):**
+
+| Поле | Правила |
+|------|---------|
+| `name`, `description`, `roomType`, `capacity`, `building`, `floor`, `openTime`, `closeTime` | То же, что JSON |
+| `equipmentIds` | Повторяемое поле с UUID оборудования |
+| `photo` | Необязательно, одно изображение PNG/JPG/WEBP до 5MB |
+
+Backend загружает `photo` в MinIO bucket `room-photos`, в БД сохраняет один URL вида `/api/media/rooms/<roomId>/<fileName>`. Браузер не обращается к MinIO напрямую.
 
 **Валидация:**
 
@@ -1143,7 +1153,7 @@ LIMIT $limit + 1
 | `capacity` | Обязательно, integer > 0 |
 | `building` | Обязательно, 1-200 символов |
 | `floor` | Обязательно, integer |
-| `photos` | Необязательно, массив URL |
+| `photos` | Необязательно, максимум один URL; для UI вместо этого используется multipart `photo` |
 | `equipmentIds` | Необязательно, массив UUID |
 
 **Response 201 Created:**
@@ -1158,7 +1168,7 @@ LIMIT $limit + 1
     "capacity": 45,
     "building": "Building C",
     "floor": 4,
-    "photos": ["https://storage.example.com/rooms/lab402/photo1.jpg"],
+    "photos": ["/api/media/rooms/new-room-uuid/photo.jpg"],
     "equipment": [
       { "id": "eq-uuid-1", "name": "Projector", "icon": "IconVideo" }
     ],
@@ -1173,7 +1183,7 @@ LIMIT $limit + 1
 
 **Доступ:** Admin only
 
-**Request Body:** Аналогично POST (все поля, полная замена).
+**Request Body:** Аналогично POST. Для `multipart/form-data` без поля `photo` текущее фото сохраняется; `removePhoto=true` удаляет текущее фото; новый `photo` заменяет старое.
 
 **Response 200 OK:** Обновлённый объект комнаты (формат как в POST).
 
@@ -1186,6 +1196,14 @@ LIMIT $limit + 1
 **Бизнес-логика:** Soft delete — `is_active = false`. Существующие бронирования НЕ отменяются автоматически.
 
 **Response 204 No Content**
+
+---
+
+### 7.6 `GET /api/media/rooms/:objectKey` — Фото аудитории
+
+**Доступ:** Public внутри backend API proxy.
+
+Backend читает объект из MinIO по ключу `rooms/<roomId>/<fileName>` и стримит байты с исходным `Content-Type`. Этот endpoint используется URL-ами из `rooms.photos`.
 
 ---
 
@@ -2084,7 +2102,7 @@ backend/
 | 2 | Нужна ли возможность повторной подачи rejected заявки? | Влияет на UI flow | Пока пользователь создаёт новую заявку вручную |
 | 3 | Фиксированный рабочий день 08:00-22:00 или per-room? | Влияет на схему БД | Начать с глобальной конфигурации, per-room — позже |
 | 4 | Нужен ли WebSocket/SSE для real-time обновления статусов? | Существенно усложняет архитектуру | Отложить; для MVP — polling или refetch on focus |
-| 5 | Загрузка фотографий комнат — через этот API или отдельный file storage? | Влияет на инфраструктуру | S3-compatible storage + presigned URLs |
+| 5 | Загрузка фотографий комнат — через этот API или отдельный file storage? | Влияет на инфраструктуру | Реализовано: S3-compatible MinIO + backend proxy `/api/media/rooms/...` |
 | 6 | Soft delete для бронирований или только status change? | Влияет на аудит | Status change достаточно для всех кейсов |
 | 7 | Ограничение количества pending бронирований на пользователя? | Предотвращение спама | Рекомендую: max 10 active (pending+confirmed) бронирований на пользователя |
 

@@ -123,10 +123,12 @@ type RoomAvailability struct {
 type RoomCard struct {
 	ID           uuid.UUID        `json:"id"`
 	Name         string           `json:"name"`
+	Description  *string          `json:"description"`
 	RoomType     RoomType         `json:"roomType"`
 	Capacity     int              `json:"capacity"`
 	Building     string           `json:"building"`
 	Floor        int              `json:"floor"`
+	Photos       []string         `json:"photos"`
 	Equipment    []Equipment      `json:"equipment"`
 	Availability RoomAvailability `json:"availability"`
 }

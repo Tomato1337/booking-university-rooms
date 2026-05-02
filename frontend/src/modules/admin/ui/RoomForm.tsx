@@ -9,6 +9,7 @@ import {
 
 import { wrap } from '@reatom/core'
 import { bindField, reatomComponent, useWrap, useAtom } from '@reatom/react'
+import { useEffect, useState } from 'react'
 
 import {
     roomForm,
@@ -108,6 +109,9 @@ export const RoomForm = reatomComponent<RoomFormProps>(
         const [t] = useAtom(tAtom)
         const fields = roomForm.fields
         const equipment = equipmentListQuery.data()
+        const editingRoom = roomFormEditingRoomAtom()
+        const [photoFile, setPhotoFile] = useState<File | null>(null)
+        const [removePhoto, setRemovePhoto] = useState(false)
 
         const ROOM_TYPE_OPTIONS: Array<{ value: RoomType; label: string }> = [
             { value: 'lab', label: t.admin.rooms.form.types.lab },
@@ -140,7 +144,11 @@ export const RoomForm = reatomComponent<RoomFormProps>(
             fields.closeTime,
         )
 
-        console.log(fields.equipmentIds())
+        useEffect(() => {
+            if (!open) return
+            setPhotoFile(null)
+            setRemovePhoto(false)
+        }, [open, editingRoom?.id])
 
         const wrapChangeRoomType = useWrap((next: RoomType) => {
             fields.roomType.set(next)
@@ -162,16 +170,21 @@ export const RoomForm = reatomComponent<RoomFormProps>(
             writeStringFieldArray(fields.equipmentIds, next)
         })
 
-        const wrapWritePhotos = useWrap((next: string[]) => {
-            writeStringFieldArray(fields.photos, next)
-        })
-
         const wrapCloseSheet = useWrap(() => {
             onOpenChange(false)
         })
 
+        const wrapSelectPhoto = useWrap((nextFile: File | null) => {
+            setPhotoFile(nextFile)
+            setRemovePhoto(false)
+        })
+
+        const wrapRemovePhoto = useWrap(() => {
+            setPhotoFile(null)
+            setRemovePhoto(true)
+        })
+
         const wrapSubmit = useWrap(async () => {
-            console.log('Submit - ', fields.equipmentIds)
             const values = {
                 name: fields.name(),
                 building: fields.building(),
@@ -182,21 +195,25 @@ export const RoomForm = reatomComponent<RoomFormProps>(
                 closeTime: fields.closeTime(),
                 equipmentIds: readStringFieldArray(fields.equipmentIds),
                 description: fields.description() || undefined,
-                photos: readStringFieldArray(fields.photos),
+                photos: [],
             }
-
-            console.log('After : ', values)
 
             const parsed = createRoomSchema.safeParse(values)
             if (!parsed.success) return
 
+            const body = {
+                ...parsed.data,
+                photoFile,
+                removePhoto,
+            }
+
             if (mode === 'edit') {
-                const roomId = roomFormEditingRoomAtom()?.id
+                const roomId = editingRoom?.id
                 if (!roomId) return
 
-                await wrap(updateRoomMutation({ roomId, body: parsed.data }))
+                await wrap(updateRoomMutation({ roomId, body }))
             } else {
-                await wrap(createRoomMutation(parsed.data))
+                await wrap(createRoomMutation(body))
             }
 
             wrapCloseSheet()
@@ -413,8 +430,14 @@ export const RoomForm = reatomComponent<RoomFormProps>(
                                 {t.admin.rooms.form.photos}
                             </span>
                             <RoomPhotosUpload
-                                value={readStringFieldArray(fields.photos)}
-                                onChange={wrapWritePhotos}
+                                existingUrl={
+                                    readStringFieldArray(fields.photos)[0] ??
+                                    null
+                                }
+                                file={photoFile}
+                                removed={removePhoto}
+                                onFileChange={wrapSelectPhoto}
+                                onRemove={wrapRemovePhoto}
                             />
                         </label>
                     </div>

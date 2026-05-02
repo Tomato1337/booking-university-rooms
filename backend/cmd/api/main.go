@@ -24,6 +24,7 @@ import (
 	bookingssvc "booking-university-rooms/backend/internal/services/bookings"
 	equipmentsvc "booking-university-rooms/backend/internal/services/equipment"
 	roomssvc "booking-university-rooms/backend/internal/services/rooms"
+	"booking-university-rooms/backend/internal/storage"
 	"booking-university-rooms/backend/internal/utils"
 
 	"github.com/gin-contrib/cors"
@@ -46,6 +47,19 @@ func main() {
 		log.Fatalf("migrations: %v", err)
 	}
 
+	photoStorage, err := storage.New(context.Background(), storage.Config{
+		Endpoint:       cfg.S3Endpoint,
+		Bucket:         cfg.S3Bucket,
+		AccessKey:      cfg.S3AccessKey,
+		SecretKey:      cfg.S3SecretKey,
+		UseSSL:         cfg.S3UseSSL,
+		PublicBasePath: cfg.MediaPublicBasePath,
+		MaxPhotoBytes:  cfg.MaxRoomPhotoBytes,
+	})
+	if err != nil {
+		log.Fatalf("media storage: %v", err)
+	}
+
 	// Services
 	authService := authsvc.NewService(pool, cfg.JWTSecret, cfg.JWTRefreshSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 	roomsService := roomssvc.NewService(pool)
@@ -55,7 +69,7 @@ func main() {
 
 	// Handlers
 	authH := authhandler.NewHandler(authService, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
-	roomsH := roomshandler.NewHandler(roomsService)
+	roomsH := roomshandler.NewHandler(roomsService, photoStorage, cfg.MaxRoomPhotoBytes)
 	equipH := equipmenthandler.NewHandler(equipmentService)
 	bookingsH := bookingshandler.NewHandler(bookingsService)
 	adminH := adminhandler.NewHandler(adminService)
@@ -109,6 +123,8 @@ func main() {
 
 	// Swagger UI docs
 	registerDocsRoutes(api)
+
+	api.GET("/media/rooms/*objectKey", roomsH.GetRoomMedia)
 
 	// Auth routes
 	auth := api.Group("/auth")

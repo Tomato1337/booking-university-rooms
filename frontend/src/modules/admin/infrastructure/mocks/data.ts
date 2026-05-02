@@ -548,10 +548,12 @@ export function createRoomItem(body: CreateRoomRequest): RoomFull {
   mockRooms.push({
     id: room.id,
     name: room.name,
+    description: room.description,
     roomType: room.roomType,
     capacity: room.capacity,
     building: room.building,
     floor: room.floor,
+    photos: room.photos || [],
     equipment: room.equipment,
     availability: {
       isAvailable: true,
@@ -594,10 +596,12 @@ export function updateRoomItem(roomId: string, body: UpdateRoomRequest): RoomFul
   const publicTarget = mockRooms.find((room) => room.id === roomId);
   if (publicTarget) {
     if (body.name !== undefined) publicTarget.name = body.name;
+    if (body.description !== undefined) publicTarget.description = body.description;
     if (body.roomType !== undefined) publicTarget.roomType = body.roomType;
     if (body.capacity !== undefined) publicTarget.capacity = body.capacity;
     if (body.building !== undefined) publicTarget.building = body.building;
     if (body.floor !== undefined) publicTarget.floor = body.floor;
+    if (body.photos !== undefined) publicTarget.photos = body.photos;
     publicTarget.equipment = target.equipment;
   }
 

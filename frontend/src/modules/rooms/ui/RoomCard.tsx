@@ -1,5 +1,5 @@
 import { tAtom } from '@/modules/i18n'
-import { IconArrowRight, IconUser } from '@tabler/icons-react'
+import { IconArrowRight, IconPhoto, IconUser } from '@tabler/icons-react'
 
 import type { RoomCard as RoomCardType } from '../domain/types'
 import { getEquipmentIcon } from '../infrastructure/icon-map'
@@ -20,6 +20,7 @@ function RoomCard({ room, onBook, className }: RoomCardProps) {
     const [t] = useAtom(tAtom)
     const { availability } = room
     const available = availability.isAvailable
+    const coverPhoto = room.photos?.[0]
 
     return (
         <div
@@ -45,8 +46,22 @@ function RoomCard({ room, onBook, className }: RoomCardProps) {
                 className="w-1 self-stretch rounded-none"
             />
 
+            <div className="flex w-32 shrink-0 items-stretch bg-surface-container-high md:w-44">
+                {coverPhoto ? (
+                    <img
+                        src={coverPhoto}
+                        alt={room.name}
+                        className="h-full min-h-40 w-full object-cover"
+                    />
+                ) : (
+                    <div className="flex min-h-40 w-full items-center justify-center">
+                        <IconPhoto className="size-8 text-on-surface-variant/40" />
+                    </div>
+                )}
+            </div>
+
             <div className="flex flex-1 flex-col justify-between gap-6 p-6 md:flex-row md:items-center md:p-8">
-                <div className="flex flex-col gap-1">
+                <div className="flex min-w-0 flex-col gap-1">
                     <span
                         className={cn(
                             'mb-1 text-xs font-bold uppercase tracking-[0.15em]',
@@ -77,6 +92,12 @@ function RoomCard({ room, onBook, className }: RoomCardProps) {
                             String(room.floor),
                         )}
                     </span>
+
+                    {room.description && (
+                        <p className="mt-2 line-clamp-2 max-w-2xl text-sm text-on-surface-variant">
+                            {room.description}
+                        </p>
+                    )}
 
                     <div className="mt-2 flex flex-wrap gap-4">
                         <div className="flex items-center gap-2">

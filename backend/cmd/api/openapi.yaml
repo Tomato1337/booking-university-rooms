@@ -152,6 +152,9 @@ components:
                 name:
                     type: string
                     example: LAB_402B
+                description:
+                    type: string
+                    nullable: true
                 roomType:
                     $ref: "#/components/schemas/RoomType"
                 capacity:
@@ -161,6 +164,12 @@ components:
                     type: string
                 floor:
                     type: integer
+                photos:
+                    type: array
+                    maxItems: 1
+                    items:
+                        type: string
+                        format: uri
                 equipment:
                     type: array
                     items:
@@ -220,6 +229,7 @@ components:
                     type: integer
                 photos:
                     type: array
+                    maxItems: 1
                     items:
                         type: string
                         format: uri
@@ -581,6 +591,7 @@ components:
                     description: "Room closes at this time"
                 photos:
                     type: array
+                    maxItems: 1
                     items:
                         type: string
                         format: uri
@@ -691,6 +702,7 @@ components:
                     example: "20:00"
                 photos:
                     type: array
+                    maxItems: 1
                     items:
                         type: string
                         format: uri
@@ -730,6 +742,7 @@ components:
                     example: "20:00"
                 photos:
                     type: array
+                    maxItems: 1
                     items:
                         type: string
                         format: uri
@@ -738,6 +751,54 @@ components:
                     items:
                         type: string
                         format: uuid
+
+        CreateRoomMultipartRequest:
+            type: object
+            required: [name, roomType, capacity, building, floor, openTime, closeTime]
+            properties:
+                name:
+                    type: string
+                    minLength: 1
+                    maxLength: 100
+                description:
+                    type: string
+                    nullable: true
+                roomType:
+                    $ref: "#/components/schemas/RoomType"
+                capacity:
+                    type: integer
+                    minimum: 1
+                building:
+                    type: string
+                    minLength: 1
+                floor:
+                    type: integer
+                openTime:
+                    type: string
+                    pattern: "^([01]\\d|2[0-3]):([0-5][05])$"
+                    example: "08:00"
+                closeTime:
+                    type: string
+                    pattern: "^([01]\\d|2[0-3]):([0-5][05])$"
+                    example: "20:00"
+                photo:
+                    type: string
+                    format: binary
+                    description: Single PNG/JPG/WEBP image, max 5MB.
+                equipmentIds:
+                    type: array
+                    items:
+                        type: string
+                        format: uuid
+
+        UpdateRoomMultipartRequest:
+            allOf:
+                - $ref: "#/components/schemas/CreateRoomMultipartRequest"
+                - type: object
+                  properties:
+                      removePhoto:
+                          type: boolean
+                          description: When true and no `photo` is sent, clears the current room photo.
 
         RejectBookingRequest:
             type: object
@@ -1153,6 +1214,42 @@ paths:
                 "401":
                     $ref: "#/components/responses/Unauthorized"
 
+    /media/rooms/{objectKey}:
+        get:
+            operationId: getRoomPhoto
+            tags: [Rooms]
+            summary: Get room photo
+            description: Proxies a room photo stored in MinIO. Browser clients use this backend URL instead of direct MinIO access.
+            parameters:
+                - name: objectKey
+                  in: path
+                  required: true
+                  schema:
+                      type: string
+                  description: Room photo object path, e.g. `{roomId}/{fileName}`.
+            responses:
+                "200":
+                    description: Room photo bytes
+                    content:
+                        image/png:
+                            schema:
+                                type: string
+                                format: binary
+                        image/jpeg:
+                            schema:
+                                type: string
+                                format: binary
+                        image/webp:
+                            schema:
+                                type: string
+                                format: binary
+                "404":
+                    description: Media not found
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorResponse"
+
     # ── Rooms ───────────────────────────────────
     /rooms:
         get:
@@ -1231,6 +1328,9 @@ paths:
                     application/json:
                         schema:
                             $ref: "#/components/schemas/CreateRoomRequest"
+                    multipart/form-data:
+                        schema:
+                            $ref: "#/components/schemas/CreateRoomMultipartRequest"
             responses:
                 "201":
                     description: Room created
@@ -1304,6 +1404,9 @@ paths:
                     application/json:
                         schema:
                             $ref: "#/components/schemas/UpdateRoomRequest"
+                    multipart/form-data:
+                        schema:
+                            $ref: "#/components/schemas/UpdateRoomMultipartRequest"
             responses:
                 "200":
                     description: Room updated

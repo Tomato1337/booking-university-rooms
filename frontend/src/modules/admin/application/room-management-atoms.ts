@@ -12,9 +12,8 @@ import {
 import type { components } from "@/shared/api/schema";
 import type {
   AdminRoomListItem,
-  CreateRoomBody,
   ListAdminRoomsQuery,
-  UpdateRoomBody,
+  RoomFormBody,
 } from "../infrastructure/room-admin-api";
 import * as roomAdminApi from "../infrastructure/room-admin-api";
 
@@ -223,7 +222,7 @@ adminRoomsQuery.onFulfill.extend(
 );
 
 // Mutations
-export const createRoomMutation = action(async (body: CreateRoomBody) => {
+export const createRoomMutation = action(async (body: RoomFormBody) => {
   const { data, error } = await wrap(roomAdminApi.createRoom(body));
   if (error || !data) {
     throw new Error("Failed to create room");
@@ -234,7 +233,7 @@ export const createRoomMutation = action(async (body: CreateRoomBody) => {
 }, "createRoomMutation").extend(withAsync({ status: true }));
 
 export const updateRoomMutation = action(
-  async (payload: { roomId: string; body: UpdateRoomBody }) => {
+  async (payload: { roomId: string; body: RoomFormBody }) => {
     const { data, error } = await wrap(roomAdminApi.updateRoom(payload.roomId, payload.body));
     if (error || !data) {
       throw new Error("Failed to update room");

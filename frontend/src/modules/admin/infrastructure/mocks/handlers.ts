@@ -49,6 +49,45 @@ function roomHoursError(body: { openTime?: string; closeTime?: string }) {
   return null
 }
 
+async function fileToDataUrl(file: File): Promise<string> {
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  let binary = ""
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte)
+  })
+  return `data:${file.type};base64,${btoa(binary)}`
+}
+
+async function parseRoomRequest(request: Request): Promise<CreateRoomRequest | UpdateRoomRequest> {
+  const contentType = request.headers.get("content-type") ?? ""
+  if (!contentType.includes("multipart/form-data")) {
+    return (await request.json()) as CreateRoomRequest | UpdateRoomRequest
+  }
+
+  const formData = await request.formData()
+  const photo = formData.get("photo")
+  const removePhoto = formData.get("removePhoto") === "true"
+  const photos =
+    photo instanceof File && photo.size > 0
+      ? [await fileToDataUrl(photo)]
+      : removePhoto
+        ? []
+        : undefined
+
+  return {
+    name: String(formData.get("name") ?? ""),
+    description: formData.get("description") ? String(formData.get("description")) : undefined,
+    roomType: String(formData.get("roomType") ?? "lab") as CreateRoomRequest["roomType"],
+    capacity: Number(formData.get("capacity") ?? 1),
+    building: String(formData.get("building") ?? ""),
+    floor: Number(formData.get("floor") ?? 0),
+    openTime: String(formData.get("openTime") ?? "08:00"),
+    closeTime: String(formData.get("closeTime") ?? "20:00"),
+    equipmentIds: formData.getAll("equipmentIds").map(String),
+    ...(photos !== undefined ? { photos } : {}),
+  }
+}
+
 export const getAdminPendingBookings = {
   default: http.get("/admin/bookings/pending", ({ request, response }) => {
     const url = new URL(request.url)
@@ -125,7 +164,7 @@ export const getAdminStats = {
 
 export const createAdminRoom = {
   default: http.post("/rooms", async ({ request, response }) => {
-    const body = (await request.json()) as CreateRoomRequest
+    const body = (await parseRoomRequest(request)) as CreateRoomRequest
     const error = roomHoursError(body)
     if (error) return response(400).json(error)
 
@@ -138,7 +177,7 @@ export const createAdminRoom = {
 export const updateAdminRoom = {
   default: http.put("/rooms/{roomId}", async ({ params, request, response }) => {
     const roomId = String(params.roomId)
-    const body = (await request.json()) as UpdateRoomRequest
+    const body = (await parseRoomRequest(request)) as UpdateRoomRequest
     const error = roomHoursError(body)
     if (error) return response(400).json(error)
 
@@ -260,10 +299,12 @@ export const listAdminRooms = {
       return {
         id: room.id,
         name: room.name,
+        description: room.description,
         roomType: room.roomType,
         capacity: room.capacity,
         building: room.building,
         floor: room.floor,
+        photos: room.photos || [],
         equipment: room.equipment,
         availability: {
           isAvailable: room.isActive !== false,

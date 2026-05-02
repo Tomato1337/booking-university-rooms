@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",
+    "@maskito/core": "^5.2.2",
+    "@maskito/react": "^5.2.2",
     "@reatom/core": "^1000.15.2",
     "@reatom/react": "^1000.2.2",
     "@tabler/icons-react": "^3.41.1",

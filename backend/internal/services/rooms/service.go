@@ -102,7 +102,7 @@ func (s *Service) Search(ctx context.Context, input SearchInput, currentUserID s
 
 	whereClause := "WHERE " + strings.Join(conditions, " AND ")
 	query := fmt.Sprintf(`
-		SELECT r.id, r.name, r.room_type, r.capacity, r.building, r.floor, to_char(r.open_time, 'HH24:MI'), to_char(r.close_time, 'HH24:MI')
+		SELECT r.id, r.name, r.description, r.room_type, r.capacity, r.building, r.floor, r.photos, to_char(r.open_time, 'HH24:MI'), to_char(r.close_time, 'HH24:MI')
 		FROM rooms r
 		%s
 		ORDER BY r.name ASC, r.id ASC
@@ -117,21 +117,26 @@ func (s *Service) Search(ctx context.Context, input SearchInput, currentUserID s
 	defer rows.Close()
 
 	type roomRow struct {
-		id        uuid.UUID
-		name      string
-		roomType  models.RoomType
-		capacity  int
-		building  string
-		floor     int
-		openTime  string
-		closeTime string
+		id          uuid.UUID
+		name        string
+		description *string
+		roomType    models.RoomType
+		capacity    int
+		building    string
+		floor       int
+		photos      []string
+		openTime    string
+		closeTime   string
 	}
 
 	var roomRows []roomRow
 	for rows.Next() {
 		var r roomRow
-		if err := rows.Scan(&r.id, &r.name, &r.roomType, &r.capacity, &r.building, &r.floor, &r.openTime, &r.closeTime); err != nil {
+		if err := rows.Scan(&r.id, &r.name, &r.description, &r.roomType, &r.capacity, &r.building, &r.floor, &r.photos, &r.openTime, &r.closeTime); err != nil {
 			return nil, err
+		}
+		if r.photos == nil {
+			r.photos = []string{}
 		}
 		roomRows = append(roomRows, r)
 	}
@@ -156,10 +161,12 @@ func (s *Service) Search(ctx context.Context, input SearchInput, currentUserID s
 		roomCards = append(roomCards, models.RoomCard{
 			ID:           r.id,
 			Name:         r.name,
+			Description:  r.description,
 			RoomType:     r.roomType,
 			Capacity:     r.capacity,
 			Building:     r.building,
 			Floor:        r.floor,
+			Photos:       r.photos,
 			Equipment:    equip,
 			Availability: *availability,
 		})
@@ -233,14 +240,17 @@ func (s *Service) Create(ctx context.Context, input CreateRoomInput) (*models.Ro
 	if err != nil {
 		return nil, err
 	}
+	if input.ID == uuid.Nil {
+		input.ID = uuid.New()
+	}
 
 	room := &models.Room{}
 	var photos []string
 	err = s.db.QueryRow(ctx,
-		`INSERT INTO rooms (name, description, room_type, capacity, building, floor, photos, open_time, close_time)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8::time, $9::time)
+		`INSERT INTO rooms (id, name, description, room_type, capacity, building, floor, photos, open_time, close_time)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::time, $10::time)
 		 RETURNING id, name, description, room_type, capacity, building, floor, photos, is_active, created_at, updated_at, to_char(open_time, 'HH24:MI'), to_char(close_time, 'HH24:MI')`,
-		input.Name, input.Description, input.RoomType, input.Capacity, input.Building, input.Floor, input.Photos, openTime, closeTime,
+		input.ID, input.Name, input.Description, input.RoomType, input.Capacity, input.Building, input.Floor, input.Photos, openTime, closeTime,
 	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.Capacity, &room.Building, &room.Floor, &photos, &room.IsActive, &room.CreatedAt, &room.UpdatedAt, &room.OpenTime, &room.CloseTime)
 	if err != nil {
 		return nil, fmt.Errorf("insert room: %w", err)
@@ -277,10 +287,10 @@ func (s *Service) Update(ctx context.Context, roomIDStr string, input CreateRoom
 	room := &models.Room{}
 	var photos []string
 	err = s.db.QueryRow(ctx,
-		`UPDATE rooms SET name=$1, description=$2, room_type=$3, capacity=$4, building=$5, floor=$6, photos=$7, open_time=$8::time, close_time=$9::time, updated_at=now()
-		 WHERE id=$10 AND is_active=true
+		`UPDATE rooms SET name=$1, description=$2, room_type=$3, capacity=$4, building=$5, floor=$6, photos=CASE WHEN $10 THEN photos ELSE $7 END, open_time=$8::time, close_time=$9::time, updated_at=now()
+		 WHERE id=$11 AND is_active=true
 		 RETURNING id, name, description, room_type, capacity, building, floor, photos, is_active, created_at, updated_at, to_char(open_time, 'HH24:MI'), to_char(close_time, 'HH24:MI')`,
-		input.Name, input.Description, input.RoomType, input.Capacity, input.Building, input.Floor, input.Photos, openTime, closeTime, roomID,
+		input.Name, input.Description, input.RoomType, input.Capacity, input.Building, input.Floor, input.Photos, openTime, closeTime, input.KeepExistingPhotos, roomID,
 	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.Capacity, &room.Building, &room.Floor, &photos, &room.IsActive, &room.CreatedAt, &room.UpdatedAt, &room.OpenTime, &room.CloseTime)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -309,6 +319,26 @@ func (s *Service) Update(ctx context.Context, roomIDStr string, input CreateRoom
 	}
 	room.Equipment = equip
 	return room, nil
+}
+
+func (s *Service) GetRoomPhotos(ctx context.Context, roomIDStr string) ([]string, error) {
+	roomID, err := uuid.Parse(roomIDStr)
+	if err != nil {
+		return nil, ErrRoomNotFound
+	}
+
+	var photos []string
+	err = s.db.QueryRow(ctx, "SELECT photos FROM rooms WHERE id=$1", roomID).Scan(&photos)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, ErrRoomNotFound
+		}
+		return nil, fmt.Errorf("select room photos: %w", err)
+	}
+	if photos == nil {
+		photos = []string{}
+	}
+	return photos, nil
 }
 
 func (s *Service) Delete(ctx context.Context, roomIDStr string) error {
@@ -601,16 +631,18 @@ func findCurrentOccupied(occupied []interval, now string) *interval {
 }
 
 type CreateRoomInput struct {
-	Name         string
-	Description  *string
-	RoomType     models.RoomType
-	Capacity     int
-	Building     string
-	Floor        int
-	Photos       []string
-	OpenTime     string
-	CloseTime    string
-	EquipmentIDs []uuid.UUID
+	ID                 uuid.UUID
+	Name               string
+	Description        *string
+	RoomType           models.RoomType
+	Capacity           int
+	Building           string
+	Floor              int
+	Photos             []string
+	KeepExistingPhotos bool
+	OpenTime           string
+	CloseTime          string
+	EquipmentIDs       []uuid.UUID
 }
 
 func normalizeRoomHours(openTime, closeTime string) (string, string, error) {
@@ -671,7 +703,7 @@ func (s *Service) AdminSearch(ctx context.Context, input AdminSearchInput) (*Sea
 
 	query := fmt.Sprintf(`
 		SELECT
-			r.id, r.name, r.room_type, r.capacity, r.building, r.floor, r.is_active,
+			r.id, r.name, r.description, r.room_type, r.capacity, r.building, r.floor, r.photos, r.is_active,
 			COALESCE(
 				json_agg(
 					json_build_object('id', e.id, 'name', e.name, 'icon', e.icon)
@@ -702,10 +734,13 @@ func (s *Service) AdminSearch(ctx context.Context, input AdminSearchInput) (*Sea
 		var isActive bool
 
 		if err := rows.Scan(
-			&room.ID, &room.Name, &room.RoomType, &room.Capacity,
-			&room.Building, &room.Floor, &isActive, &eqBytes,
+			&room.ID, &room.Name, &room.Description, &room.RoomType, &room.Capacity,
+			&room.Building, &room.Floor, &room.Photos, &isActive, &eqBytes,
 		); err != nil {
 			return nil, fmt.Errorf("scan admin room: %w", err)
+		}
+		if room.Photos == nil {
+			room.Photos = []string{}
 		}
 
 		if err := json.Unmarshal(eqBytes, &room.Equipment); err != nil {

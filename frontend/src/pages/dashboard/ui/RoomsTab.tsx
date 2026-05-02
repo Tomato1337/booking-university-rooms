@@ -1,4 +1,4 @@
-import { IconPencil, IconPlus, IconTrash, IconTrashX, IconRefresh } from "@tabler/icons-react";
+import { IconPencil, IconPhoto, IconPlus, IconTrash, IconTrashX, IconRefresh } from "@tabler/icons-react";
 import { reatomComponent, useWrap, useAtom } from "@reatom/react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -25,11 +25,12 @@ import {
 } from "@/modules/admin";
 import { getEquipmentIcon } from "@/modules/rooms";
 import { tAtom } from "@/modules/i18n";
+import { roomDetailRoute } from "@/pages/room-detail";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import Search from "@/shared/ui/search";
-import { cn } from "@/shared/lib/utils";
+import { cn, todayUtcStr } from "@/shared/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -72,8 +73,8 @@ export const RoomsTab = reatomComponent(() => {
       await hardDeleteRoomMutation(hardDeleteRoomId);
       toast.success(t.admin.rooms.toasts.hardDeleted);
       setHardDeleteRoomId(null);
-    } catch (e: any) {
-      toast.error(e.message || t.admin.rooms.toasts.hardDeleteFailed);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : t.admin.rooms.toasts.hardDeleteFailed);
       setHardDeleteRoomId(null);
     }
   });
@@ -89,6 +90,10 @@ export const RoomsTab = reatomComponent(() => {
 
   const wrapOpenEditForm = useWrap((room: (typeof rooms)[number]) => {
     openEditRoomFormAction(room);
+  });
+
+  const wrapOpenRoom = useWrap((roomId: string) => {
+    roomDetailRoute.go({ roomId, date: todayUtcStr() });
   });
 
   const wrapCloseForm = useWrap(() => {
@@ -182,7 +187,42 @@ export const RoomsTab = reatomComponent(() => {
 
                 return (
                   <TableRow key={room.id} data-slot="admin-room-row">
-                    <TableCell className="font-bold uppercase text-primary">{room.name}</TableCell>
+                    <TableCell>
+                      <div className="flex min-w-64 items-center gap-3">
+                        <div className="flex size-14 shrink-0 items-center justify-center bg-surface-container-high">
+                          {room.photos?.[0] ? (
+                            <img
+                              src={room.photos[0]}
+                              alt={room.name}
+                              className="size-full object-cover"
+                            />
+                          ) : (
+                            <IconPhoto className="size-5 text-on-surface-variant/40" />
+                          )}
+                        </div>
+                        <div className="flex min-w-0 flex-col gap-1">
+                          {isInactive ? (
+                            <span className="font-bold uppercase text-on-surface">
+                              {room.name}
+                            </span>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="link"
+                              className="h-auto w-max p-0 text-left font-bold uppercase text-primary"
+                              onClick={() => wrapOpenRoom(room.id)}
+                            >
+                              {room.name}
+                            </Button>
+                          )}
+                          {room.description && (
+                            <span className="line-clamp-2 text-xs text-on-surface-variant">
+                              {room.description}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
                     <TableCell className="uppercase">{room.roomType.replace("_", " ")}</TableCell>
                     <TableCell>{room.capacity}</TableCell>
                     <TableCell>
