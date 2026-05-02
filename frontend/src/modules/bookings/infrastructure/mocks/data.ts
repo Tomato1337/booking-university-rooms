@@ -11,7 +11,7 @@ type BookingStatus = components["schemas"]["BookingStatus"];
 type CreateBookingRequest = components["schemas"]["CreateBookingRequest"];
 type MyBooking = components["schemas"]["MyBooking"];
 
-const HALF_HOUR_REGEX = /^([01]\d|2[0-3]):(00|30)$/;
+const FIVE_MINUTE_HM_REGEX = /^([01]\d|2[0-3]):([0-5][05])$/;
 
 interface MockBookingStoreItem {
   id: string;
@@ -248,10 +248,10 @@ export function validateBookingPayload(body: CreateBookingRequest): {
     };
   }
 
-  if (!HALF_HOUR_REGEX.test(body.startTime) || !HALF_HOUR_REGEX.test(body.endTime)) {
+  if (!FIVE_MINUTE_HM_REGEX.test(body.startTime) || !FIVE_MINUTE_HM_REGEX.test(body.endTime)) {
     return {
       code: "VALIDATION_ERROR",
-      message: "Time must be in HH:mm format with 30-minute granularity",
+      message: "Time must be in HH:mm format with 5-minute granularity",
     };
   }
 

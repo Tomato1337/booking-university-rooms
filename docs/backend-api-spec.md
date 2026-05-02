@@ -250,8 +250,10 @@ CREATE TABLE bookings (
   -- Ограничения
   CONSTRAINT chk_time_range CHECK (start_time < end_time),
   CONSTRAINT chk_time_granularity CHECK (
-    EXTRACT(MINUTE FROM start_time) IN (0, 30) AND
-    EXTRACT(MINUTE FROM end_time) IN (0, 30)
+    EXTRACT(SECOND FROM start_time) = 0 AND
+    EXTRACT(SECOND FROM end_time) = 0 AND
+    MOD(EXTRACT(MINUTE FROM start_time)::int, 5) = 0 AND
+    MOD(EXTRACT(MINUTE FROM end_time)::int, 5) = 0
   )
 );
 
@@ -280,8 +282,8 @@ CREATE INDEX idx_bookings_created_at ON bookings (created_at DESC, id DESC);
 | `title` | VARCHAR(200) | NOT NULL | Название мероприятия |
 | `purpose` | booking_purpose | NOT NULL | Назначение бронирования |
 | `booking_date` | DATE | NOT NULL | Дата бронирования |
-| `start_time` | TIME | NOT NULL | Начало (с гранулярностью 30 мин) |
-| `end_time` | TIME | NOT NULL | Конец (с гранулярностью 30 мин) |
+| `start_time` | TIME | NOT NULL | Начало (с гранулярностью 5 мин) |
+| `end_time` | TIME | NOT NULL | Конец (с гранулярностью 5 мин) |
 | `attendee_count` | INTEGER | >0, NULLABLE | Кол-во участников |
 | `status` | booking_status | NOT NULL, DEFAULT 'pending' | Текущий статус |
 | `admin_id` | UUID | FK -> users.id, NULLABLE | Админ, обработавший заявку |
@@ -381,8 +383,10 @@ CREATE TABLE bookings (
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT chk_time_range CHECK (start_time < end_time),
   CONSTRAINT chk_time_granularity CHECK (
-    EXTRACT(MINUTE FROM start_time) IN (0, 30) AND
-    EXTRACT(MINUTE FROM end_time) IN (0, 30)
+    EXTRACT(SECOND FROM start_time) = 0 AND
+    EXTRACT(SECOND FROM end_time) = 0 AND
+    MOD(EXTRACT(MINUTE FROM start_time)::int, 5) = 0 AND
+    MOD(EXTRACT(MINUTE FROM end_time)::int, 5) = 0
   )
 );
 
@@ -623,7 +627,7 @@ Response: 204 No Content
 | HTTP Status | Error Code | Описание |
 |-------------|------------|----------|
 | 400 | `VALIDATION_ERROR` | Ошибка валидации входных данных |
-| 400 | `INVALID_TIME_RANGE` | start_time >= end_time или не кратно 30 мин |
+| 400 | `INVALID_TIME_RANGE` | start_time >= end_time или не кратно 5 мин |
 | 400 | `INVALID_DATE` | Дата в прошлом |
 | 400 | `CAPACITY_EXCEEDED` | attendee_count > room.capacity |
 | 401 | `UNAUTHORIZED` | Отсутствует или невалидный access token |
@@ -1235,8 +1239,8 @@ LIMIT $limit + 1
 | `title` | Обязательно, 1-200 символов |
 | `purpose` | Обязательно, одно из enum значений |
 | `bookingDate` | Обязательно, YYYY-MM-DD, не в прошлом |
-| `startTime` | Обязательно, HH:mm, кратно 30 мин (`:00` или `:30`) |
-| `endTime` | Обязательно, HH:mm, кратно 30 мин, > startTime |
+| `startTime` | Обязательно, HH:mm, кратно 5 мин |
+| `endTime` | Обязательно, HH:mm, кратно 5 мин, > startTime |
 | `attendeeCount` | Необязательно, integer > 0, <= room.capacity |
 
 **Бизнес-логика (КРИТИЧНО):**
@@ -1282,7 +1286,7 @@ LIMIT $limit + 1
 | HTTP | Code | Условие |
 |------|------|---------|
 | 400 | `VALIDATION_ERROR` | Невалидные поля |
-| 400 | `INVALID_TIME_RANGE` | startTime >= endTime или не кратно 30 мин |
+| 400 | `INVALID_TIME_RANGE` | startTime >= endTime или не кратно 5 мин |
 | 400 | `CAPACITY_EXCEEDED` | attendeeCount > room.capacity |
 | 404 | `ROOM_NOT_FOUND` | Комната не найдена |
 | 409 | `BOOKING_CONFLICT` | Пересечение с confirmed бронированием |
@@ -2176,7 +2180,7 @@ export const loginSchema = z.object({
 })
 
 // src/modules/bookings/bookings.schemas.ts
-const timeRegex = /^([01]\d|2[0-3]):(00|30)$/
+const timeRegex = /^([01]\d|2[0-3]):([0-5][05])$/
 
 export const createBookingSchema = z.object({
   roomId: z.string().uuid(),
@@ -2188,8 +2192,8 @@ export const createBookingSchema = z.object({
     "technical_assessment",
   ]),
   bookingDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  startTime: z.string().regex(timeRegex, "Time must be in HH:00 or HH:30 format"),
-  endTime: z.string().regex(timeRegex, "Time must be in HH:00 or HH:30 format"),
+  startTime: z.string().regex(timeRegex, "Time must be HH:mm in 5-minute steps"),
+  endTime: z.string().regex(timeRegex, "Time must be HH:mm in 5-minute steps"),
   attendeeCount: z.number().int().positive().optional(),
 }).refine(
   (data) => data.startTime < data.endTime,
@@ -2200,8 +2204,8 @@ export const createBookingSchema = z.object({
 export const roomSearchSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   search: z.string().max(100).optional(),
-  timeFrom: z.string().regex(/^([01]\d|2[0-3]):(00|30)$/).optional(),
-  timeTo: z.string().regex(/^([01]\d|2[0-3]):(00|30)$/).optional(),
+  timeFrom: z.string().regex(/^([01]\d|2[0-3]):([0-5][05])$/).optional(),
+  timeTo: z.string().regex(/^([01]\d|2[0-3]):([0-5][05])$/).optional(),
   equipment: z.string().optional(), // CSV UUIDs, parsed in handler
   minCapacity: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),

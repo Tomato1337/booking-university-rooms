@@ -187,7 +187,7 @@ const CreateBookingForm = reatomComponent(
               </label>
               <Input
                 type="time"
-                step={1800}
+                step={300}
                 lang="en-GB"
                 className={cn(
                   "h-auto border-0 p-4 text-lg font-bold",
@@ -208,7 +208,7 @@ const CreateBookingForm = reatomComponent(
               </label>
               <Input
                 type="time"
-                step={1800}
+                step={300}
                 lang="en-GB"
                 className={cn(
                   "h-auto border-0 p-4 text-lg font-bold",

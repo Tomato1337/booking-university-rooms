@@ -129,6 +129,7 @@ const RoomsFilters = reatomComponent(({ className }: RoomsFiltersProps) => {
           </div>
           <input
             type="time"
+            step={300}
             value={timeFrom}
             onChange={useWrap((e: ChangeEvent<HTMLInputElement>) =>
               roomsTimeFromAtom.set(e.target.value),
@@ -147,6 +148,7 @@ const RoomsFilters = reatomComponent(({ className }: RoomsFiltersProps) => {
           </div>
           <input
             type="time"
+            step={300}
             value={timeTo}
             onChange={useWrap((e: ChangeEvent<HTMLInputElement>) =>
               roomsTimeToAtom.set(e.target.value),

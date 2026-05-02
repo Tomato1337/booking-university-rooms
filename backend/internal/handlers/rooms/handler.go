@@ -59,6 +59,10 @@ func (h *Handler) Search(c *gin.Context) {
 
 	result, err := h.service.Search(c.Request.Context(), input, currentUserID)
 	if err != nil {
+		if err == roomssvc.ErrInvalidTimeRange {
+			utils.RespondError(c, http.StatusBadRequest, "INVALID_TIME_RANGE", "Invalid time range: must be HH:mm (5-minute aligned), startTime < endTime")
+			return
+		}
 		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
 		return
 	}
@@ -132,6 +136,10 @@ func (h *Handler) Create(c *gin.Context) {
 
 	room, err := h.service.Create(c.Request.Context(), input)
 	if err != nil {
+		if err == roomssvc.ErrInvalidTimeRange {
+			utils.RespondError(c, http.StatusBadRequest, "INVALID_TIME_RANGE", "Invalid room hours: must be HH:mm (5-minute aligned), openTime < closeTime")
+			return
+		}
 		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
 		return
 	}
@@ -175,6 +183,10 @@ func (h *Handler) Update(c *gin.Context) {
 	if err != nil {
 		if err == roomssvc.ErrRoomNotFound {
 			utils.RespondError(c, http.StatusNotFound, "ROOM_NOT_FOUND", "Room not found")
+			return
+		}
+		if err == roomssvc.ErrInvalidTimeRange {
+			utils.RespondError(c, http.StatusBadRequest, "INVALID_TIME_RANGE", "Invalid room hours: must be HH:mm (5-minute aligned), openTime < closeTime")
 			return
 		}
 		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")

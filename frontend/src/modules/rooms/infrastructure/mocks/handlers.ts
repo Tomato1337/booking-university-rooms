@@ -3,6 +3,8 @@ import { http } from "@/shared/mocks/http"
 import { getMockRoomDetail, mockEquipment, mockRooms, paginateRooms } from "./data"
 import { ensureRoomBookingsProviderRegistered } from "@/modules/bookings/infrastructure/mocks/data"
 
+const FIVE_MINUTE_HM_REGEX = /^([01]\d|2[0-3]):([0-5][05])$/
+
 export const listEquipment = {
   default: http.get("/equipment", ({ response }) => {
     return response(200).json({ data: mockEquipment })
@@ -19,6 +21,19 @@ export const searchRooms = {
     const minCapacity = url.searchParams.get("minCapacity")
     const cursor = url.searchParams.get("cursor") ?? undefined
     const limit = Number(url.searchParams.get("limit") ?? "6")
+
+    if (
+      (timeFrom && !FIVE_MINUTE_HM_REGEX.test(timeFrom)) ||
+      (timeTo && !FIVE_MINUTE_HM_REGEX.test(timeTo)) ||
+      (timeFrom && timeTo && timeFrom >= timeTo)
+    ) {
+      return response(400).json({
+        error: {
+          code: "INVALID_TIME_RANGE",
+          message: "Invalid time range: must be HH:mm (5-minute aligned), startTime < endTime",
+        },
+      })
+    }
 
     let filtered = [...mockRooms]
 

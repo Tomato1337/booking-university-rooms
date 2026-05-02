@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 
-const hmHalfHourRegex = /^([01]\d|2[0-3]):(00|30)$/;
+const fiveMinuteHmRegex = /^([01]\d|2[0-3]):([0-5][05])$/;
 
 export const createBookingSchema = z
   .object({
@@ -11,8 +11,8 @@ export const createBookingSchema = z
       "collaborative_study",
       "technical_assessment",
     ]),
-    startTime: z.string().regex(hmHalfHourRegex, "timeFormat"),
-    endTime: z.string().regex(hmHalfHourRegex, "timeFormat"),
+    startTime: z.string().regex(fiveMinuteHmRegex, "timeFormat"),
+    endTime: z.string().regex(fiveMinuteHmRegex, "timeFormat"),
     attendeeCount: z.union([z.number().int().min(1), z.undefined()]).optional(),
   })
   .refine((v) => v.startTime < v.endTime, {

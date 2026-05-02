@@ -22,6 +22,33 @@ type CreateRoomRequest = components["schemas"]["CreateRoomRequest"]
 type UpdateRoomRequest = components["schemas"]["UpdateRoomRequest"]
 type EquipmentPayload = { name: string; icon: string }
 
+const FIVE_MINUTE_HM_REGEX = /^([01]\d|2[0-3]):([0-5][05])$/
+
+function roomHoursError(body: { openTime?: string; closeTime?: string }) {
+  const openTime = body.openTime ?? "08:00"
+  const closeTime = body.closeTime ?? "20:00"
+
+  if (!FIVE_MINUTE_HM_REGEX.test(openTime) || !FIVE_MINUTE_HM_REGEX.test(closeTime) || openTime >= closeTime) {
+    return {
+      error: {
+        code: "VALIDATION_ERROR" as const,
+        message: "Invalid room hours: must be HH:mm (5-minute aligned), openTime < closeTime",
+        details: {
+          fields: [
+            {
+              field: "openTime",
+              message: "Room hours must be HH:mm in 5-minute steps and openTime must be before closeTime",
+              code: "invalid_time_range",
+            },
+          ],
+        },
+      },
+    }
+  }
+
+  return null
+}
+
 export const getAdminPendingBookings = {
   default: http.get("/admin/bookings/pending", ({ request, response }) => {
     const url = new URL(request.url)
@@ -99,6 +126,9 @@ export const getAdminStats = {
 export const createAdminRoom = {
   default: http.post("/rooms", async ({ request, response }) => {
     const body = (await request.json()) as CreateRoomRequest
+    const error = roomHoursError(body)
+    if (error) return response(400).json(error)
+
     const room = createRoomItem(body)
 
     return response(201).json({ data: room })
@@ -109,6 +139,9 @@ export const updateAdminRoom = {
   default: http.put("/rooms/{roomId}", async ({ params, request, response }) => {
     const roomId = String(params.roomId)
     const body = (await request.json()) as UpdateRoomRequest
+    const error = roomHoursError(body)
+    if (error) return response(400).json(error)
+
     const updated = updateRoomItem(roomId, body)
 
     if (!updated) {
@@ -243,7 +276,7 @@ export const listAdminRooms = {
     const nextCursor = cursor + limit < filtered.length ? String(cursor + limit) : null
 
     return response(200).json({
-      data: data as any,
+      data,
       meta: {
         hasMore: nextCursor !== null,
         nextCursor

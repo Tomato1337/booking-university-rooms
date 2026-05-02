@@ -15,7 +15,7 @@ info:
         should be passed as the `cursor` query parameter in the next request.
 
         ## Time Slots
-        All booking times must be in 30-minute increments (`:00` or `:30`).
+        All booking times must be in 5-minute increments.
         Working day: 08:00–22:00.
     version: 1.0.0
     contact:
@@ -219,12 +219,12 @@ components:
                         format: uri
                 openTime:
                     type: string
-                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
+                    pattern: "^([01]\\d|2[0-3]):([0-5][05])$"
                     example: "08:00"
                     description: "Room opens at this time"
                 closeTime:
                     type: string
-                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
+                    pattern: "^([01]\\d|2[0-3]):([0-5][05])$"
                     example: "20:00"
                     description: "Room closes at this time"
                 equipment:
@@ -246,11 +246,11 @@ components:
             properties:
                 startTime:
                     type: string
-                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
+                    pattern: "^([01]\\d|2[0-3]):([0-5][05])$"
                     example: "10:00"
                 endTime:
                     type: string
-                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
+                    pattern: "^([01]\\d|2[0-3]):([0-5][05])$"
                     example: "12:00"
                 status:
                     $ref: "#/components/schemas/TimeSlotStatus"
@@ -565,12 +565,12 @@ components:
                     type: integer
                 openTime:
                     type: string
-                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
+                    pattern: "^([01]\\d|2[0-3]):([0-5][05])$"
                     example: "08:00"
                     description: "Room opens at this time"
                 closeTime:
                     type: string
-                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
+                    pattern: "^([01]\\d|2[0-3]):([0-5][05])$"
                     example: "20:00"
                     description: "Room closes at this time"
                 photos:
@@ -642,11 +642,11 @@ components:
                     description: "YYYY-MM-DD, must not be in the past"
                 startTime:
                     type: string
-                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
+                    pattern: "^([01]\\d|2[0-3]):([0-5][05])$"
                     example: "14:00"
                 endTime:
                     type: string
-                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
+                    pattern: "^([01]\\d|2[0-3]):([0-5][05])$"
                     description: Must be after startTime
                     example: "16:30"
                 attendeeCount:
@@ -677,11 +677,11 @@ components:
                     type: integer
                 openTime:
                     type: string
-                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
+                    pattern: "^([01]\\d|2[0-3]):([0-5][05])$"
                     example: "08:00"
                 closeTime:
                     type: string
-                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
+                    pattern: "^([01]\\d|2[0-3]):([0-5][05])$"
                     example: "20:00"
                 photos:
                     type: array
@@ -716,11 +716,11 @@ components:
                     type: integer
                 openTime:
                     type: string
-                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
+                    pattern: "^([01]\\d|2[0-3]):([0-5][05])$"
                     example: "08:00"
                 closeTime:
                     type: string
-                    pattern: "^([01]\\d|2[0-3]):(00|30)$"
+                    pattern: "^([01]\\d|2[0-3]):([0-5][05])$"
                     example: "20:00"
                 photos:
                     type: array
@@ -1167,13 +1167,13 @@ paths:
                   in: query
                   schema:
                       type: string
-                      pattern: "^([01]\\d|2[0-3]):(00|30)$"
-                  description: Start of desired time range (HH:mm, 30-min granularity)
+                      pattern: "^([01]\\d|2[0-3]):([0-5][05])$"
+                  description: Start of desired time range (HH:mm, 5-minute granularity)
                 - name: timeTo
                   in: query
                   schema:
                       type: string
-                      pattern: "^([01]\\d|2[0-3]):(00|30)$"
+                      pattern: "^([01]\\d|2[0-3]):([0-5][05])$"
                   description: End of desired time range
                 - name: equipment
                   in: query
@@ -1204,6 +1204,12 @@ paths:
                                             $ref: "#/components/schemas/RoomCard"
                                     meta:
                                         $ref: "#/components/schemas/CursorPaginationMeta"
+                "400":
+                    description: Invalid time range
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorResponse"
                 "401":
                     $ref: "#/components/responses/Unauthorized"
 
@@ -1437,7 +1443,7 @@ paths:
                                             details:
                                                 fields:
                                                     - field: startTime
-                                                      message: "Time must be in HH:00 or HH:30 format"
+                                                      message: "Time must be HH:mm in 5-minute steps"
                                                       code: invalid_format
                                 invalidTime:
                                     summary: Invalid time range

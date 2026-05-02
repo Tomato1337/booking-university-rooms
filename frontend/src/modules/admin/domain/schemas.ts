@@ -1,6 +1,6 @@
 import { z } from "zod/v4"
 
-const hmRegex = /^([01]\d|2[0-3]):[0-5]\d$/
+const fiveMinuteHmRegex = /^([01]\d|2[0-3]):([0-5][05])$/
 
 export const rejectReasonSchema = z.string().max(500).optional()
 
@@ -23,8 +23,8 @@ export const createRoomSchema = z
       ], { message: "required" }),
     capacity: z.number({ message: "required" }).int().min(1, "required"),
     floor: z.number({ message: "required" }).int().min(0, "required"),
-    openTime: z.string().regex(hmRegex, "invalidTime"),
-    closeTime: z.string().regex(hmRegex, "invalidTime"),
+    openTime: z.string().regex(fiveMinuteHmRegex, "invalidTime"),
+    closeTime: z.string().regex(fiveMinuteHmRegex, "invalidTime"),
     equipmentIds: z.array(z.string()).default([]),
     description: z.string().max(1000, "maxLength").optional(),
     photos: z.array(z.string()).default([]),

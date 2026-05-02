@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "generate-local": "bunx openapi-typescript ../docs/openapi.yaml -o ./src/shared/api/schema.d.ts",
+    "generate-local": "bunx openapi-typescript ../backend/cmd/api/openapi.yaml -o ./src/shared/api/schema.d.ts",
     "generate-fetch": "bunx openapi-typescript http://localhost:3000/api/docs/openapi.yaml -o ./src/shared/api/schema.d.ts"
   },
   "dependencies": {

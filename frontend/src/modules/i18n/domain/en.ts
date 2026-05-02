@@ -362,7 +362,7 @@ export const en: Dictionary = {
       noteDescription: "Booking is subject to faculty approval. A response will be issued within 24 hours of submission.",
       errors: {
         titleRequired: "Title is required",
-        timeFormat: "Time must be HH:mm in 30-min steps",
+        timeFormat: "Time must be HH:mm in 5-minute steps",
         endBeforeStart: "End time must be after start time",
       }
     },
@@ -382,7 +382,7 @@ export const en: Dictionary = {
   validation: {
     required: "Required field",
     maxLength: "Value too long",
-    invalidTime: "Time must be HH:mm",
+    invalidTime: "Time must be HH:mm in 5-minute steps",
     timeOrder: "closeTime must be after openTime",
     invalidEmail: "Invalid email address",
     passwordRequired: "Password is required",

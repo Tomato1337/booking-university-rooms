@@ -1153,7 +1153,7 @@ export interface operations {
                 date?: components["parameters"]["DateParam"];
                 /** @description Free-text search */
                 search?: components["parameters"]["SearchParam"];
-                /** @description Start of desired time range (HH:mm, 30-min granularity) */
+                /** @description Start of desired time range (HH:mm, 5-minute granularity) */
                 timeFrom?: string;
                 /** @description End of desired time range */
                 timeTo?: string;
@@ -1185,6 +1185,15 @@ export interface operations {
                         data: components["schemas"]["RoomCard"][];
                         meta: components["schemas"]["CursorPaginationMeta"];
                     };
+                };
+            };
+            /** @description Invalid time range */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             401: components["responses"]["Unauthorized"];

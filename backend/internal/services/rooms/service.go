@@ -49,6 +49,12 @@ func (s *Service) Search(ctx context.Context, input SearchInput, currentUserID s
 		date = time.Now().Format("2006-01-02")
 	}
 
+	if (input.TimeFrom != "" && !utils.IsValidFiveMinuteTime(input.TimeFrom)) ||
+		(input.TimeTo != "" && !utils.IsValidFiveMinuteTime(input.TimeTo)) ||
+		(input.TimeFrom != "" && input.TimeTo != "" && input.TimeFrom >= input.TimeTo) {
+		return nil, ErrInvalidTimeRange
+	}
+
 	limit := input.Limit
 	if limit <= 0 || limit > 100 {
 		limit = 20
@@ -223,13 +229,18 @@ func (s *Service) GetDetail(ctx context.Context, roomIDStr, date, currentUserID 
 }
 
 func (s *Service) Create(ctx context.Context, input CreateRoomInput) (*models.Room, error) {
+	openTime, closeTime, err := normalizeRoomHours(input.OpenTime, input.CloseTime)
+	if err != nil {
+		return nil, err
+	}
+
 	room := &models.Room{}
 	var photos []string
-	err := s.db.QueryRow(ctx,
+	err = s.db.QueryRow(ctx,
 		`INSERT INTO rooms (name, description, room_type, capacity, building, floor, photos, open_time, close_time)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE(NULLIF($8, ''), '08:00')::time, COALESCE(NULLIF($9, ''), '20:00')::time)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8::time, $9::time)
 		 RETURNING id, name, description, room_type, capacity, building, floor, photos, is_active, created_at, updated_at, to_char(open_time, 'HH24:MI'), to_char(close_time, 'HH24:MI')`,
-		input.Name, input.Description, input.RoomType, input.Capacity, input.Building, input.Floor, input.Photos, input.OpenTime, input.CloseTime,
+		input.Name, input.Description, input.RoomType, input.Capacity, input.Building, input.Floor, input.Photos, openTime, closeTime,
 	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.Capacity, &room.Building, &room.Floor, &photos, &room.IsActive, &room.CreatedAt, &room.UpdatedAt, &room.OpenTime, &room.CloseTime)
 	if err != nil {
 		return nil, fmt.Errorf("insert room: %w", err)
@@ -258,14 +269,18 @@ func (s *Service) Update(ctx context.Context, roomIDStr string, input CreateRoom
 	if err != nil {
 		return nil, ErrRoomNotFound
 	}
+	openTime, closeTime, err := normalizeRoomHours(input.OpenTime, input.CloseTime)
+	if err != nil {
+		return nil, err
+	}
 
 	room := &models.Room{}
 	var photos []string
 	err = s.db.QueryRow(ctx,
-		`UPDATE rooms SET name=$1, description=$2, room_type=$3, capacity=$4, building=$5, floor=$6, photos=$7, open_time=COALESCE(NULLIF($8, ''), '08:00')::time, close_time=COALESCE(NULLIF($9, ''), '20:00')::time, updated_at=now()
+		`UPDATE rooms SET name=$1, description=$2, room_type=$3, capacity=$4, building=$5, floor=$6, photos=$7, open_time=$8::time, close_time=$9::time, updated_at=now()
 		 WHERE id=$10 AND is_active=true
 		 RETURNING id, name, description, room_type, capacity, building, floor, photos, is_active, created_at, updated_at, to_char(open_time, 'HH24:MI'), to_char(close_time, 'HH24:MI')`,
-		input.Name, input.Description, input.RoomType, input.Capacity, input.Building, input.Floor, input.Photos, input.OpenTime, input.CloseTime, roomID,
+		input.Name, input.Description, input.RoomType, input.Capacity, input.Building, input.Floor, input.Photos, openTime, closeTime, roomID,
 	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.Capacity, &room.Building, &room.Floor, &photos, &room.IsActive, &room.CreatedAt, &room.UpdatedAt, &room.OpenTime, &room.CloseTime)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -596,6 +611,21 @@ type CreateRoomInput struct {
 	OpenTime     string
 	CloseTime    string
 	EquipmentIDs []uuid.UUID
+}
+
+func normalizeRoomHours(openTime, closeTime string) (string, string, error) {
+	if openTime == "" {
+		openTime = "08:00"
+	}
+	if closeTime == "" {
+		closeTime = "20:00"
+	}
+
+	if !utils.IsValidFiveMinuteTime(openTime) || !utils.IsValidFiveMinuteTime(closeTime) || openTime >= closeTime {
+		return "", "", ErrInvalidTimeRange
+	}
+
+	return openTime, closeTime, nil
 }
 
 type AdminSearchInput struct {

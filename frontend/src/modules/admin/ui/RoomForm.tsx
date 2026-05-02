@@ -349,6 +349,7 @@ export const RoomForm = reatomComponent<RoomFormProps>(
                                 <Input
                                     {...openTimeBind}
                                     type="time"
+                                    step={300}
                                     aria-invalid={!!openTimeError}
                                 />
                                 {openTimeError && (
@@ -366,6 +367,7 @@ export const RoomForm = reatomComponent<RoomFormProps>(
                                 <Input
                                     {...closeTimeBind}
                                     type="time"
+                                    step={300}
                                     aria-invalid={!!closeTimeError}
                                 />
                                 {closeTimeError && (
