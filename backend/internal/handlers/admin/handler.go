@@ -9,6 +9,7 @@ import (
 	"booking-university-rooms/backend/internal/utils"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type Handler struct {
@@ -96,6 +97,45 @@ func (h *Handler) Reject(c *gin.Context) {
 		"statusReason": booking.StatusReason,
 		"updatedAt":    booking.UpdatedAt,
 	})
+}
+
+type bulkImportRequest struct {
+	Bookings []adminsvc.BulkImportInput `json:"bookings"`
+}
+
+func (h *Handler) ImportBookings(c *gin.Context) {
+	var req bulkImportRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondValidationError(c, []utils.ValidationField{
+			{Field: "body", Message: err.Error(), Code: "invalid"},
+		})
+		return
+	}
+
+	adminIDStr := c.GetString(middleware.ContextUserID)
+	adminID, err := uuid.Parse(adminIDStr)
+	if err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Invalid admin ID")
+		return
+	}
+
+	created, err := h.service.BulkImport(c.Request.Context(), adminID, req.Bookings)
+	if err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		return
+	}
+
+	utils.RespondSuccess(c, http.StatusOK, gin.H{"created": created})
+}
+
+func (h *Handler) ApproveAll(c *gin.Context) {
+	approved, err := h.service.ApproveAll(c.Request.Context())
+	if err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		return
+	}
+
+	utils.RespondSuccess(c, http.StatusOK, gin.H{"approved": approved})
 }
 
 func (h *Handler) GetStats(c *gin.Context) {

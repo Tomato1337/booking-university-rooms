@@ -530,6 +530,105 @@ func (s *Service) GetStats(ctx context.Context, period string) (*models.AdminSta
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
+type BulkImportInput struct {
+	RoomID      string `json:"roomId"`
+	Title       string `json:"title"`
+	Purpose     string `json:"purpose"`
+	BookingDate string `json:"bookingDate"`
+	StartTime   string `json:"startTime"`
+	EndTime     string `json:"endTime"`
+}
+
+func (s *Service) BulkImport(ctx context.Context, adminID uuid.UUID, bookings []BulkImportInput) (int, error) {
+	if len(bookings) == 0 {
+		return 0, nil
+	}
+
+	created := 0
+	for _, b := range bookings {
+		roomID, err := uuid.Parse(b.RoomID)
+		if err != nil {
+			continue
+		}
+
+		var exists bool
+		err = s.db.QueryRow(ctx,
+			`SELECT EXISTS(SELECT 1 FROM rooms WHERE id = $1 AND is_active = true)`,
+			roomID,
+		).Scan(&exists)
+		if err != nil || !exists {
+			continue
+		}
+
+		_, err = s.db.Exec(ctx,
+			`INSERT INTO bookings (user_id, room_id, title, purpose, booking_date, start_time, end_time, status, attendee_count)
+			 VALUES ($1, $2, $3, $4, $5::date, $6::time, $7::time, 'pending', NULL)`,
+			adminID, roomID, b.Title, b.Purpose, b.BookingDate, b.StartTime, b.EndTime,
+		)
+		if err != nil {
+			continue
+		}
+		created++
+	}
+	return created, nil
+}
+
+func (s *Service) ApproveAll(ctx context.Context) (int, error) {
+	tag, err := s.db.Exec(ctx,
+		`UPDATE bookings b
+		 SET status = 'confirmed', updated_at = now()
+		 FROM (
+		     SELECT b2.id FROM bookings b2
+		     WHERE b2.status = 'pending'
+		     AND NOT EXISTS (
+		         SELECT 1 FROM bookings c
+		         WHERE c.room_id = b2.room_id
+		         AND c.booking_date = b2.booking_date
+		         AND c.status = 'confirmed'
+		         AND c.start_time < b2.end_time
+		         AND c.end_time > b2.start_time
+		         AND c.id != b2.id
+		     )
+		     ORDER BY b2.id
+		     FOR UPDATE OF b2 SKIP LOCKED
+		 ) sub
+		 WHERE b.id = sub.id`,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("approve all: %w", err)
+	}
+
+	approved := int(tag.RowsAffected())
+
+	_, err = s.db.Exec(ctx,
+		`UPDATE bookings b
+		 SET status = 'rejected',
+		     status_reason = 'Auto-rejected: time slot conflict with approved booking',
+		     updated_at = now()
+		 FROM (
+		     SELECT b2.id FROM bookings b2
+		     WHERE b2.status = 'pending'
+		     AND EXISTS (
+		         SELECT 1 FROM bookings c
+		         WHERE c.room_id = b2.room_id
+		         AND c.booking_date = b2.booking_date
+		         AND c.status = 'confirmed'
+		         AND c.start_time < b2.end_time
+		         AND c.end_time > b2.start_time
+		         AND c.id != b2.id
+		     )
+		     ORDER BY b2.id
+		     FOR UPDATE OF b2 SKIP LOCKED
+		 ) sub
+		 WHERE b.id = sub.id`,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("reject conflicts: %w", err)
+	}
+
+	return approved, nil
+}
+
 func normalizeLimit(limit int) int {
 	if limit <= 0 || limit > 100 {
 		return 20

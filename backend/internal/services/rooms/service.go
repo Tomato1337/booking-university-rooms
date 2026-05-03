@@ -704,6 +704,10 @@ func (s *Service) AdminSearch(ctx context.Context, input AdminSearchInput) (*Sea
 		nextCursor = &c
 	}
 
+	if rooms == nil {
+		rooms = []models.RoomCard{}
+	}
+
 	return &SearchResult{
 		Rooms:      rooms,
 		HasMore:    hasMore,

@@ -46,10 +46,7 @@ type ListResult struct {
 }
 
 func (s *Service) Create(ctx context.Context, userID string, input CreateInput) (*models.Booking, error) {
-	// Validate time range format and half-hour alignment
-	if !isValidHalfHour(input.StartTime) || !isValidHalfHour(input.EndTime) {
-		return nil, ErrInvalidTimeRange
-	}
+	// Validate time range
 	if input.StartTime >= input.EndTime {
 		return nil, ErrInvalidTimeRange
 	}
@@ -246,14 +243,6 @@ func (s *Service) Cancel(ctx context.Context, bookingIDStr, userID string, isAdm
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
-
-func isValidHalfHour(t string) bool {
-	parts := strings.SplitN(t, ":", 2)
-	if len(parts) != 2 {
-		return false
-	}
-	return parts[1] == "00" || parts[1] == "30"
-}
 
 func normalizeLimit(limit int) int {
 	if limit <= 0 || limit > 100 {

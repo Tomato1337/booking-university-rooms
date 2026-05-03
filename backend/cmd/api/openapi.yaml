@@ -15,7 +15,7 @@ info:
         should be passed as the `cursor` query parameter in the next request.
 
         ## Time Slots
-        All booking times must be in 30-minute increments (`:00` or `:30`).
+        All booking times must be in `HH:mm` format.
         Working day: 08:00–22:00.
     version: 1.0.0
     contact:
@@ -739,6 +739,52 @@ components:
                 reason:
                     type: string
                     maxLength: 500
+
+        BulkImportBookingItem:
+            type: object
+            required: [roomId, title, purpose, bookingDate, startTime, endTime]
+            properties:
+                roomId:
+                    type: string
+                    format: uuid
+                title:
+                    type: string
+                purpose:
+                    $ref: "#/components/schemas/BookingPurpose"
+                bookingDate:
+                    type: string
+                    format: date
+                startTime:
+                    type: string
+                    example: "13:00"
+                endTime:
+                    type: string
+                    example: "14:30"
+
+        BulkImportRequest:
+            type: object
+            required: [bookings]
+            properties:
+                bookings:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/BulkImportBookingItem"
+
+        BulkImportResponse:
+            type: object
+            required: [created]
+            properties:
+                created:
+                    type: integer
+                    description: Number of bookings successfully created
+
+        ApproveAllResponse:
+            type: object
+            required: [approved]
+            properties:
+                approved:
+                    type: integer
+                    description: Number of bookings approved
 
         # ── Pagination Meta ────────────────────────
         CursorPaginationMeta:
@@ -1941,6 +1987,86 @@ paths:
                                 error:
                                     code: BOOKING_ALREADY_PROCESSED
                                     message: Booking is no longer pending
+
+    /admin/bookings/import:
+        post:
+            operationId: bulkImportBookings
+            tags: [Admin]
+            summary: Bulk import bookings from external schedule
+            description: |
+                Creates multiple bookings with `pending` status in one request.
+                Skips bookings for invalid or inactive rooms. Returns the count of successfully created bookings.
+            security:
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: "#/components/schemas/BulkImportRequest"
+                        example:
+                            bookings:
+                                - roomId: "room-uuid-1"
+                                  title: "Информационная экология"
+                                  purpose: "research_workshop"
+                                  bookingDate: "2026-05-05"
+                                  startTime: "13:00"
+                                  endTime: "14:30"
+                                - roomId: "room-uuid-2"
+                                  title: "Операционные системы"
+                                  purpose: "academic_lecture"
+                                  bookingDate: "2026-05-05"
+                                  startTime: "09:30"
+                                  endTime: "11:00"
+            responses:
+                "200":
+                    description: Import completed
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        $ref: "#/components/schemas/BulkImportResponse"
+                            example:
+                                data:
+                                    created: 42
+                "400":
+                    $ref: "#/components/responses/ValidationError"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+
+    /admin/bookings/approve-all:
+        post:
+            operationId: approveAllBookings
+            tags: [Admin]
+            summary: Approve all pending bookings
+            description: |
+                Approves all non-conflicting pending bookings.
+                Conflicting pending bookings are auto-rejected with a system reason.
+            security:
+                - BearerAuth: []
+            responses:
+                "200":
+                    description: Approval completed
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        $ref: "#/components/schemas/ApproveAllResponse"
+                            example:
+                                data:
+                                    approved: 150
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
 
     /admin/equipment:
         post:

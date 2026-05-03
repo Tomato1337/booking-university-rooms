@@ -64,7 +64,7 @@ func (h *Handler) Create(c *gin.Context) {
 		case bookingsvc.ErrRoomNotFound:
 			utils.RespondError(c, http.StatusNotFound, "ROOM_NOT_FOUND", "Room not found or inactive")
 		case bookingsvc.ErrInvalidTimeRange:
-			utils.RespondError(c, http.StatusBadRequest, "INVALID_TIME_RANGE", "Invalid time range: must be HH:mm (half-hour aligned), startTime < endTime")
+			utils.RespondError(c, http.StatusBadRequest, "INVALID_TIME_RANGE", "Invalid time range: must be HH:mm, startTime < endTime")
 		case bookingsvc.ErrBookingInPast:
 			utils.RespondError(c, http.StatusUnprocessableEntity, "BOOKING_IN_PAST", "Cannot book a time slot in the past")
 		case bookingsvc.ErrCapacityExceeded:

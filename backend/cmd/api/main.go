@@ -154,6 +154,8 @@ func main() {
 		admin.PATCH("/bookings/:bookingId/approve", adminH.Approve)
 		admin.PATCH("/bookings/:bookingId/reject", adminH.Reject)
 		admin.GET("/stats", adminH.GetStats)
+		admin.POST("/bookings/import", adminH.ImportBookings)
+		admin.POST("/bookings/approve-all", adminH.ApproveAll)
 		admin.POST("/equipment", equipH.Create)
 		admin.PUT("/equipment/:equipmentId", equipH.Update)
 		admin.DELETE("/equipment/:equipmentId", equipH.Delete)
