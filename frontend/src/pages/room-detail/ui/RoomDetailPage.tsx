@@ -38,7 +38,6 @@ import {
 import { Button } from '@/shared/ui/button'
 import { Calendar } from '@/shared/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover'
-import { Skeleton } from '@/shared/ui/skeleton'
 import { wrap } from '@reatom/core'
 import { reatomComponent, useWrap, useAtom } from '@reatom/react'
 import { IconPhoto } from '@tabler/icons-react'

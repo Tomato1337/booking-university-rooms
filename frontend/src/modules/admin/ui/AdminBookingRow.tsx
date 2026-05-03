@@ -1,8 +1,8 @@
 import { useState } from 'react'
 
 import { tAtom } from '@/modules/i18n'
-import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
+import { StatusBadge } from '@/shared/ui/status-badge'
 import { StatusIndicator } from '@/shared/ui/status-indicator'
 import { reatomComponent, useAtom, useWrap } from '@reatom/react'
 import { IconCheck, IconX } from '@tabler/icons-react'
@@ -46,13 +46,6 @@ export const AdminBookingRow = reatomComponent<AdminBookingRowProps>(
 		const wrapApprove = useWrap(async () => {
 			await approveBookingMutation(booking.id)
 		})
-
-		const badgeVariant =
-			booking.status === 'pending'
-				? 'pending'
-				: booking.status === 'confirmed'
-					? 'confirmed'
-					: 'booked'
 
 		const indicatorStatus =
 			booking.status === 'pending'
@@ -128,9 +121,7 @@ export const AdminBookingRow = reatomComponent<AdminBookingRowProps>(
 						<span className="mb-1 text-[0.65rem] uppercase text-on-surface-variant md:hidden">
 							{t.admin.bookings.columns.status}
 						</span>
-						<Badge dot variant={badgeVariant}>
-							{statusLabel}
-						</Badge>
+						<StatusBadge status={booking.status} label={statusLabel} />
 					</div>
 
 					<div className="flex gap-2 md:justify-end">

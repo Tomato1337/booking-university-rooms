@@ -189,20 +189,27 @@ func (s *Service) ReactivateBookingPurpose(ctx context.Context, code string) (*m
 }
 
 func (s *Service) HardDeleteBookingPurpose(ctx context.Context, code string) error {
-	var bookingsCount int
-	if err := s.db.QueryRow(ctx, "SELECT COUNT(*) FROM bookings WHERE purpose = $1", code).Scan(&bookingsCount); err != nil {
-		return fmt.Errorf("count purpose bookings: %w", err)
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin hard delete booking purpose: %w", err)
 	}
-	if bookingsCount > 0 {
-		return ErrPurposeInUse
+	defer tx.Rollback(ctx)
+
+	tag, err := tx.Exec(ctx, "DELETE FROM bookings WHERE purpose = $1", code)
+	if err != nil {
+		return fmt.Errorf("delete purpose bookings: %w", err)
 	}
 
-	tag, err := s.db.Exec(ctx, "DELETE FROM booking_purposes WHERE code = $1", code)
+	tag, err = tx.Exec(ctx, "DELETE FROM booking_purposes WHERE code = $1", code)
 	if err != nil {
 		return fmt.Errorf("hard delete booking purpose: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
 		return ErrPurposeNotFound
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit hard delete booking purpose: %w", err)
 	}
 	return nil
 }

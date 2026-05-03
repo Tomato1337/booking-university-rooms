@@ -158,8 +158,6 @@ func (h *Handler) HardDeleteBookingPurpose(c *gin.Context) {
 		switch err {
 		case catalogssvc.ErrPurposeNotFound:
 			utils.RespondError(c, http.StatusNotFound, "BOOKING_PURPOSE_NOT_FOUND", "Booking purpose not found")
-		case catalogssvc.ErrPurposeInUse:
-			utils.RespondError(c, http.StatusConflict, "BOOKING_PURPOSE_IN_USE", "Booking purpose is used by existing bookings")
 		default:
 			utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
 		}

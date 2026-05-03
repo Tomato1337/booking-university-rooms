@@ -2,8 +2,8 @@ import type { ComponentProps } from 'react'
 
 import { tAtom } from '@/modules/i18n'
 import { cn } from '@/shared/lib/utils'
-import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
+import { StatusBadge } from '@/shared/ui/status-badge'
 import { StatusIndicator } from '@/shared/ui/status-indicator'
 import { useAtom } from '@reatom/react'
 
@@ -44,9 +44,6 @@ function BookingRow({
 	...props
 }: BookingRowProps) {
 	const [t] = useAtom(tAtom)
-	const badgeVariant =
-		status === 'pending' ? 'pending' : status === 'confirmed' ? 'confirmed' : 'booked'
-
 	const indicatorStatus =
 		status === 'pending' ? 'pending' : status === 'confirmed' ? 'available' : 'booked'
 
@@ -116,9 +113,7 @@ function BookingRow({
 				<span className="mb-1 text-[0.65rem] uppercase text-on-surface-variant md:hidden">
 					{t.bookings.columns.status}
 				</span>
-				<Badge dot variant={badgeVariant}>
-					{statusLabel}
-				</Badge>
+				<StatusBadge status={status} label={statusLabel} />
 			</div>
 
 			{/* Action */}

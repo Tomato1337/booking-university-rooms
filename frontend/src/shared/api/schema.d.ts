@@ -409,7 +409,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Permanently delete an unused inactive booking purpose */
+        /** Permanently delete a booking purpose and its linked bookings */
         delete: operations["hardDeleteBookingPurpose"];
         options?: never;
         head?: never;
@@ -2054,15 +2054,8 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Booking purpose permanently deleted */
+            /** @description Booking purpose and linked bookings permanently deleted */
             204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Booking purpose is used by existing bookings */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };

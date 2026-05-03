@@ -2205,9 +2205,9 @@ curl -X PATCH http://localhost:3000/api/admin/bookings/booking-uuid/approve \
   - `PUT /api/admin/booking-purposes/{code}`
   - `DELETE /api/admin/booking-purposes/{code}` — soft deactivate
   - `PATCH /api/admin/booking-purposes/{code}/reactivate`
-  - `DELETE /api/admin/booking-purposes/{code}/hard` — окончательное удаление неиспользуемой цели
+  - `DELETE /api/admin/booking-purposes/{code}/hard` — окончательное удаление цели и связанных бронирований
 - `code` цели после создания не редактируется; labels и sort order редактируются.
-- Hard delete возвращает `409 BOOKING_PURPOSE_IN_USE`, если цель уже связана с бронированиями.
+- Hard delete каскадно удаляет все `bookings`, где `purpose = code`; UI обязан предупреждать администратора.
 
 ---
 

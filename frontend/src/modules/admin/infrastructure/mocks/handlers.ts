@@ -422,8 +422,11 @@ export const reactivateAdminBookingPurpose = {
 
 export const hardDeleteAdminBookingPurpose = {
   default: mswHttp.delete("/api/admin/booking-purposes/:code/hard", ({ params }) => {
-    const index = mockAdminBookingPurposes.findIndex((purpose) => purpose.code === String(params.code))
+    const code = String(params.code)
+    const index = mockAdminBookingPurposes.findIndex((purpose) => purpose.code === code)
     if (index < 0) return HttpResponse.json({ error: { code: "BOOKING_PURPOSE_NOT_FOUND", message: "Not found" } }, { status: 404 })
+    adminMockState.pendingBookings = adminMockState.pendingBookings.filter((booking) => booking.purpose !== code)
+    adminMockState.stats.pendingCount = adminMockState.pendingBookings.filter((booking) => booking.status === "pending").length
     mockAdminBookingPurposes.splice(index, 1)
     return new HttpResponse(null, { status: 204 })
   }),

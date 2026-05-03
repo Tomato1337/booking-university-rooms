@@ -255,8 +255,6 @@ export const en: Dictionary = {
 			form: {
 				createTitle: 'New Purpose',
 				editTitle: 'Edit Purpose',
-				description:
-					'The code stays stable for database links; labels can be localized without frontend changes.',
 				code: 'Code',
 				labelRu: 'Russian label',
 				labelEn: 'English label',
@@ -275,7 +273,7 @@ export const en: Dictionary = {
 			alerts: {
 				deleteTitle: 'Delete purpose permanently',
 				deleteDesc:
-					'Delete purpose {code}? This cannot be undone. If the purpose is used by bookings, the server will reject deletion.',
+					'Delete purpose {code}? This cannot be undone. All user bookings linked to this purpose will also be deleted.',
 				deleteCancel: 'Keep',
 				deleteConfirm: 'Delete',
 				deleting: 'Deleting...',

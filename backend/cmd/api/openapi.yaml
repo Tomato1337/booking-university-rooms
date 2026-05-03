@@ -1959,7 +1959,7 @@ paths:
         delete:
             operationId: hardDeleteBookingPurpose
             tags: [Admin]
-            summary: Permanently delete an unused inactive booking purpose
+            summary: Permanently delete a booking purpose and its linked bookings
             security:
                 - AccessCookieAuth: []
                 - BearerAuth: []
@@ -1971,9 +1971,7 @@ paths:
                       type: string
             responses:
                 "204":
-                    description: Booking purpose permanently deleted
-                "409":
-                    description: Booking purpose is used by existing bookings
+                    description: Booking purpose and linked bookings permanently deleted
 
     /admin/rooms/{roomId}:
         delete:

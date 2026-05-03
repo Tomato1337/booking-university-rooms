@@ -23,15 +23,15 @@ import {
   AlertDialogTitle,
 } from "@/shared/ui/alert-dialog"
 import { Button } from "@/shared/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/shared/ui/dialog"
 import { Input } from "@/shared/ui/input"
+import {
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/shared/ui/sheet"
+import { StatusBadge } from "@/shared/ui/status-badge"
 import { StatusTabs } from "@/shared/ui/status-tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table"
 import { reatomComponent, useAtom, useWrap } from "@reatom/react"
@@ -134,13 +134,11 @@ export const PurposesTab = reatomComponent(() => {
   const wrapDeactivate = useWrap(async (code: string) => {
     await deactivateBookingPurposeMutation(code)
     toast.success(t.admin.purposes.toasts.deactivated)
-    setStatusTab("inactive")
   })
 
   const wrapReactivate = useWrap(async (code: string) => {
     await reactivateBookingPurposeMutation(code)
     toast.success(t.admin.purposes.toasts.reactivated)
-    setStatusTab("active")
   })
 
   const wrapHardDelete = useWrap(async () => {
@@ -206,7 +204,10 @@ export const PurposesTab = reatomComponent(() => {
                   <TableCell>{item.labelEn}</TableCell>
                   <TableCell>{item.sortOrder}</TableCell>
                   <TableCell>
-                    {item.isActive ? t.admin.purposes.active : t.admin.purposes.inactive}
+                    <StatusBadge
+                      status={item.isActive ? "active" : "inactive"}
+                      label={item.isActive ? t.admin.purposes.active : t.admin.purposes.inactive}
+                    />
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
@@ -279,19 +280,23 @@ export const PurposesTab = reatomComponent(() => {
         </Table>
       </div>
 
-      <Dialog
+      <Sheet
         open={formOpen}
-        onOpenChange={(open) => {
-          if (!open) wrapCloseForm()
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            wrapCloseForm()
+            return
+          }
+
+          setFormOpen(true)
         }}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
+        <SheetContent side="right" className="w-full max-w-xl bg-surface-container-low">
+          <SheetHeader>
+            <SheetTitle>
               {editingPurpose ? t.admin.purposes.form.editTitle : t.admin.purposes.form.createTitle}
-            </DialogTitle>
-            <DialogDescription>{t.admin.purposes.form.description}</DialogDescription>
-          </DialogHeader>
+            </SheetTitle>
+          </SheetHeader>
 
           <div className="grid gap-4 p-4">
             <label className="flex flex-col gap-2">
@@ -335,7 +340,7 @@ export const PurposesTab = reatomComponent(() => {
             </label>
           </div>
 
-          <DialogFooter>
+          <SheetFooter>
             <Button type="button" variant="outline" onClick={wrapCloseForm}>
               {t.admin.purposes.form.cancel}
             </Button>
@@ -346,9 +351,9 @@ export const PurposesTab = reatomComponent(() => {
                   ? t.admin.purposes.form.save
                   : t.admin.purposes.form.create}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <AlertDialog
         open={Boolean(deletePurpose)}
