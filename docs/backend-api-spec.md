@@ -2178,6 +2178,39 @@ curl -X PATCH http://localhost:3000/api/admin/bookings/booking-uuid/approve \
 
 ---
 
+## Динамические справочники зданий и целей
+
+Названия зданий и целей бронирования не хранятся во frontend i18n. Клиент
+передаёт текущий язык интерфейса через `X-Locale: ru|en`, backend возвращает
+локализованный `label`. Если язык не передан или неизвестен, используется `ru`.
+
+### Здания
+
+- `GET /api/buildings` возвращает активные здания: `{ code, label }[]`.
+- В `rooms.building` хранится стабильный `code`.
+- Ответы комнат дополнительно содержат `buildingLabel` для отображения.
+- `GET /api/rooms` принимает `building=<code>`; если параметра нет, backend
+  использует `aviamotornaya`.
+- Create/update комнаты отклоняет неизвестный или неактивный building code.
+- Начальные значения: `aviamotornaya`, `narod-opolchenie`.
+
+### Цели бронирования
+
+- `GET /api/booking-purposes` возвращает активные цели: `{ code, label }[]`.
+- В `bookings.purpose` хранится стабильный `code`.
+- Create booking отклоняет неизвестную или неактивную цель.
+- Admin CRUD:
+  - `GET /api/admin/booking-purposes`
+  - `POST /api/admin/booking-purposes`
+  - `PUT /api/admin/booking-purposes/{code}`
+  - `DELETE /api/admin/booking-purposes/{code}` — soft deactivate
+  - `PATCH /api/admin/booking-purposes/{code}/reactivate`
+  - `DELETE /api/admin/booking-purposes/{code}/hard` — окончательное удаление неиспользуемой цели
+- `code` цели после создания не редактируется; labels и sort order редактируются.
+- Hard delete возвращает `409 BOOKING_PURPOSE_IN_USE`, если цель уже связана с бронированиями.
+
+---
+
 ## Приложение B: Zod-схемы (пример)
 
 ```typescript
@@ -2206,12 +2239,7 @@ const timeRegex = /^([01]\d|2[0-3]):([0-5][05])$/
 export const createBookingSchema = z.object({
   roomId: z.string().uuid(),
   title: z.string().min(1).max(200),
-  purpose: z.enum([
-    "academic_lecture",
-    "research_workshop",
-    "collaborative_study",
-    "technical_assessment",
-  ]),
+  purpose: z.string().min(1),
   bookingDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   startTime: z.string().regex(timeRegex, "Time must be HH:mm in 5-minute steps"),
   endTime: z.string().regex(timeRegex, "Time must be HH:mm in 5-minute steps"),
@@ -2225,6 +2253,7 @@ export const createBookingSchema = z.object({
 export const roomSearchSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   search: z.string().max(100).optional(),
+  building: z.string().min(1).default("aviamotornaya"),
   timeFrom: z.string().regex(/^([01]\d|2[0-3]):([0-5][05])$/).optional(),
   timeTo: z.string().regex(/^([01]\d|2[0-3]):([0-5][05])$/).optional(),
   equipment: z.string().optional(), // CSV UUIDs, parsed in handler

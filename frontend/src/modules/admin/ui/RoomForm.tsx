@@ -35,6 +35,10 @@ import {
 
 import { RoomPhotosUpload } from './room-photos-upload'
 import { tAtom } from '@/modules/i18n'
+import {
+    buildingsListAtom,
+    fetchBuildingsAction,
+} from '@/modules/catalogs'
 
 type RoomType =
     | 'lab'
@@ -109,6 +113,7 @@ export const RoomForm = reatomComponent<RoomFormProps>(
         const [t] = useAtom(tAtom)
         const fields = roomForm.fields
         const equipment = equipmentListQuery.data()
+        const buildings = buildingsListAtom()
         const editingRoom = roomFormEditingRoomAtom()
         const [photoFile, setPhotoFile] = useState<File | null>(null)
         const [removePhoto, setRemovePhoto] = useState(false)
@@ -130,9 +135,7 @@ export const RoomForm = reatomComponent<RoomFormProps>(
         const submitting = createStatus.isPending || updateStatus.isPending
 
         const { error: nameError, ...nameBind } = bindField(fields.name)
-        const { error: buildingError, ...buildingBind } = bindField(
-            fields.building,
-        )
+        const { error: buildingError } = bindField(fields.building)
         const { error: capacityError, ...capacityBind } = bindField(
             fields.capacity,
         )
@@ -144,11 +147,16 @@ export const RoomForm = reatomComponent<RoomFormProps>(
             fields.closeTime,
         )
 
+        const wrapFetchBuildings = useWrap(() => {
+            fetchBuildingsAction()
+        })
+
         useEffect(() => {
             if (!open) return
             setPhotoFile(null)
             setRemovePhoto(false)
-        }, [open, editingRoom?.id])
+            wrapFetchBuildings()
+        }, [open, editingRoom?.id, wrapFetchBuildings])
 
         const wrapChangeRoomType = useWrap((next: RoomType) => {
             fields.roomType.set(next)
@@ -160,6 +168,10 @@ export const RoomForm = reatomComponent<RoomFormProps>(
 
         const wrapChangeFloor = useWrap((next: number) => {
             fields.floor.set(next)
+        })
+
+        const wrapChangeBuilding = useWrap((next: string) => {
+            fields.building.set(next || 'aviamotornaya')
         })
 
         const wrapChangeDescription = useWrap((next: string) => {
@@ -272,13 +284,31 @@ export const RoomForm = reatomComponent<RoomFormProps>(
                                 <IconBuilding className="size-4" />{' '}
                                 {t.admin.rooms.form.building}
                             </span>
-                            <Input
-                                {...buildingBind}
-                                aria-invalid={!!buildingError}
-                                placeholder={
-                                    t.admin.rooms.form.buildingPlaceholder
+                            <select
+                                value={fields.building()}
+                                onChange={(e) =>
+                                    wrapChangeBuilding(e.target.value)
                                 }
-                            />
+                                aria-invalid={!!buildingError}
+                                className="h-9 w-full bg-surface-container-lowest px-3 text-sm font-bold uppercase tracking-wide text-on-surface outline-none"
+                            >
+                                {(buildings.length > 0
+                                    ? buildings
+                                    : [
+                                          {
+                                              code: 'aviamotornaya',
+                                              label: 'Авиамоторная',
+                                          },
+                                      ]
+                                ).map((building) => (
+                                    <option
+                                        key={building.code}
+                                        value={building.code}
+                                    >
+                                        {building.label}
+                                    </option>
+                                ))}
+                            </select>
                             {buildingError && (
                                 <p className="text-xs uppercase tracking-wider text-secondary">
                                     {buildingError}

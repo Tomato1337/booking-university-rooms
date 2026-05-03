@@ -46,7 +46,7 @@ function toBookingRowData(booking: MyBooking) {
 		bookingId: booking.bookingId,
 		date: formatBookingDate(booking.bookingDate).toUpperCase(),
 		timeRange: `${booking.startTime} — ${booking.endTime}`,
-		location: booking.building,
+		location: booking.buildingLabel ?? booking.building,
 		status: booking.status,
 		bookingDate: booking.bookingDate,
 		canCancel: booking.status === 'pending' || booking.status === 'confirmed',

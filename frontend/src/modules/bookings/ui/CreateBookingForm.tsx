@@ -1,6 +1,7 @@
 import type { ComponentProps } from 'react'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 
+import { bookingPurposesListAtom, fetchBookingPurposesAction } from '@/modules/catalogs'
 import { tAtom } from '@/modules/i18n'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
@@ -28,13 +29,6 @@ interface CreateBookingFormProps extends Omit<ComponentProps<'div'>, 'ref'> {
 	ref?: React.Ref<HTMLInputElement>
 }
 
-const PURPOSE_KEYS: BookingPurpose[] = [
-	'academic_lecture',
-	'research_workshop',
-	'collaborative_study',
-	'technical_assessment',
-]
-
 function overlaps(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
 	return aStart < bEnd && aEnd > bStart
 }
@@ -54,6 +48,7 @@ const CreateBookingForm = reatomComponent(
 		const status = createBookingStatusAtom()
 		const error = createBookingErrorAtom()
 		const [t] = useAtom(tAtom)
+		const bookingPurposes = bookingPurposesListAtom()
 
 		const fields = createBookingForm.fields
 		const { error: titleErrorRaw, ...titleBind } = bindField(fields.title)
@@ -120,6 +115,29 @@ const CreateBookingForm = reatomComponent(
 			}
 		})
 
+		const wrapFetchPurposes = useWrap(() => {
+			fetchBookingPurposesAction()
+		})
+
+		const wrapEnsurePurpose = useWrap(
+			(nextPurposes: typeof bookingPurposes, currentPurpose: string) => {
+				if (
+					nextPurposes.length > 0 &&
+					!nextPurposes.some((item) => item.code === currentPurpose)
+				) {
+					fields.purpose.set(nextPurposes[0].code)
+				}
+			},
+		)
+
+		useEffect(() => {
+			wrapFetchPurposes()
+		}, [wrapFetchPurposes])
+
+		useEffect(() => {
+			wrapEnsurePurpose(bookingPurposes, purpose)
+		}, [bookingPurposes, purpose, wrapEnsurePurpose])
+
 		return (
 			<div
 				data-slot="create-booking-form"
@@ -173,9 +191,9 @@ const CreateBookingForm = reatomComponent(
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent>
-								{PURPOSE_KEYS.map((key) => (
-									<SelectItem key={key} value={key}>
-										{t.booking.purposes[key]}
+								{bookingPurposes.map((item) => (
+									<SelectItem key={item.code} value={item.code}>
+										{item.label}
 									</SelectItem>
 								))}
 							</SelectContent>

@@ -7,6 +7,7 @@ import (
 	"booking-university-rooms/backend/internal/middleware"
 	"booking-university-rooms/backend/internal/models"
 	bookingsvc "booking-university-rooms/backend/internal/services/bookings"
+	catalogssvc "booking-university-rooms/backend/internal/services/catalogs"
 	"booking-university-rooms/backend/internal/utils"
 
 	"github.com/gin-gonic/gin"
@@ -19,6 +20,13 @@ type Handler struct {
 
 func NewHandler(service *bookingsvc.Service) *Handler {
 	return &Handler{service: service}
+}
+
+func requestLocale(c *gin.Context) string {
+	if locale := c.GetHeader("X-Locale"); locale != "" {
+		return catalogssvc.NormalizeLocale(locale)
+	}
+	return catalogssvc.NormalizeLocale(c.GetHeader("Accept-Language"))
 }
 
 type createRequest struct {
@@ -65,6 +73,8 @@ func (h *Handler) Create(c *gin.Context) {
 			utils.RespondError(c, http.StatusNotFound, "ROOM_NOT_FOUND", "Room not found or inactive")
 		case bookingsvc.ErrInvalidTimeRange:
 			utils.RespondError(c, http.StatusBadRequest, "INVALID_TIME_RANGE", "Invalid time range: must be HH:mm (5-minute aligned), startTime < endTime")
+		case bookingsvc.ErrInvalidPurpose:
+			utils.RespondError(c, http.StatusBadRequest, "INVALID_BOOKING_PURPOSE", "Booking purpose does not exist or is inactive")
 		case bookingsvc.ErrBookingInPast:
 			utils.RespondError(c, http.StatusUnprocessableEntity, "BOOKING_IN_PAST", "Cannot book a time slot in the past")
 		case bookingsvc.ErrCapacityExceeded:
@@ -88,6 +98,7 @@ func (h *Handler) ListMy(c *gin.Context) {
 		UserID: userID,
 		Search: c.Query("search"),
 		Limit:  limit,
+		Locale: requestLocale(c),
 		Cursor: c.Query("cursor"),
 	})
 	if err != nil {
@@ -109,6 +120,7 @@ func (h *Handler) ListMyHistory(c *gin.Context) {
 		UserID: userID,
 		Search: c.Query("search"),
 		Limit:  limit,
+		Locale: requestLocale(c),
 		Cursor: c.Query("cursor"),
 	})
 	if err != nil {

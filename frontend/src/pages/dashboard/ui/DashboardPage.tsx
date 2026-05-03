@@ -7,12 +7,13 @@ import { rootRoute } from "@/shared/router";
 
 import { BookingsTab } from "./BookingsTab";
 import { EquipmentTab } from "./EquipmentTab";
+import { PurposesTab } from "./PurposesTab";
 import { RoomsTab } from "./RoomsTab";
 import { StatisticsTab } from "./StatisticsTab";
 import { Button } from "@/shared/ui/button";
 import { cn } from "@/shared/lib/utils";
 
-const dashboardTabs: AdminTab[] = ["bookings", "rooms", "equipment", "statistics"];
+const dashboardTabs: AdminTab[] = ["bookings", "rooms", "equipment", "purposes", "statistics"];
 
 function isAdminTab(value: string | null | undefined): value is AdminTab {
   return dashboardTabs.includes((value ?? "") as AdminTab);
@@ -73,6 +74,8 @@ const DashboardPage = reatomComponent(() => {
       {activeTab === "rooms" && <RoomsTab />}
 
       {activeTab === "equipment" && <EquipmentTab />}
+
+      {activeTab === "purposes" && <PurposesTab />}
 
       {activeTab === "statistics" && <StatisticsTab />}
     </div>

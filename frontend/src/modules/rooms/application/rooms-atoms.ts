@@ -16,6 +16,7 @@ import type {
   RoomSearchFilters,
 } from "../domain/types";
 import * as roomsApi from "../infrastructure/rooms-api";
+import { fetchBuildingsAction } from "@/modules/catalogs";
 
 const EQUIPMENT_TTL_MS = 24 * 60 * 60 * 1000;
 const ROOMS_SEARCH_TTL_MS = 60 * 1000;
@@ -55,6 +56,7 @@ function normalizeFilters(filters: RoomSearchFilters): RoomSearchFilters {
   return {
     ...filters,
     search: filters.search?.trim() || undefined,
+    building: filters.building || "aviamotornaya",
     timeFrom: filters.timeFrom || undefined,
     timeTo: filters.timeTo || undefined,
     equipment: filters.equipment || undefined,
@@ -84,6 +86,13 @@ export const roomsSearchAtom = atom("", "rooms.search").extend(
   withSearchParams("search", {
     parse: (value) => value ?? "",
     serialize: (value) => value || undefined,
+  }),
+);
+
+export const roomsBuildingAtom = atom("aviamotornaya", "rooms.building").extend(
+  withSearchParams("building", {
+    parse: (value) => value || "aviamotornaya",
+    serialize: (value) => (value === "aviamotornaya" ? undefined : value),
   }),
 );
 
@@ -123,6 +132,7 @@ export const roomsFiltersAtom = computed(() => {
   return normalizeFilters({
     date: roomsDateAtom(),
     search: roomsSearchAtom(),
+    building: roomsBuildingAtom(),
     timeFrom: roomsTimeFromAtom(),
     timeTo: roomsTimeToAtom(),
     equipment: roomsEquipmentAtom(),
@@ -157,6 +167,7 @@ export const isEditable = computed(() => {
   const current = roomsFiltersAtom();
   return (
     (current.date ?? todayStr()) !== (lastFilters.date ?? todayStr()) ||
+    (current.building ?? "aviamotornaya") !== (lastFilters.building ?? "aviamotornaya") ||
     (current.timeFrom ?? "") !== (lastFilters.timeFrom ?? "") ||
     (current.timeTo ?? "") !== (lastFilters.timeTo ?? "") ||
     (current.equipment ?? "") !== (lastFilters.equipment ?? "") ||
@@ -302,6 +313,12 @@ export const searchRoomsAction = action(async () => {
 
 export const activateRoomsPageAction = action(async () => {
   roomsSearchInputActiveAtom.set(false);
+
+  try {
+    await wrap(fetchBuildingsAction());
+  } catch {
+    // keep page usable even if buildings fail
+  }
 
   try {
     await wrap(fetchEquipmentAction());

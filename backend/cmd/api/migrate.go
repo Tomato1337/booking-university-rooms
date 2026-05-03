@@ -21,6 +21,9 @@ var seedDataSQL []byte
 //go:embed migrations/000004_five_minute_time_granularity.sql
 var fiveMinuteTimeGranularitySQL []byte
 
+//go:embed migrations/000005_catalogs.sql
+var catalogsSQL []byte
+
 func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	// Create migrations tracking table if needed
 	_, err := pool.Exec(ctx, `
@@ -41,6 +44,7 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		{"000002_add_room_hours", addRoomHoursSQL},
 		{"000003_seed_data", seedDataSQL},
 		{"000004_five_minute_time_granularity", fiveMinuteTimeGranularitySQL},
+		{"000005_catalogs", catalogsSQL},
 	}
 
 	for _, m := range migrations {

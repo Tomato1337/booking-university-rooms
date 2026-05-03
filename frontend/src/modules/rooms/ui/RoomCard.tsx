@@ -86,7 +86,7 @@ function RoomCard({ room, onBook, className }: RoomCardProps) {
                     </h4>
 
                     <span className="text-[0.65rem] font-medium uppercase tracking-widest text-on-surface-variant">
-                        {room.building} /{' '}
+                        {(room.buildingLabel ?? room.building)} /{' '}
                         {t.rooms.card.floor.replace(
                             '{floor}',
                             String(room.floor),

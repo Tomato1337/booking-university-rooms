@@ -1,402 +1,467 @@
 export const ru = {
-  auth: {
-    loginTab: "Вход",
-    registerTab: "Регистрация",
-    login: {
-      title: "Терминал доступа",
-      subtitle: "Аутентификация в ресурсной сети кампуса.",
-      email: "Электронная почта",
-      emailPlaceholder: "S1234567@UNIVERSITY.EDU",
-      password: "Пароль",
-      passwordPlaceholder: "••••••••",
-      submit: "Получить доступ",
-      submitting: "Аутентификация...",
-    },
-    register: {
-      title: "Инициализация профиля",
-      subtitle: "Доступ к ресурсной сети кампуса.",
-      firstName: "Имя",
-      firstNamePlaceholder: "АЛЕКСАНДР",
-      lastName: "Фамилия",
-      lastNamePlaceholder: "ИВАНОВ",
-      email: "Электронная почта",
-      emailPlaceholder: "S1234567@UNIVERSITY.EDU",
-      department: "Факультет",
-      departmentPlaceholder: "ВЫБЕРИТЕ ФАКУЛЬТЕТ",
-      password: "Создайте пароль",
-      passwordPlaceholder: "••••••••",
-      confirmPassword: "Подтвердите пароль",
-      confirmPasswordPlaceholder: "••••••••",
-      submit: "Создать аккаунт",
-      submitting: "Создание...",
-    },
-    branding: {
-      subtitle:
-        "Протокол управления пространством нового поколения для современной академической экосистемы. Точное бронирование, телеметрия в реальном времени.",
-    },
-  },
-  sidebar: {
-    dashboard: "Панель управления",
-    roomSearch: "Поиск аудиторий",
-    myBookings: "Мои бронирования",
-  },
-  admin: {
-    dashboard: {
-      title: "Панель управления",
-      tabs: {
-        bookings: "бронирования",
-        rooms: "аудитории",
-        equipment: "оборудование",
-        statistics: "статистика"
-      }
-    },
-    bookings: {
-      metrics: {
-        pendingRequests: "Ожидают подтверждения",
-        todayBookings: "Бронирования на сегодня",
-        occupancyRate: "Заполняемость",
-        activeRooms: "Активные аудитории"
-      },
-      title: "Бронирования",
-      tabs: {
-        active: "Активные",
-        history: "История"
-      },
-      searchPlaceholder: "ПОИСК ПО ПОЛЬЗОВАТЕЛЮ, АУДИТОРИИ, ЗДАНИЮ ИЛИ НАЗВАНИЮ...",
-      columns: {
-        user: "Пользователь",
-        details: "Детали бронирования",
-        datetime: "Дата и время",
-        status: "Статус",
-        actions: "Действия"
-      },
-      loading: "Загрузка бронирований...",
-      noPendingRequests: "Нет запросов в ожидании, соответствующих поиску",
-      noHistory: "Нет истории, соответствующей поиску",
-      noDepartment: "Нет факультета",
-      approveReject: {
-        rejectTitle: "Отклонить бронирование",
-        approveTitle: "Одобрить бронирование",
-        rejectDesc: "Отклонить {label}? Вы можете указать причину (необязательно).",
-        approveDesc: "Одобрить {label}? Конфликтующие запросы могут быть автоматически отклонены.",
-        reasonLabel: "Причина отклонения (необязательно)",
-        reasonPlaceholder: "Причина отклонения этого запроса...",
-        rejectConfirm: "Отклонить бронирование",
-        rejecting: "Отклонение...",
-        approveConfirm: "Одобрить бронирование"
-      }
-    },
-    rooms: {
-      title: "Аудитории",
-      createRoom: "Создать аудиторию",
-      tabs: {
-        active: "Активные аудитории",
-        inactive: "Неактивные аудитории"
-      },
-      searchPlaceholder: "ПОИСК ПО АУДИТОРИИ ИЛИ ЗДАНИЮ...",
-      columns: {
-        room: "Аудитория",
-        type: "Тип",
-        capacity: "Вместимость",
-        location: "Расположение",
-        equipment: "Оборудование",
-        status: "Статус",
-        actions: "Действия"
-      },
-      noEquipment: "Нет оборудования",
-      statuses: {
-        active: "Активна",
-        inactive: "Неактивна"
-      },
-      actions: {
-        restore: "Восстановить",
-        delete: "Удалить",
-        edit: "Изменить",
-        deactivate: "Деактивировать"
-      },
-      loading: "Загрузка аудиторий...",
-      noRooms: "Аудитории не найдены",
-      loadMore: "Загрузить ещё",
-      loadingMore: "Загрузка...",
-      alerts: {
-        deactivateTitle: "Деактивировать аудиторию?",
-        deactivateDesc: "Вы уверены, что хотите деактивировать эту аудиторию? Она будет перемещена в список неактивных. Существующие бронирования не будут отменены.",
-        deactivateCancel: "Отмена",
-        deactivateConfirm: "Деактивировать",
-        deactivating: "Деактивация...",
-        deleteTitle: "Удалить аудиторию навсегда?",
-        deleteDesc: "Это действие нельзя отменить. Аудитория будет навсегда удалена из базы данных. Аудитории с существующими бронированиями удалить нельзя.",
-        deleteCancel: "Отмена",
-        deleteConfirm: "Удалить навсегда",
-        deleting: "Удаление..."
-      },
-      toasts: {
-        deactivated: "Аудитория успешно деактивирована.",
-        hardDeleted: "Аудитория удалена навсегда.",
-        hardDeleteFailed: "Не удалось удалить аудиторию. Возможно, у неё есть бронирования.",
-        reactivated: "Аудитория успешно восстановлена."
-      },
-      form: {
-        editTitle: "Редактировать аудиторию",
-        createTitle: "Создать аудиторию",
-        description: "Настройте детали, часы работы, оборудование и фото.",
-        name: "Название",
-        namePlaceholder: "напр. ЛАБ_402",
-        building: "Здание",
-        buildingPlaceholder: "напр. Корпус А",
-        roomType: "Тип аудитории",
-        capacity: "Вместимость",
-        floor: "Этаж",
-        openTime: "Время открытия",
-        closeTime: "Время закрытия",
-        equipment: "Оборудование",
-        descriptionLabel: "Описание",
-        descriptionPlaceholder: "Дополнительные заметки",
-        photos: "Фотографии",
-        cancel: "Отмена",
-        save: "Сохранить",
-        create: "Создать",
-        saving: "Сохранение...",
-        types: {
-          lab: "Лаборатория",
-          auditorium: "Аудитория",
-          seminar: "Семинарская",
-          conference: "Конференц-зал",
-          studio: "Студия",
-          lecture_hall: "Лекционный зал"
-        }
-      }
-    },
-    equipment: {
-      title: "Оборудование",
-      create: "Добавить оборудование",
-      tabs: {
-        catalog: "Каталог",
-        usage: "Использование"
-      },
-      form: {
-        editTitle: "Редактировать оборудование",
-        createTitle: "Создать оборудование",
-        description: "Настройте атрибуты оборудования и укажите иконку Tabler.",
-        name: "Название",
-        namePlaceholder: "например, Проектор",
-        icon: "Иконка",
-        preview: "Предпросмотр",
-        defaultName: "Оборудование",
-        cancel: "Отмена",
-        saving: "Сохранение...",
-        saveChanges: "Сохранить изменения",
-        create: "Создать оборудование"
-      },
-      columns: {
-        icon: "Иконка",
-        name: "Название",
-        actions: "Действия"
-      },
-      loading: "Загрузка оборудования...",
-      noEquipment: "Оборудование не найдено",
-      icons: {
-        video: "Видео",
-        presentation: "Презентация",
-        broadcast: "Трансляция",
-        desktop: "Десктоп",
-        microphone: "Микрофон",
-        wifi: "Wi-Fi",
-        volume: "Аудио",
-        terminal: "Терминал",
-        chalkboard: "Доска"
-      },
-      actions: {
-        edit: "Изменить",
-        delete: "Удалить"
-      },
-      alerts: {
-        deleteSummary: "Итоги удаления оборудования",
-        removed: "{name} удалено из каталога.",
-        cascadeDone: "Применено каскадное удаление: оборудование убрано из связанных аудиторий.",
-        deleteConfirmText: "Удалить {name}? Это действие обновит связи с аудиториями.",
-        cascadeWarning: "Внимание: связанные аудитории больше не будут включать это оборудование.",
-        wasUsed: "Использовалось в аудиториях",
-        inUse: "Используется в аудиториях",
-        close: "Закрыть",
-        done: "Готово",
-        confirmDelete: "Удалить",
-        deleting: "Удаление..."
-      }
-    },
-    statistics: {
-      title: "Статистика",
-      subtitle: "Метрики для модерации и использования аудиторий",
-      selectPeriod: "Выберите период",
-      periods: {
-        today: "Сегодня",
-        week: "Неделя",
-        month: "Месяц",
-        all: "Все время"
-      },
-      loading: "Загрузка статистики...",
-      charts: {
-        statusTitle: "Бронирования по статусам",
-        statusDesc: "Распределение статусов бронирований",
-        popularTitle: "Популярные аудитории",
-        popularDesc: "Топ аудиторий по количеству бронирований",
-        dayOfWeekTitle: "Бронирования по дням недели",
-        dayOfWeekDesc: "Распределение спроса по дням",
-        occupancyTitle: "Заполняемость по зданиям",
-        occupancyDesc: "Нагрузка по зданиям (горизонтальные бары)"
-      },
-      tooltips: {
-        bookings: "Бронирования",
-        occupancy: "Заполняемость",
-        room: "Аудитория"
-      }
-    }
-  },
-  bookings: {
-    title: "Мои бронирования",
-    tabs: {
-      active: "Активные",
-      history: "История"
-    },
-    searchPlaceholder: "ПОИСК ПО НАЗВАНИЮ...",
-    columns: {
-      details: "Детали бронирования",
-      datetime: "Дата и время",
-      location: "Место",
-      status: "Статус",
-      action: "Действие"
-    },
-    loading: "Загрузка бронирований...",
-    noActive: "Нет активных бронирований, соответствующих поиску",
-    noHistory: "Нет истории бронирований, соответствующей поиску",
-    alerts: {
-      cancelTitle: "Отменить бронирование",
-      cancelDesc: "Вы уверены, что хотите отменить это бронирование?",
-      cancelDescNamed: "Вы уверены, что хотите отменить {bookingId} для {roomName}?",
-      keepBooking: "Оставить бронь",
-      confirmCancel: "Да, отменить",
-      cancelling: "Отмена..."
-    },
-    status: {
-      pending: "Ожидает",
-      confirmed: "Подтверждено",
-      rejected: "Отклонено",
-      cancelled: "Отменено"
-    },
-    actions: {
-      cancel: "Отменить"
-    }
-  },
-  rooms: {
-    title: "Поиск аудитории",
-    findAvailable: "Найти свободные аудитории",
-    resultsTitle: "Результаты поиска",
-    matchesFound: "Найдено: {count}",
-    searchPlaceholder: "ПОИСК АУДИТОРИИ ПО НАЗВАНИЮ...",
-    noMatches: "Нет аудиторий, соответствующих фильтрам",
-    filters: {
-      date: "Дата",
-      pickDate: "Выберите дату",
-      from: "С",
-      to: "До",
-      minCapacity: "Вместимость",
-      anyCapacity: "Любая",
-      equipment: "Оборудование",
-    },
-    availability: {
-      "AVAILABLE": "СВОБОДНА",
-      "AVAILABLE NOW": "СЕЙЧАС СВОБОДНА",
-      "FULLY BOOKED": "ПОЛНОСТЬЮ ЗАНЯТА",
-      "BOOKED UNTIL": "ЗАНЯТО ДО {time}",
-    },
-    card: {
-      capacity: "Вмест. {capacity}",
-      floor: "Этаж {floor}",
-      occupied: "ЗАНЯТО"
-    }
-  },
-  roomDetail: {
-    loadingTitle: "ЗАГРУЗКА...",
-    capacity: "Вместимость",
-    persons: "Чел.",
-    type: "Тип",
-    condition: "Состояние",
-    pristine: "Отличное",
-    equipment: "Оборудование",
-    occupancy: "Занятость на день",
-    yourBookings: "Ваши бронирования сегодня",
-    actions: {
-      cancel: "Отменить"
-    },
-    alerts: {
-      cancelTitle: "Отменить бронирование",
-      cancelDesc: "Отменить это бронирование?",
-      cancelDescNamed: 'Отменить "{title}" из ваших бронирований на сегодня?',
-      keepBooking: "Оставить",
-      confirmCancel: "Да, отменить",
-      cancelling: "Отмена..."
-    }
-  },
-  timeGrid: {
-    available: "Свободно",
-    booked: "Занято",
-    pending: "Ожидает",
-    yours: "Ваш сеанс",
-    yours_pending: "Ваше (Ожидает)",
-  },
-  booking: {
-    form: {
-      title: "Запрос доступа",
-      subtitle: "Заполните параметры сеанса ниже.",
-      sessionTitle: "Название сеанса",
-      sessionTitlePlaceholder: "напр., Продвинутый семинар по ИИ",
-      purpose: "Цель",
-      startTime: "Время начала",
-      endTime: "Время окончания",
-      attendeeCount: "Количество участников",
-      attendeePlaceholder: "напр., 35",
-      submit: "Подтвердить бронирование",
-      noteLabel: "ПРИМЕЧАНИЕ:",
-      noteDescription: "Бронирование подлежит утверждению факультетом. Ответ будет предоставлен в течение 24 часов после отправки.",
-      errors: {
-        titleRequired: "Название обязательно",
-        timeFormat: "Время должно быть ЧЧ:ММ с шагом 5 минут",
-        endBeforeStart: "Окончание должно быть после начала"
-      }
-    },
-    alerts: {
-      overlapPending: "ВНИМАНИЕ: пересекается с ожидающими бронированиями. Запрос может быть отклонён позже.",
-      overlapYours: "ОШИБКА: пересекается с вашим бронированием. Выберите другое время.",
-      overlapOccupied: "ОШИБКА: пересекается с занятым временем. Выберите другое время.",
-      attendeeExceedsCapacity: "Количество участников превышает вместимость аудитории ({roomCapacity})",
-    },
-    purposes: {
-      academic_lecture: "Академическая лекция",
-      research_workshop: "Исследовательский семинар",
-      collaborative_study: "Совместное обучение",
-      technical_assessment: "Техническая оценка",
-    }
-  },
-  validation: {
-    required: "Обязательное поле",
-    maxLength: "Слишком длинное значение",
-    invalidTime: "Время должно быть ЧЧ:ММ с шагом 5 минут",
-    timeOrder: "Время закрытия должно быть позже времени открытия",
-    invalidEmail: "Неверный адрес электронной почты",
-    passwordRequired: "Укажите пароль",
-    passwordMinLength: "Пароль должен состоять минимум из 8 символов",
-    passwordUppercase: "Пароль должен содержать хотя бы 1 заглавную букву",
-    passwordLowercase: "Пароль должен содержать хотя бы 1 строчную букву",
-    passwordDigit: "Пароль должен содержать хотя бы 1 цифру",
-    confirmPasswordRequired: "Пожалуйста, подтвердите пароль",
-    firstNameRequired: "Укажите имя",
-    lastNameRequired: "Укажите фамилию",
-  },
-  common: {
-    loading: "Загрузка...",
-    error: "Ошибка",
-    cancel: "Отмена"
-  },
-};
+	auth: {
+		loginTab: 'Вход',
+		registerTab: 'Регистрация',
+		login: {
+			title: 'Терминал доступа',
+			subtitle: 'Аутентификация в ресурсной сети кампуса.',
+			email: 'Электронная почта',
+			emailPlaceholder: 'S1234567@UNIVERSITY.EDU',
+			password: 'Пароль',
+			passwordPlaceholder: '••••••••',
+			submit: 'Получить доступ',
+			submitting: 'Аутентификация...',
+		},
+		register: {
+			title: 'Инициализация профиля',
+			subtitle: 'Доступ к ресурсной сети кампуса.',
+			firstName: 'Имя',
+			firstNamePlaceholder: 'АЛЕКСАНДР',
+			lastName: 'Фамилия',
+			lastNamePlaceholder: 'ИВАНОВ',
+			email: 'Электронная почта',
+			emailPlaceholder: 'S1234567@UNIVERSITY.EDU',
+			department: 'Факультет',
+			departmentPlaceholder: 'ВЫБЕРИТЕ ФАКУЛЬТЕТ',
+			password: 'Создайте пароль',
+			passwordPlaceholder: '••••••••',
+			confirmPassword: 'Подтвердите пароль',
+			confirmPasswordPlaceholder: '••••••••',
+			submit: 'Создать аккаунт',
+			submitting: 'Создание...',
+		},
+		branding: {
+			subtitle:
+				'Протокол управления пространством нового поколения для современной академической экосистемы. Точное бронирование, телеметрия в реальном времени.',
+		},
+	},
+	sidebar: {
+		dashboard: 'Панель управления',
+		roomSearch: 'Поиск аудиторий',
+		myBookings: 'Мои бронирования',
+	},
+	admin: {
+		dashboard: {
+			title: 'Панель управления',
+			tabs: {
+				bookings: 'бронирования',
+				rooms: 'аудитории',
+				equipment: 'оборудование',
+				purposes: 'цели',
+				statistics: 'статистика',
+			},
+		},
+		bookings: {
+			metrics: {
+				pendingRequests: 'Ожидают подтверждения',
+				todayBookings: 'Бронирования на сегодня',
+				occupancyRate: 'Заполняемость',
+				activeRooms: 'Активные аудитории',
+			},
+			title: 'Бронирования',
+			tabs: {
+				active: 'Активные',
+				history: 'История',
+			},
+			searchPlaceholder: 'ПОИСК ПО ПОЛЬЗОВАТЕЛЮ, АУДИТОРИИ, ЗДАНИЮ ИЛИ НАЗВАНИЮ...',
+			columns: {
+				user: 'Пользователь',
+				details: 'Детали бронирования',
+				datetime: 'Дата и время',
+				status: 'Статус',
+				actions: 'Действия',
+			},
+			loading: 'Загрузка бронирований...',
+			noPendingRequests: 'Нет запросов в ожидании, соответствующих поиску',
+			noHistory: 'Нет истории, соответствующей поиску',
+			noDepartment: 'Нет факультета',
+			approveReject: {
+				rejectTitle: 'Отклонить бронирование',
+				approveTitle: 'Одобрить бронирование',
+				rejectDesc: 'Отклонить {label}? Вы можете указать причину (необязательно).',
+				approveDesc: 'Одобрить {label}? Конфликтующие запросы могут быть автоматически отклонены.',
+				reasonLabel: 'Причина отклонения (необязательно)',
+				reasonPlaceholder: 'Причина отклонения этого запроса...',
+				rejectConfirm: 'Отклонить бронирование',
+				rejecting: 'Отклонение...',
+				approveConfirm: 'Одобрить бронирование',
+			},
+		},
+		rooms: {
+			title: 'Аудитории',
+			createRoom: 'Создать аудиторию',
+			tabs: {
+				active: 'Активные аудитории',
+				inactive: 'Неактивные аудитории',
+			},
+			searchPlaceholder: 'ПОИСК ПО АУДИТОРИИ ИЛИ ЗДАНИЮ...',
+			columns: {
+				room: 'Аудитория',
+				type: 'Тип',
+				capacity: 'Вместимость',
+				location: 'Расположение',
+				equipment: 'Оборудование',
+				status: 'Статус',
+				actions: 'Действия',
+			},
+			noEquipment: 'Нет оборудования',
+			statuses: {
+				active: 'Активна',
+				inactive: 'Неактивна',
+			},
+			actions: {
+				restore: 'Восстановить',
+				delete: 'Удалить',
+				edit: 'Изменить',
+				deactivate: 'Деактивировать',
+			},
+			loading: 'Загрузка аудиторий...',
+			noRooms: 'Аудитории не найдены',
+			loadMore: 'Загрузить ещё',
+			loadingMore: 'Загрузка...',
+			alerts: {
+				deactivateTitle: 'Деактивировать аудиторию?',
+				deactivateDesc:
+					'Вы уверены, что хотите деактивировать эту аудиторию? Она будет перемещена в список неактивных. Существующие бронирования не будут отменены.',
+				deactivateCancel: 'Отмена',
+				deactivateConfirm: 'Деактивировать',
+				deactivating: 'Деактивация...',
+				deleteTitle: 'Удалить аудиторию навсегда?',
+				deleteDesc:
+					'Это действие нельзя отменить. Аудитория будет навсегда удалена из базы данных. Аудитории с существующими бронированиями удалить нельзя.',
+				deleteCancel: 'Отмена',
+				deleteConfirm: 'Удалить навсегда',
+				deleting: 'Удаление...',
+			},
+			toasts: {
+				deactivated: 'Аудитория успешно деактивирована.',
+				hardDeleted: 'Аудитория удалена навсегда.',
+				hardDeleteFailed: 'Не удалось удалить аудиторию. Возможно, у неё есть бронирования.',
+				reactivated: 'Аудитория успешно восстановлена.',
+			},
+			form: {
+				editTitle: 'Редактировать аудиторию',
+				createTitle: 'Создать аудиторию',
+				description: 'Настройте детали, часы работы, оборудование и фото.',
+				name: 'Название',
+				namePlaceholder: 'напр. ЛАБ_402',
+				building: 'Здание',
+				buildingPlaceholder: 'напр. Корпус А',
+				roomType: 'Тип аудитории',
+				capacity: 'Вместимость',
+				floor: 'Этаж',
+				openTime: 'Время открытия',
+				closeTime: 'Время закрытия',
+				equipment: 'Оборудование',
+				descriptionLabel: 'Описание',
+				descriptionLabelNotFound: 'Описание пока что отсутствует',
+				descriptionPlaceholder: 'Дополнительные заметки',
+				photos: 'Фотографии',
+				cancel: 'Отмена',
+				save: 'Сохранить',
+				create: 'Создать',
+				saving: 'Сохранение...',
+				types: {
+					lab: 'Лаборатория',
+					auditorium: 'Аудитория',
+					seminar: 'Семинарская',
+					conference: 'Конференц-зал',
+					studio: 'Студия',
+					lecture_hall: 'Лекционный зал',
+				},
+			},
+		},
+		equipment: {
+			title: 'Оборудование',
+			create: 'Добавить оборудование',
+			tabs: {
+				catalog: 'Каталог',
+				usage: 'Использование',
+			},
+			form: {
+				editTitle: 'Редактировать оборудование',
+				createTitle: 'Создать оборудование',
+				description: 'Настройте атрибуты оборудования и укажите иконку Tabler.',
+				name: 'Название',
+				namePlaceholder: 'например, Проектор',
+				icon: 'Иконка',
+				preview: 'Предпросмотр',
+				defaultName: 'Оборудование',
+				cancel: 'Отмена',
+				saving: 'Сохранение...',
+				saveChanges: 'Сохранить изменения',
+				create: 'Создать оборудование',
+			},
+			columns: {
+				icon: 'Иконка',
+				name: 'Название',
+				actions: 'Действия',
+			},
+			loading: 'Загрузка оборудования...',
+			noEquipment: 'Оборудование не найдено',
+			icons: {
+				video: 'Видео',
+				presentation: 'Презентация',
+				broadcast: 'Трансляция',
+				desktop: 'Десктоп',
+				microphone: 'Микрофон',
+				wifi: 'Wi-Fi',
+				volume: 'Аудио',
+				terminal: 'Терминал',
+				chalkboard: 'Доска',
+			},
+			actions: {
+				edit: 'Изменить',
+				delete: 'Удалить',
+			},
+			alerts: {
+				deleteSummary: 'Итоги удаления оборудования',
+				removed: '{name} удалено из каталога.',
+				cascadeDone: 'Применено каскадное удаление: оборудование убрано из связанных аудиторий.',
+				deleteConfirmText: 'Удалить {name}? Это действие обновит связи с аудиториями.',
+				cascadeWarning: 'Внимание: связанные аудитории больше не будут включать это оборудование.',
+				wasUsed: 'Использовалось в аудиториях',
+				inUse: 'Используется в аудиториях',
+				close: 'Закрыть',
+				done: 'Готово',
+				confirmDelete: 'Удалить',
+				deleting: 'Удаление...',
+			},
+		},
+		purposes: {
+			title: 'Цели бронирования',
+			subtitle: 'Управление мультиязычными целями для формы бронирования.',
+			loading: 'Загрузка целей...',
+			empty: 'Цели не найдены',
+			emptyActive: 'Активные цели не найдены',
+			emptyInactive: 'Неактивные цели не найдены',
+			active: 'Активна',
+			inactive: 'Неактивна',
+			tabs: {
+				active: 'Активные',
+				inactive: 'Неактивные',
+			},
+			columns: {
+				code: 'Код',
+				labelRu: 'Название RU',
+				labelEn: 'Название EN',
+				sortOrder: 'Сорт.',
+				status: 'Статус',
+				actions: 'Действия',
+			},
+			form: {
+				createTitle: 'Новая цель',
+				editTitle: 'Изменить цель',
+				description:
+					'Код остаётся стабильным для связей в БД, названия можно локализовать без правок фронтенда.',
+				code: 'Код',
+				labelRu: 'Название на русском',
+				labelEn: 'Название на английском',
+				sortOrder: 'Сорт.',
+				create: 'Создать',
+				save: 'Сохранить',
+				saving: 'Сохранение...',
+				cancel: 'Отмена',
+			},
+			actions: {
+				edit: 'Изменить',
+				deactivate: 'Деактивировать',
+				reactivate: 'Восстановить',
+				delete: 'Удалить',
+			},
+			alerts: {
+				deleteTitle: 'Удалить цель навсегда',
+				deleteDesc:
+					'Удалить цель {code}? Действие необратимо. Если цель уже используется в бронированиях, сервер отклонит удаление.',
+				deleteCancel: 'Оставить',
+				deleteConfirm: 'Удалить',
+				deleting: 'Удаление...',
+			},
+			toasts: {
+				deactivated: 'Цель перемещена в неактивные',
+				reactivated: 'Цель восстановлена',
+				deleted: 'Цель удалена',
+				deleteFailed: 'Не удалось удалить цель',
+			},
+		},
+		statistics: {
+			title: 'Статистика',
+			subtitle: 'Метрики для модерации и использования аудиторий',
+			selectPeriod: 'Выберите период',
+			periods: {
+				today: 'Сегодня',
+				week: 'Неделя',
+				month: 'Месяц',
+				all: 'Все время',
+			},
+			loading: 'Загрузка статистики...',
+			charts: {
+				statusTitle: 'Бронирования по статусам',
+				statusDesc: 'Распределение статусов бронирований',
+				popularTitle: 'Популярные аудитории',
+				popularDesc: 'Топ аудиторий по количеству бронирований',
+				dayOfWeekTitle: 'Бронирования по дням недели',
+				dayOfWeekDesc: 'Распределение спроса по дням',
+				occupancyTitle: 'Заполняемость по зданиям',
+				occupancyDesc: 'Нагрузка по зданиям (горизонтальные бары)',
+			},
+			tooltips: {
+				bookings: 'Бронирования',
+				occupancy: 'Заполняемость',
+				room: 'Аудитория',
+			},
+		},
+	},
+	bookings: {
+		title: 'Мои бронирования',
+		tabs: {
+			active: 'Активные',
+			history: 'История',
+		},
+		searchPlaceholder: 'ПОИСК ПО НАЗВАНИЮ...',
+		columns: {
+			details: 'Детали бронирования',
+			datetime: 'Дата и время',
+			location: 'Место',
+			status: 'Статус',
+			action: 'Действие',
+		},
+		loading: 'Загрузка бронирований...',
+		noActive: 'Нет активных бронирований, соответствующих поиску',
+		noHistory: 'Нет истории бронирований, соответствующей поиску',
+		alerts: {
+			cancelTitle: 'Отменить бронирование',
+			cancelDesc: 'Вы уверены, что хотите отменить это бронирование?',
+			cancelDescNamed: 'Вы уверены, что хотите отменить {bookingId} для {roomName}?',
+			keepBooking: 'Оставить бронь',
+			confirmCancel: 'Да, отменить',
+			cancelling: 'Отмена...',
+		},
+		status: {
+			pending: 'Ожидает',
+			confirmed: 'Подтверждено',
+			rejected: 'Отклонено',
+			cancelled: 'Отменено',
+		},
+		actions: {
+			cancel: 'Отменить',
+		},
+	},
+	rooms: {
+		title: 'Поиск аудитории',
+		findAvailable: 'Найти свободные аудитории',
+		resultsTitle: 'Результаты поиска',
+		matchesFound: 'Найдено: {count}',
+		searchPlaceholder: 'ПОИСК АУДИТОРИИ ПО НАЗВАНИЮ...',
+		noMatches: 'Нет аудиторий, соответствующих фильтрам',
+		filters: {
+			date: 'Дата',
+			building: 'Здание',
+			pickDate: 'Выберите дату',
+			from: 'С',
+			to: 'До',
+			minCapacity: 'Вместимость',
+			anyCapacity: 'Любая',
+			equipment: 'Оборудование',
+		},
+		availability: {
+			AVAILABLE: 'СВОБОДНА',
+			'AVAILABLE NOW': 'СЕЙЧАС СВОБОДНА',
+			'FULLY BOOKED': 'ПОЛНОСТЬЮ ЗАНЯТА',
+			'BOOKED UNTIL': 'ЗАНЯТО ДО {time}',
+		},
+		card: {
+			capacity: 'Вмест. {capacity}',
+			floor: 'Этаж {floor}',
+			occupied: 'ЗАНЯТО',
+		},
+	},
+	roomDetail: {
+		loadingTitle: 'ЗАГРУЗКА...',
+		capacity: 'Вместимость',
+		persons: 'Чел.',
+		type: 'Тип',
+		condition: 'Состояние',
+		pristine: 'Отличное',
+		equipment: 'Оборудование',
+		occupancy: 'Занятость на день',
+		yourBookings: 'Ваши бронирования сегодня',
+		actions: {
+			cancel: 'Отменить',
+		},
+		alerts: {
+			cancelTitle: 'Отменить бронирование',
+			cancelDesc: 'Отменить это бронирование?',
+			cancelDescNamed: 'Отменить "{title}" из ваших бронирований на сегодня?',
+			keepBooking: 'Оставить',
+			confirmCancel: 'Да, отменить',
+			cancelling: 'Отмена...',
+		},
+	},
+	timeGrid: {
+		available: 'Свободно',
+		booked: 'Занято',
+		pending: 'Ожидает',
+		yours: 'Ваш сеанс',
+		yours_pending: 'Ваше (Ожидает)',
+	},
+	booking: {
+		form: {
+			title: 'Запрос доступа',
+			subtitle: 'Заполните параметры сеанса ниже.',
+			sessionTitle: 'Название сеанса',
+			sessionTitlePlaceholder: 'напр., Продвинутый семинар по ИИ',
+			purpose: 'Цель',
+			startTime: 'Время начала',
+			endTime: 'Время окончания',
+			attendeeCount: 'Количество участников',
+			attendeePlaceholder: 'напр., 35',
+			submit: 'Подтвердить бронирование',
+			noteLabel: 'ПРИМЕЧАНИЕ:',
+			noteDescription:
+				'Бронирование подлежит утверждению факультетом. Ответ будет предоставлен в течение 24 часов после отправки.',
+			errors: {
+				titleRequired: 'Название обязательно',
+				purposeRequired: 'Цель обязательна',
+				timeFormat: 'Время должно быть ЧЧ:ММ с шагом 5 минут',
+				endBeforeStart: 'Окончание должно быть после начала',
+			},
+		},
+		alerts: {
+			overlapPending:
+				'ВНИМАНИЕ: пересекается с ожидающими бронированиями. Запрос может быть отклонён позже.',
+			overlapYours: 'ОШИБКА: пересекается с вашим бронированием. Выберите другое время.',
+			overlapOccupied: 'ОШИБКА: пересекается с занятым временем. Выберите другое время.',
+			attendeeExceedsCapacity:
+				'Количество участников превышает вместимость аудитории ({roomCapacity})',
+		},
+		purposes: {
+			academic_lecture: 'Академическая лекция',
+			research_workshop: 'Исследовательский семинар',
+			collaborative_study: 'Совместное обучение',
+			technical_assessment: 'Техническая оценка',
+		},
+	},
+	validation: {
+		required: 'Обязательное поле',
+		maxLength: 'Слишком длинное значение',
+		invalidTime: 'Время должно быть ЧЧ:ММ с шагом 5 минут',
+		timeOrder: 'Время закрытия должно быть позже времени открытия',
+		invalidEmail: 'Неверный адрес электронной почты',
+		passwordRequired: 'Укажите пароль',
+		passwordMinLength: 'Пароль должен состоять минимум из 8 символов',
+		passwordUppercase: 'Пароль должен содержать хотя бы 1 заглавную букву',
+		passwordLowercase: 'Пароль должен содержать хотя бы 1 строчную букву',
+		passwordDigit: 'Пароль должен содержать хотя бы 1 цифру',
+		confirmPasswordRequired: 'Пожалуйста, подтвердите пароль',
+		firstNameRequired: 'Укажите имя',
+		lastNameRequired: 'Укажите фамилию',
+	},
+	common: {
+		loading: 'Загрузка...',
+		error: 'Ошибка',
+		cancel: 'Отмена',
+	},
+}
 
-export type Dictionary = typeof ru;
+export type Dictionary = typeof ru

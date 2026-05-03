@@ -11,6 +11,7 @@ export type RoomType = components["schemas"]["RoomType"]
 export interface RoomSearchFilters {
   date?: string
   search?: string
+  building?: string
   timeFrom?: string
   timeTo?: string
   equipment?: string

@@ -6,6 +6,7 @@ import (
 
 	"booking-university-rooms/backend/internal/middleware"
 	adminsvc "booking-university-rooms/backend/internal/services/admin"
+	catalogssvc "booking-university-rooms/backend/internal/services/catalogs"
 	"booking-university-rooms/backend/internal/utils"
 
 	"github.com/gin-gonic/gin"
@@ -19,6 +20,13 @@ func NewHandler(service *adminsvc.Service) *Handler {
 	return &Handler{service: service}
 }
 
+func requestLocale(c *gin.Context) string {
+	if locale := c.GetHeader("X-Locale"); locale != "" {
+		return catalogssvc.NormalizeLocale(locale)
+	}
+	return catalogssvc.NormalizeLocale(c.GetHeader("Accept-Language"))
+}
+
 func (h *Handler) ListPending(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 
@@ -26,6 +34,7 @@ func (h *Handler) ListPending(c *gin.Context) {
 		Search: c.Query("search"),
 		Limit:  limit,
 		Cursor: c.Query("cursor"),
+		Locale: requestLocale(c),
 	})
 	if err != nil {
 		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")

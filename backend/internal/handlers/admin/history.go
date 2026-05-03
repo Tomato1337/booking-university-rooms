@@ -16,6 +16,7 @@ func (h *Handler) ListHistory(c *gin.Context) {
 		Search: c.Query("search"),
 		Limit:  limit,
 		Cursor: c.Query("cursor"),
+		Locale: requestLocale(c),
 	})
 	if err != nil {
 		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"booking-university-rooms/backend/internal/models"
+	catalogssvc "booking-university-rooms/backend/internal/services/catalogs"
 	"booking-university-rooms/backend/internal/utils"
 
 	"github.com/google/uuid"
@@ -26,6 +27,7 @@ type ListPendingInput struct {
 	Search string
 	Limit  int
 	Cursor string
+	Locale string
 }
 
 type ListPendingResult struct {
@@ -103,16 +105,17 @@ func (s *Service) ListPending(ctx context.Context, input ListPendingInput) (*Lis
 	query := fmt.Sprintf(`
 		SELECT b.id,
 		       u.id, u.first_name, u.last_name, u.department,
-		       r.id, r.name, r.building,
+		       r.id, r.name, r.building, %s,
 		       b.title, b.purpose, b.booking_date::text, to_char(b.start_time, 'HH24:MI'), to_char(b.end_time, 'HH24:MI'),
 		       b.attendee_count, b.status, b.created_at
 		FROM bookings b
 		JOIN users u ON u.id = b.user_id
 		JOIN rooms r ON r.id = b.room_id
+		LEFT JOIN buildings bl ON bl.code = r.building
 		%s
 		ORDER BY b.created_at ASC, b.id ASC
 		LIMIT $%d
-	`, where, argIdx)
+	`, catalogssvc.LabelExpr("bl", input.Locale), where, argIdx)
 	args = append(args, limit+1)
 
 	rows, err := s.db.Query(ctx, query, args...)
@@ -127,7 +130,7 @@ func (s *Service) ListPending(ctx context.Context, input ListPendingInput) (*Lis
 		if err := rows.Scan(
 			&b.ID,
 			&b.User.ID, &b.User.FirstName, &b.User.LastName, &b.User.Department,
-			&b.Room.ID, &b.Room.Name, &b.Room.Building,
+			&b.Room.ID, &b.Room.Name, &b.Room.Building, &b.Room.BuildingLabel,
 			&b.Title, &b.Purpose, &b.BookingDate, &b.StartTime, &b.EndTime,
 			&b.AttendeeCount, &b.Status, &b.CreatedAt,
 		); err != nil {

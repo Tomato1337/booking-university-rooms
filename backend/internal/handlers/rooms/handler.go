@@ -10,6 +10,7 @@ import (
 
 	"booking-university-rooms/backend/internal/middleware"
 	"booking-university-rooms/backend/internal/models"
+	catalogssvc "booking-university-rooms/backend/internal/services/catalogs"
 	roomssvc "booking-university-rooms/backend/internal/services/rooms"
 	"booking-university-rooms/backend/internal/storage"
 	"booking-university-rooms/backend/internal/utils"
@@ -37,12 +38,21 @@ func NewHandler(service *roomssvc.Service, photoStorage roomPhotoStorage, maxRoo
 	return &Handler{service: service, photoStorage: photoStorage, maxRoomPhotoBytes: maxRoomPhotoBytes}
 }
 
+func requestLocale(c *gin.Context) string {
+	if locale := c.GetHeader("X-Locale"); locale != "" {
+		return catalogssvc.NormalizeLocale(locale)
+	}
+	return catalogssvc.NormalizeLocale(c.GetHeader("Accept-Language"))
+}
+
 func (h *Handler) Search(c *gin.Context) {
 	currentUserID := c.GetString(middleware.ContextUserID)
 
 	input := roomssvc.SearchInput{
 		Date:     c.Query("date"),
 		Search:   c.Query("search"),
+		Building: c.Query("building"),
+		Locale:   requestLocale(c),
 		TimeFrom: c.Query("timeFrom"),
 		TimeTo:   c.Query("timeTo"),
 		Cursor:   c.Query("cursor"),
@@ -93,7 +103,7 @@ func (h *Handler) GetDetail(c *gin.Context) {
 	roomID := c.Param("roomId")
 	date := c.Query("date")
 
-	room, err := h.service.GetDetail(c.Request.Context(), roomID, date, currentUserID)
+	room, err := h.service.GetDetail(c.Request.Context(), roomID, date, currentUserID, requestLocale(c))
 	if err != nil {
 		if err == roomssvc.ErrRoomNotFound {
 			utils.RespondError(c, http.StatusNotFound, "ROOM_NOT_FOUND", "Room not found")
@@ -154,6 +164,7 @@ func (h *Handler) Create(c *gin.Context) {
 		Photos:      req.Photos,
 		OpenTime:    req.OpenTime,
 		CloseTime:   req.CloseTime,
+		Locale:      requestLocale(c),
 	}
 	if input.Photos == nil {
 		input.Photos = []string{}
@@ -172,6 +183,10 @@ func (h *Handler) Create(c *gin.Context) {
 		}
 		if err == roomssvc.ErrInvalidTimeRange {
 			utils.RespondError(c, http.StatusBadRequest, "INVALID_TIME_RANGE", "Invalid room hours: must be HH:mm (5-minute aligned), openTime < closeTime")
+			return
+		}
+		if err == roomssvc.ErrInvalidBuilding {
+			utils.RespondError(c, http.StatusBadRequest, "INVALID_BUILDING", "Building does not exist or is inactive")
 			return
 		}
 		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
@@ -238,6 +253,7 @@ func (h *Handler) Update(c *gin.Context) {
 		KeepExistingPhotos: isMultipart && !photoChanged,
 		OpenTime:           req.OpenTime,
 		CloseTime:          req.CloseTime,
+		Locale:             requestLocale(c),
 	}
 	if input.Photos == nil {
 		input.Photos = []string{}
@@ -260,6 +276,10 @@ func (h *Handler) Update(c *gin.Context) {
 		}
 		if err == roomssvc.ErrInvalidTimeRange {
 			utils.RespondError(c, http.StatusBadRequest, "INVALID_TIME_RANGE", "Invalid room hours: must be HH:mm (5-minute aligned), openTime < closeTime")
+			return
+		}
+		if err == roomssvc.ErrInvalidBuilding {
+			utils.RespondError(c, http.StatusBadRequest, "INVALID_BUILDING", "Building does not exist or is inactive")
 			return
 		}
 		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
@@ -448,6 +468,7 @@ func (h *Handler) AdminSearch(c *gin.Context) {
 		Search: c.Query("search"),
 		Status: c.Query("status"),
 		Cursor: c.Query("cursor"),
+		Locale: requestLocale(c),
 	}
 
 	if limitStr := c.Query("limit"); limitStr != "" {

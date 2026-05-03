@@ -1,4 +1,4 @@
-import { HttpResponse } from "msw"
+import { http as mswHttp, HttpResponse } from "msw"
 
 import { http } from "@/shared/mocks/http"
 
@@ -21,6 +21,23 @@ type RejectBookingRequest = components["schemas"]["RejectBookingRequest"]
 type CreateRoomRequest = components["schemas"]["CreateRoomRequest"]
 type UpdateRoomRequest = components["schemas"]["UpdateRoomRequest"]
 type EquipmentPayload = { name: string; icon: string }
+
+const mockAdminBookingPurposes = [
+  {
+    code: "academic_lecture",
+    labelRu: "Академическая лекция",
+    labelEn: "Academic lecture",
+    isActive: true,
+    sortOrder: 10,
+  },
+  {
+    code: "research_workshop",
+    labelRu: "Исследовательский семинар",
+    labelEn: "Research workshop",
+    isActive: true,
+    sortOrder: 20,
+  },
+]
 
 const FIVE_MINUTE_HM_REGEX = /^([01]\d|2[0-3]):([0-5][05])$/
 
@@ -350,7 +367,75 @@ export const hardDeleteAdminRoom = {
   }),
 }
 
+export const listAdminBookingPurposes = {
+  default: mswHttp.get("/api/admin/booking-purposes", () => {
+    return HttpResponse.json({ data: mockAdminBookingPurposes })
+  }),
+}
+
+export const createAdminBookingPurpose = {
+  default: mswHttp.post("/api/admin/booking-purposes", async ({ request }) => {
+    const body = (await request.json()) as unknown as (typeof mockAdminBookingPurposes)[number]
+    const item = {
+      code: body.code,
+      labelRu: body.labelRu,
+      labelEn: body.labelEn,
+      isActive: body.isActive ?? true,
+      sortOrder: body.sortOrder ?? 0,
+    }
+    mockAdminBookingPurposes.push(item)
+    return HttpResponse.json({ data: item }, { status: 201 })
+  }),
+}
+
+export const updateAdminBookingPurpose = {
+  default: mswHttp.put("/api/admin/booking-purposes/:code", async ({ params, request }) => {
+    const code = String(params.code)
+    const body = (await request.json()) as unknown as (typeof mockAdminBookingPurposes)[number]
+    const item = mockAdminBookingPurposes.find((purpose) => purpose.code === code)
+    if (!item) return HttpResponse.json({ error: { code: "BOOKING_PURPOSE_NOT_FOUND", message: "Not found" } }, { status: 404 })
+    item.labelRu = body.labelRu
+    item.labelEn = body.labelEn
+    item.isActive = body.isActive ?? item.isActive
+    item.sortOrder = body.sortOrder ?? item.sortOrder
+    return HttpResponse.json({ data: item })
+  }),
+}
+
+export const deactivateAdminBookingPurpose = {
+  default: mswHttp.delete("/api/admin/booking-purposes/:code", ({ params }) => {
+    const item = mockAdminBookingPurposes.find((purpose) => purpose.code === String(params.code))
+    if (!item) return HttpResponse.json({ error: { code: "BOOKING_PURPOSE_NOT_FOUND", message: "Not found" } }, { status: 404 })
+    item.isActive = false
+    return new HttpResponse(null, { status: 204 })
+  }),
+}
+
+export const reactivateAdminBookingPurpose = {
+  default: mswHttp.patch("/api/admin/booking-purposes/:code/reactivate", ({ params }) => {
+    const item = mockAdminBookingPurposes.find((purpose) => purpose.code === String(params.code))
+    if (!item) return HttpResponse.json({ error: { code: "BOOKING_PURPOSE_NOT_FOUND", message: "Not found" } }, { status: 404 })
+    item.isActive = true
+    return HttpResponse.json({ data: item })
+  }),
+}
+
+export const hardDeleteAdminBookingPurpose = {
+  default: mswHttp.delete("/api/admin/booking-purposes/:code/hard", ({ params }) => {
+    const index = mockAdminBookingPurposes.findIndex((purpose) => purpose.code === String(params.code))
+    if (index < 0) return HttpResponse.json({ error: { code: "BOOKING_PURPOSE_NOT_FOUND", message: "Not found" } }, { status: 404 })
+    mockAdminBookingPurposes.splice(index, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+}
+
 export const adminMockHandlers = [
+  listAdminBookingPurposes.default,
+  createAdminBookingPurpose.default,
+  updateAdminBookingPurpose.default,
+  deactivateAdminBookingPurpose.default,
+  reactivateAdminBookingPurpose.default,
+  hardDeleteAdminBookingPurpose.default,
   listAdminRooms.default,
   reactivateAdminRoom.default,
   hardDeleteAdminRoom.default,

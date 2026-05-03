@@ -1,4 +1,5 @@
 import { http } from "@/shared/mocks/http"
+import { http as mswHttp, HttpResponse } from "msw"
 
 import type { components } from "@/shared/api/schema"
 import {
@@ -13,6 +14,13 @@ import {
 } from "./data"
 
 type CreateBookingRequest = components["schemas"]["CreateBookingRequest"]
+
+const mockBookingPurposes = [
+  { code: "academic_lecture", label: "Академическая лекция" },
+  { code: "research_workshop", label: "Исследовательский семинар" },
+  { code: "collaborative_study", label: "Совместное обучение" },
+  { code: "technical_assessment", label: "Техническая оценка" },
+]
 
 export const createBooking = {
   default: http.post("/bookings", async ({ request, response }) => {
@@ -133,6 +141,7 @@ export const cancelBooking = {
 }
 
 export const bookingsMockHandlers = [
+  mswHttp.get("/api/booking-purposes", () => HttpResponse.json({ data: mockBookingPurposes })),
   createBooking.default,
   myBookings.default,
   myBookingHistory.default,

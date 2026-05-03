@@ -123,6 +123,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/buildings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List active buildings
+         * @description Returns localized building labels using `X-Locale` or `Accept-Language`.
+         */
+        get: operations["listBuildings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/booking-purposes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List active booking purposes
+         * @description Returns localized booking purpose labels using `X-Locale` or `Accept-Language`.
+         */
+        get: operations["listBookingPurposes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms": {
         parameters: {
             query?: never;
@@ -301,6 +341,76 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/booking-purposes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all booking purposes */
+        get: operations["listAdminBookingPurposes"];
+        put?: never;
+        /** Create booking purpose */
+        post: operations["createBookingPurpose"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/booking-purposes/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update booking purpose labels/status */
+        put: operations["updateBookingPurpose"];
+        post?: never;
+        /** Deactivate booking purpose */
+        delete: operations["deactivateBookingPurpose"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/booking-purposes/{code}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Reactivate booking purpose */
+        patch: operations["reactivateBookingPurpose"];
+        trace?: never;
+    };
+    "/admin/booking-purposes/{code}/hard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Permanently delete an unused inactive booking purpose */
+        delete: operations["hardDeleteBookingPurpose"];
         options?: never;
         head?: never;
         patch?: never;
@@ -516,8 +626,8 @@ export interface components {
         BookingStatus: "pending" | "confirmed" | "rejected" | "cancelled";
         /** @enum {string} */
         RoomType: "lab" | "auditorium" | "seminar" | "conference" | "studio" | "lecture_hall";
-        /** @enum {string} */
-        BookingPurpose: "academic_lecture" | "research_workshop" | "collaborative_study" | "technical_assessment";
+        /** @description Stable booking purpose code from the booking_purposes catalog. */
+        BookingPurpose: string;
         /**
          * @description Priority: yours > yours_pending > occupied > pending > available
          * @enum {string}
@@ -542,6 +652,21 @@ export interface components {
             /** @description Tabler icon name (e.g. IconVideo) */
             icon: string;
         };
+        BuildingOption: {
+            code: string;
+            label: string;
+        };
+        BookingPurposeOption: {
+            code: string;
+            label: string;
+        };
+        AdminBookingPurpose: {
+            code: string;
+            labelRu: string;
+            labelEn: string;
+            isActive: boolean;
+            sortOrder: number;
+        };
         RoomCard: {
             /** Format: uuid */
             id: string;
@@ -551,6 +676,7 @@ export interface components {
             roomType: components["schemas"]["RoomType"];
             capacity: number;
             building: string;
+            buildingLabel?: string;
             floor: number;
             photos?: string[];
             equipment: components["schemas"]["EquipmentItem"][];
@@ -577,6 +703,7 @@ export interface components {
             roomType: components["schemas"]["RoomType"];
             capacity: number;
             building: string;
+            buildingLabel?: string;
             floor: number;
             photos?: string[];
             /**
@@ -659,6 +786,8 @@ export interface components {
             endTime: string;
             /** @example SCIENCE BLOCK B */
             building: string;
+            /** @example Авиамоторная */
+            buildingLabel?: string;
             status: components["schemas"]["BookingStatus"];
             /** Format: date-time */
             createdAt: string;
@@ -1224,6 +1353,50 @@ export interface operations {
             };
         };
     };
+    listBuildings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Building catalog */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["BuildingOption"][];
+                    };
+                };
+            };
+        };
+    };
+    listBookingPurposes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Booking purpose catalog */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["BookingPurposeOption"][];
+                    };
+                };
+            };
+        };
+    };
     searchRooms: {
         parameters: {
             query?: {
@@ -1231,6 +1404,8 @@ export interface operations {
                 date?: components["parameters"]["DateParam"];
                 /** @description Free-text search */
                 search?: components["parameters"]["SearchParam"];
+                /** @description Building code. Defaults to aviamotornaya. */
+                building?: string;
                 /** @description Start of desired time range (HH:mm, 5-minute granularity) */
                 timeFrom?: string;
                 /** @description End of desired time range */
@@ -1762,6 +1937,137 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    listAdminBookingPurposes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Booking purposes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminBookingPurpose"][];
+                    };
+                };
+            };
+        };
+    };
+    createBookingPurpose: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminBookingPurpose"];
+            };
+        };
+        responses: {
+            /** @description Created booking purpose */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateBookingPurpose: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated booking purpose */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deactivateBookingPurpose: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deactivated */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    reactivateBookingPurpose: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reactivated booking purpose */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    hardDeleteBookingPurpose: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Booking purpose permanently deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Booking purpose is used by existing bookings */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     hardDeleteRoom: {

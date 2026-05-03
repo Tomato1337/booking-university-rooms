@@ -1,6 +1,7 @@
 import { http } from "@/shared/mocks/http"
+import { http as mswHttp, HttpResponse } from "msw"
 
-import { getMockRoomDetail, mockEquipment, mockRooms, paginateRooms } from "./data"
+import { getMockRoomDetail, mockBuildings, mockEquipment, mockRooms, paginateRooms } from "./data"
 import { ensureRoomBookingsProviderRegistered } from "@/modules/bookings/infrastructure/mocks/data"
 
 const FIVE_MINUTE_HM_REGEX = /^([01]\d|2[0-3]):([0-5][05])$/
@@ -11,10 +12,17 @@ export const listEquipment = {
   }),
 }
 
+export const listBuildings = {
+  default: mswHttp.get("/api/buildings", () => {
+    return HttpResponse.json({ data: mockBuildings })
+  }),
+}
+
 export const searchRooms = {
   default: http.get("/rooms", ({ request, response }) => {
     const url = new URL(request.url)
     const search = url.searchParams.get("search")
+    const building = url.searchParams.get("building") || "aviamotornaya"
     const timeFrom = url.searchParams.get("timeFrom")
     const timeTo = url.searchParams.get("timeTo")
     const equipment = url.searchParams.get("equipment")
@@ -36,6 +44,7 @@ export const searchRooms = {
     }
 
     let filtered = [...mockRooms]
+    filtered = filtered.filter((r) => r.building === building)
 
     if (search) {
       const q = search.toLowerCase()
@@ -86,6 +95,7 @@ export const searchRooms = {
 }
 
 export const roomsMockHandlers = [
+  listBuildings.default,
   listEquipment.default,
   searchRooms.default,
   http.get("/rooms/{roomId}", ({ params, request, response }) => {

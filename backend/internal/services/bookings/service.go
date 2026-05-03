@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"booking-university-rooms/backend/internal/models"
+	catalogssvc "booking-university-rooms/backend/internal/services/catalogs"
 	"booking-university-rooms/backend/internal/utils"
 
 	"github.com/google/uuid"
@@ -37,6 +38,7 @@ type ListMyInput struct {
 	Search string
 	Limit  int
 	Cursor string
+	Locale string
 }
 
 type ListResult struct {
@@ -62,6 +64,15 @@ func (s *Service) Create(ctx context.Context, userID string, input CreateInput) 
 	}
 	if bookingStart.Before(time.Now().UTC().Add(-24 * time.Hour)) {
 		return nil, ErrBookingInPast
+	}
+
+	var purposeActive bool
+	err = s.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM booking_purposes WHERE code = $1 AND is_active = true)", input.Purpose).Scan(&purposeActive)
+	if err != nil {
+		return nil, fmt.Errorf("check booking purpose: %w", err)
+	}
+	if !purposeActive {
+		return nil, ErrInvalidPurpose
 	}
 
 	// Fetch room
@@ -159,7 +170,7 @@ func (s *Service) ListMy(ctx context.Context, input ListMyInput) (*ListResult, e
 	conditions, args, argIdx = applySearch(conditions, args, argIdx, input.Search)
 	conditions, args, argIdx = applyBookingCursorAsc(conditions, args, argIdx, input.Cursor)
 
-	query := buildBookingQuery(conditions, argIdx, limit, "ASC")
+	query := buildBookingQuery(conditions, argIdx, limit, "ASC", input.Locale)
 	args = append(args, limit+1)
 
 	rows, err := s.db.Query(ctx, query, args...)
@@ -186,7 +197,7 @@ func (s *Service) ListMyHistory(ctx context.Context, input ListMyInput) (*ListRe
 	conditions, args, argIdx = applySearch(conditions, args, argIdx, input.Search)
 	conditions, args, argIdx = applyBookingCursorDesc(conditions, args, argIdx, input.Cursor)
 
-	query := buildBookingQuery(conditions, argIdx, limit, "DESC")
+	query := buildBookingQuery(conditions, argIdx, limit, "DESC", input.Locale)
 	args = append(args, limit+1)
 
 	rows, err := s.db.Query(ctx, query, args...)
@@ -301,18 +312,20 @@ func applyBookingCursorDesc(conditions []string, args []any, argIdx int, cursor 
 	return conditions, args, argIdx
 }
 
-func buildBookingQuery(conditions []string, argIdx, limit int, order string) string {
+func buildBookingQuery(conditions []string, argIdx, limit int, order string, locale string) string {
 	where := "WHERE " + strings.Join(conditions, " AND ")
 	return fmt.Sprintf(`
 		SELECT b.id, b.room_id, r.name, r.building, r.room_type,
+		       %s AS building_label,
 		       b.title, b.booking_date::text, to_char(b.start_time, 'HH24:MI'), to_char(b.end_time, 'HH24:MI'),
 		       b.status, b.created_at
 		FROM bookings b
 		JOIN rooms r ON r.id = b.room_id
+		LEFT JOIN buildings bl ON bl.code = r.building
 		%s
 		ORDER BY b.booking_date %s, b.start_time %s, b.id %s
 		LIMIT $%d
-	`, where, order, order, order, argIdx)
+	`, catalogssvc.LabelExpr("bl", locale), where, order, order, order, argIdx)
 }
 
 func scanMyBookings(rows pgx.Rows, limit int, order string) (*ListResult, error) {
@@ -321,7 +334,7 @@ func scanMyBookings(rows pgx.Rows, limit int, order string) (*ListResult, error)
 		var b models.MyBooking
 		var roomType models.RoomType
 		if err := rows.Scan(
-			&b.ID, &b.RoomID, &b.RoomName, &b.Building, &roomType,
+			&b.ID, &b.RoomID, &b.RoomName, &b.Building, &roomType, &b.BuildingLabel,
 			&b.Title, &b.BookingDate, &b.StartTime, &b.EndTime,
 			&b.Status, &b.CreatedAt,
 		); err != nil {

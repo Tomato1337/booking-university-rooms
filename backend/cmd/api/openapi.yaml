@@ -82,13 +82,7 @@ components:
 
         BookingPurpose:
             type: string
-            enum:
-                [
-                    academic_lecture,
-                    research_workshop,
-                    collaborative_study,
-                    technical_assessment,
-                ]
+            description: Stable booking purpose code from the booking_purposes catalog.
 
         TimeSlotStatus:
             type: string
@@ -132,6 +126,39 @@ components:
                     type: string
                     description: Tabler icon name (e.g. IconVideo)
 
+        BuildingOption:
+            type: object
+            required: [code, label]
+            properties:
+                code:
+                    type: string
+                label:
+                    type: string
+
+        BookingPurposeOption:
+            type: object
+            required: [code, label]
+            properties:
+                code:
+                    type: string
+                label:
+                    type: string
+
+        AdminBookingPurpose:
+            type: object
+            required: [code, labelRu, labelEn, isActive, sortOrder]
+            properties:
+                code:
+                    type: string
+                labelRu:
+                    type: string
+                labelEn:
+                    type: string
+                isActive:
+                    type: boolean
+                sortOrder:
+                    type: integer
+
         RoomCard:
             type: object
             required:
@@ -161,6 +188,8 @@ components:
                     type: integer
                     minimum: 1
                 building:
+                    type: string
+                buildingLabel:
                     type: string
                 floor:
                     type: integer
@@ -224,6 +253,8 @@ components:
                     type: integer
                     minimum: 1
                 building:
+                    type: string
+                buildingLabel:
                     type: string
                 floor:
                     type: integer
@@ -398,6 +429,9 @@ components:
                 building:
                     type: string
                     example: SCIENCE BLOCK B
+                buildingLabel:
+                    type: string
+                    example: "Авиамоторная"
                 status:
                     $ref: "#/components/schemas/BookingStatus"
                 createdAt:
@@ -1250,6 +1284,52 @@ paths:
                             schema:
                                 $ref: "#/components/schemas/ErrorResponse"
 
+    /buildings:
+        get:
+            operationId: listBuildings
+            tags: [Rooms]
+            summary: List active buildings
+            description: Returns localized building labels using `X-Locale` or `Accept-Language`.
+            security:
+                - AccessCookieAuth: []
+                - BearerAuth: []
+            responses:
+                "200":
+                    description: Building catalog
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/BuildingOption"
+
+    /booking-purposes:
+        get:
+            operationId: listBookingPurposes
+            tags: [Bookings]
+            summary: List active booking purposes
+            description: Returns localized booking purpose labels using `X-Locale` or `Accept-Language`.
+            security:
+                - AccessCookieAuth: []
+                - BearerAuth: []
+            responses:
+                "200":
+                    description: Booking purpose catalog
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/BookingPurposeOption"
+
     # ── Rooms ───────────────────────────────────
     /rooms:
         get:
@@ -1265,6 +1345,12 @@ paths:
             parameters:
                 - $ref: "#/components/parameters/DateParam"
                 - $ref: "#/components/parameters/SearchParam"
+                - name: building
+                  in: query
+                  schema:
+                      type: string
+                      default: aviamotornaya
+                  description: Building code. Defaults to aviamotornaya.
                 - name: timeFrom
                   in: query
                   schema:
@@ -1787,6 +1873,107 @@ paths:
                     $ref: "#/components/responses/Unauthorized"
                 "403":
                     $ref: "#/components/responses/Forbidden"
+
+    /admin/booking-purposes:
+        get:
+            operationId: listAdminBookingPurposes
+            tags: [Admin]
+            summary: List all booking purposes
+            security:
+                - AccessCookieAuth: []
+                - BearerAuth: []
+            responses:
+                "200":
+                    description: Booking purposes
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/AdminBookingPurpose"
+        post:
+            operationId: createBookingPurpose
+            tags: [Admin]
+            summary: Create booking purpose
+            security:
+                - AccessCookieAuth: []
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: "#/components/schemas/AdminBookingPurpose"
+            responses:
+                "201":
+                    description: Created booking purpose
+
+    /admin/booking-purposes/{code}:
+        put:
+            operationId: updateBookingPurpose
+            tags: [Admin]
+            summary: Update booking purpose labels/status
+            parameters:
+                - name: code
+                  in: path
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                "200":
+                    description: Updated booking purpose
+        delete:
+            operationId: deactivateBookingPurpose
+            tags: [Admin]
+            summary: Deactivate booking purpose
+            parameters:
+                - name: code
+                  in: path
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                "204":
+                    description: Deactivated
+
+    /admin/booking-purposes/{code}/reactivate:
+        patch:
+            operationId: reactivateBookingPurpose
+            tags: [Admin]
+            summary: Reactivate booking purpose
+            parameters:
+                - name: code
+                  in: path
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                "200":
+                    description: Reactivated booking purpose
+
+    /admin/booking-purposes/{code}/hard:
+        delete:
+            operationId: hardDeleteBookingPurpose
+            tags: [Admin]
+            summary: Permanently delete an unused inactive booking purpose
+            security:
+                - AccessCookieAuth: []
+                - BearerAuth: []
+            parameters:
+                - name: code
+                  in: path
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                "204":
+                    description: Booking purpose permanently deleted
+                "409":
+                    description: Booking purpose is used by existing bookings
 
     /admin/rooms/{roomId}:
         delete:

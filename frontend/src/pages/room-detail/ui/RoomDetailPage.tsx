@@ -38,6 +38,7 @@ import {
 import { Button } from '@/shared/ui/button'
 import { Calendar } from '@/shared/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover'
+import { Skeleton } from '@/shared/ui/skeleton'
 import { wrap } from '@reatom/core'
 import { reatomComponent, useWrap, useAtom } from '@reatom/react'
 import { IconPhoto } from '@tabler/icons-react'
@@ -254,7 +255,9 @@ const RoomDetailPage = reatomComponent(() => {
 				<div className="flex items-center justify-between gap-6">
 					<div>
 						<span className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-primary">
-							{detail ? `${detail.building} / Level ${String(detail.floor).padStart(2, '0')}` : ''}
+							{detail
+								? `${detail.buildingLabel ?? detail.building} / Level ${String(detail.floor).padStart(2, '0')}`
+								: ''}
 						</span>
 						<h1 className="text-[3.5rem] font-black uppercase leading-[1.1] tracking-tighter">
 							{detail ? detail.name : loading ? t.roomDetail.loadingTitle : ''}
@@ -337,14 +340,14 @@ const RoomDetailPage = reatomComponent(() => {
 									</div>
 								)}
 							</div>
-							{detail.description && (
-								<div className="flex flex-col justify-center gap-3">
-									<h2 className="text-[1.4rem] font-black uppercase tracking-tight text-on-surface">
-										{t.admin.rooms.form.descriptionLabel}
-									</h2>
-									<p className="text-sm leading-6 text-on-surface-variant">{detail.description}</p>
-								</div>
-							)}
+							<div className="flex flex-col justify-center gap-3">
+								<h2 className="text-[1.4rem] font-black uppercase tracking-tight text-on-surface">
+									{t.admin.rooms.form.descriptionLabel}
+								</h2>
+								<p className="text-sm leading-6 text-on-surface-variant">
+									{detail.description ? detail.description : t.admin.rooms.form.descriptionLabel}
+								</p>
+							</div>
 						</section>
 					)}
 

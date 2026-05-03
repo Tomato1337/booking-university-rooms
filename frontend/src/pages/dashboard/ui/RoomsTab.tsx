@@ -30,7 +30,8 @@ import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import Search from "@/shared/ui/search";
-import { cn, todayUtcStr } from "@/shared/lib/utils";
+import { todayUtcStr } from "@/shared/lib/utils";
+import { StatusTabs } from "@/shared/ui/status-tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -131,26 +132,15 @@ export const RoomsTab = reatomComponent(() => {
         </Button>
       </div>
 
-      <div className="mb-4 flex items-center gap-6 border-b border-border pb-4">
-        <Button
-          variant="tab"
-          className={cn("-ml-2", {
-            "text-primary font-black": activeTab === "active",
-          })}
-          onClick={() => wrapChangeTab("active")}
-        >
-          {t.admin.rooms.tabs.active}
-        </Button>
-        <Button
-          variant="tab"
-          className={cn({
-            "text-primary font-black": activeTab === "inactive",
-          })}
-          onClick={() => wrapChangeTab("inactive")}
-        >
-          {t.admin.rooms.tabs.inactive}
-        </Button>
-      </div>
+      <StatusTabs
+        className="mb-4"
+        value={activeTab === "all" ? "active" : activeTab}
+        onChange={wrapChangeTab}
+        options={[
+          { value: "active", label: t.admin.rooms.tabs.active },
+          { value: "inactive", label: t.admin.rooms.tabs.inactive },
+        ]}
+      />
 
       <Search
         className="bg-surface-container-high mb-4"
@@ -226,7 +216,7 @@ export const RoomsTab = reatomComponent(() => {
                     <TableCell className="uppercase">{room.roomType.replace("_", " ")}</TableCell>
                     <TableCell>{room.capacity}</TableCell>
                     <TableCell>
-                      {room.building} / {t.rooms.card.floor.replace("{floor}", String(room.floor))}
+                      {(room.buildingLabel ?? room.building)} / {t.rooms.card.floor.replace("{floor}", String(room.floor))}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1.5">

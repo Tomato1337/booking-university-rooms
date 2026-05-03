@@ -16,12 +16,14 @@ import (
 	adminhandler "booking-university-rooms/backend/internal/handlers/admin"
 	authhandler "booking-university-rooms/backend/internal/handlers/auth"
 	bookingshandler "booking-university-rooms/backend/internal/handlers/bookings"
+	catalogshandler "booking-university-rooms/backend/internal/handlers/catalogs"
 	equipmenthandler "booking-university-rooms/backend/internal/handlers/equipment"
 	roomshandler "booking-university-rooms/backend/internal/handlers/rooms"
 	"booking-university-rooms/backend/internal/middleware"
 	adminsvc "booking-university-rooms/backend/internal/services/admin"
 	authsvc "booking-university-rooms/backend/internal/services/auth"
 	bookingssvc "booking-university-rooms/backend/internal/services/bookings"
+	catalogssvc "booking-university-rooms/backend/internal/services/catalogs"
 	equipmentsvc "booking-university-rooms/backend/internal/services/equipment"
 	roomssvc "booking-university-rooms/backend/internal/services/rooms"
 	"booking-university-rooms/backend/internal/storage"
@@ -64,12 +66,14 @@ func main() {
 	authService := authsvc.NewService(pool, cfg.JWTSecret, cfg.JWTRefreshSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 	roomsService := roomssvc.NewService(pool)
 	bookingsService := bookingssvc.NewService(pool)
+	catalogsService := catalogssvc.NewService(pool)
 	equipmentService := equipmentsvc.NewService(pool)
 	adminService := adminsvc.NewService(pool)
 
 	// Handlers
 	authH := authhandler.NewHandler(authService, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 	roomsH := roomshandler.NewHandler(roomsService, photoStorage, cfg.MaxRoomPhotoBytes)
+	catalogsH := catalogshandler.NewHandler(catalogsService)
 	equipH := equipmenthandler.NewHandler(equipmentService)
 	bookingsH := bookingshandler.NewHandler(bookingsService)
 	adminH := adminhandler.NewHandler(adminService)
@@ -142,6 +146,8 @@ func main() {
 	// Rooms
 	authed.GET("/rooms", roomsH.Search)
 	authed.GET("/rooms/:roomId", roomsH.GetDetail)
+	authed.GET("/buildings", catalogsH.ListBuildings)
+	authed.GET("/booking-purposes", catalogsH.ListBookingPurposes)
 	authed.GET("/equipment", equipH.List)
 
 	// Admin room management
@@ -165,6 +171,12 @@ func main() {
 		admin.GET("/rooms", roomsH.AdminSearch)
 		admin.DELETE("/rooms/:roomId", roomsH.HardDelete)
 		admin.PATCH("/rooms/:roomId/reactivate", roomsH.Reactivate)
+		admin.GET("/booking-purposes", catalogsH.ListAdminBookingPurposes)
+		admin.POST("/booking-purposes", catalogsH.CreateBookingPurpose)
+		admin.PUT("/booking-purposes/:code", catalogsH.UpdateBookingPurpose)
+		admin.DELETE("/booking-purposes/:code", catalogsH.DeactivateBookingPurpose)
+		admin.PATCH("/booking-purposes/:code/reactivate", catalogsH.ReactivateBookingPurpose)
+		admin.DELETE("/booking-purposes/:code/hard", catalogsH.HardDeleteBookingPurpose)
 		admin.GET("/bookings/pending", adminH.ListPending)
 		admin.GET("/bookings/history", adminH.ListHistory)
 		admin.PATCH("/bookings/:bookingId/approve", adminH.Approve)

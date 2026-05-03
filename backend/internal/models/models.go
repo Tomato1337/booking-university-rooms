@@ -79,21 +79,42 @@ type EquipmentDeleteResult struct {
 	UsedInRooms []EquipmentUsageRoom `json:"usedInRooms"`
 }
 
+type BuildingOption struct {
+	Code  string `json:"code"`
+	Label string `json:"label"`
+}
+
+type BookingPurposeOption struct {
+	Code  string `json:"code"`
+	Label string `json:"label"`
+}
+
+type AdminBookingPurpose struct {
+	Code      string    `json:"code"`
+	LabelRu   string    `json:"labelRu"`
+	LabelEn   string    `json:"labelEn"`
+	IsActive  bool      `json:"isActive"`
+	SortOrder int       `json:"sortOrder"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 type Room struct {
-	ID          uuid.UUID   `json:"id"`
-	Name        string      `json:"name"`
-	Description *string     `json:"description"`
-	RoomType    RoomType    `json:"roomType"`
-	Capacity    int         `json:"capacity"`
-	Building    string      `json:"building"`
-	Floor       int         `json:"floor"`
-	Photos      []string    `json:"photos"`
-	OpenTime    string      `json:"openTime"`
-	CloseTime   string      `json:"closeTime"`
-	IsActive    bool        `json:"isActive"`
-	CreatedAt   time.Time   `json:"createdAt"`
-	UpdatedAt   time.Time   `json:"-"`
-	Equipment   []Equipment `json:"equipment,omitempty"`
+	ID            uuid.UUID   `json:"id"`
+	Name          string      `json:"name"`
+	Description   *string     `json:"description"`
+	RoomType      RoomType    `json:"roomType"`
+	Capacity      int         `json:"capacity"`
+	Building      string      `json:"building"`
+	BuildingLabel string      `json:"buildingLabel"`
+	Floor         int         `json:"floor"`
+	Photos        []string    `json:"photos"`
+	OpenTime      string      `json:"openTime"`
+	CloseTime     string      `json:"closeTime"`
+	IsActive      bool        `json:"isActive"`
+	CreatedAt     time.Time   `json:"createdAt"`
+	UpdatedAt     time.Time   `json:"-"`
+	Equipment     []Equipment `json:"equipment,omitempty"`
 }
 
 type Booking struct {
@@ -121,16 +142,17 @@ type RoomAvailability struct {
 }
 
 type RoomCard struct {
-	ID           uuid.UUID        `json:"id"`
-	Name         string           `json:"name"`
-	Description  *string          `json:"description"`
-	RoomType     RoomType         `json:"roomType"`
-	Capacity     int              `json:"capacity"`
-	Building     string           `json:"building"`
-	Floor        int              `json:"floor"`
-	Photos       []string         `json:"photos"`
-	Equipment    []Equipment      `json:"equipment"`
-	Availability RoomAvailability `json:"availability"`
+	ID            uuid.UUID        `json:"id"`
+	Name          string           `json:"name"`
+	Description   *string          `json:"description"`
+	RoomType      RoomType         `json:"roomType"`
+	Capacity      int              `json:"capacity"`
+	Building      string           `json:"building"`
+	BuildingLabel string           `json:"buildingLabel"`
+	Floor         int              `json:"floor"`
+	Photos        []string         `json:"photos"`
+	Equipment     []Equipment      `json:"equipment"`
+	Availability  RoomAvailability `json:"availability"`
 }
 
 type TimeSlotStatus string
@@ -171,6 +193,7 @@ type RoomDetail struct {
 	RoomType          RoomType             `json:"roomType"`
 	Capacity          int                  `json:"capacity"`
 	Building          string               `json:"building"`
+	BuildingLabel     string               `json:"buildingLabel"`
 	Floor             int                  `json:"floor"`
 	Photos            []string             `json:"photos"`
 	OpenTime          string               `json:"openTime"`
@@ -181,17 +204,18 @@ type RoomDetail struct {
 }
 
 type MyBooking struct {
-	ID          uuid.UUID     `json:"id"`
-	BookingID   string        `json:"bookingId"`
-	RoomID      uuid.UUID     `json:"roomId"`
-	RoomName    string        `json:"roomName"`
-	Title       string        `json:"title"`
-	BookingDate string        `json:"bookingDate"`
-	StartTime   string        `json:"startTime"`
-	EndTime     string        `json:"endTime"`
-	Building    string        `json:"building"`
-	Status      BookingStatus `json:"status"`
-	CreatedAt   time.Time     `json:"createdAt"`
+	ID            uuid.UUID     `json:"id"`
+	BookingID     string        `json:"bookingId"`
+	RoomID        uuid.UUID     `json:"roomId"`
+	RoomName      string        `json:"roomName"`
+	Title         string        `json:"title"`
+	BookingDate   string        `json:"bookingDate"`
+	StartTime     string        `json:"startTime"`
+	EndTime       string        `json:"endTime"`
+	Building      string        `json:"building"`
+	BuildingLabel string        `json:"buildingLabel"`
+	Status        BookingStatus `json:"status"`
+	CreatedAt     time.Time     `json:"createdAt"`
 }
 
 type AdminBookingUser struct {
@@ -203,9 +227,10 @@ type AdminBookingUser struct {
 }
 
 type AdminBookingRoom struct {
-	ID       uuid.UUID `json:"id"`
-	Name     string    `json:"name"`
-	Building string    `json:"building"`
+	ID            uuid.UUID `json:"id"`
+	Name          string    `json:"name"`
+	Building      string    `json:"building"`
+	BuildingLabel string    `json:"buildingLabel"`
 }
 
 type AdminPendingBooking struct {
@@ -228,10 +253,11 @@ type BookingStatusCount struct {
 }
 
 type PopularRoom struct {
-	ID       uuid.UUID `json:"id"`
-	Name     string    `json:"name"`
-	Building string    `json:"building"`
-	Count    int       `json:"count"`
+	ID            uuid.UUID `json:"id"`
+	Name          string    `json:"name"`
+	Building      string    `json:"building"`
+	BuildingLabel string    `json:"buildingLabel"`
+	Count         int       `json:"count"`
 }
 
 type DayOfWeekCount struct {

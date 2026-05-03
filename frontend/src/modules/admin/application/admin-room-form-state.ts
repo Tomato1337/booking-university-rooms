@@ -15,7 +15,7 @@ export type RoomType =
 function defaultValues() {
     return {
         name: '',
-        building: '',
+        building: 'aviamotornaya',
         roomType: 'lab' as RoomType,
         capacity: 1,
         floor: 1,

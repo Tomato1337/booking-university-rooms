@@ -28,6 +28,11 @@ export const mockEquipment: EquipmentItem[] = [
   { id: "99999999-9999-4999-8999-999999999999", name: "Smart Board", icon: "IconChalkboard" },
 ]
 
+export const mockBuildings = [
+  { code: "aviamotornaya", label: "Авиамоторная" },
+  { code: "narod-opolchenie", label: "Народное Ополчение" },
+]
+
 function equipmentByIds(ids: string[]) {
   const idsSet = new Set(ids)
 
@@ -40,7 +45,8 @@ export const mockRooms: RoomCard[] = [
     name: "LAB_402B",
     roomType: "lab",
     capacity: 45,
-    building: "Building A",
+    building: "aviamotornaya",
+    buildingLabel: "Авиамоторная",
     floor: 4,
     equipment: equipmentByIds([
       "44444444-4444-4444-8444-444444444444",
@@ -58,7 +64,8 @@ export const mockRooms: RoomCard[] = [
     name: "AUD_01",
     roomType: "lecture_hall",
     capacity: 180,
-    building: "Building C",
+    building: "aviamotornaya",
+    buildingLabel: "Авиамоторная",
     floor: 1,
     equipment: equipmentByIds([
       "11111111-1111-4111-8111-111111111111",
@@ -76,7 +83,8 @@ export const mockRooms: RoomCard[] = [
     name: "SEM_12",
     roomType: "seminar",
     capacity: 24,
-    building: "Building B",
+    building: "narod-opolchenie",
+    buildingLabel: "Народное Ополчение",
     floor: 2,
     equipment: equipmentByIds([
       "22222222-2222-4222-8222-222222222222",
@@ -93,7 +101,8 @@ export const mockRooms: RoomCard[] = [
     name: "STUDIO_04",
     roomType: "studio",
     capacity: 16,
-    building: "Building D",
+    building: "narod-opolchenie",
+    buildingLabel: "Народное Ополчение",
     floor: 1,
     equipment: equipmentByIds([
       "55555555-5555-4555-8555-555555555555",
@@ -111,7 +120,8 @@ export const mockRooms: RoomCard[] = [
     name: "CONF_301",
     roomType: "conference",
     capacity: 32,
-    building: "Building C",
+    building: "aviamotornaya",
+    buildingLabel: "Авиамоторная",
     floor: 3,
     equipment: equipmentByIds([
       "11111111-1111-4111-8111-111111111111",
@@ -130,7 +140,8 @@ export const mockRooms: RoomCard[] = [
     name: "LECTURE_05",
     roomType: "lecture_hall",
     capacity: 220,
-    building: "Building A",
+    building: "aviamotornaya",
+    buildingLabel: "Авиамоторная",
     floor: 5,
     equipment: equipmentByIds([
       "11111111-1111-4111-8111-111111111111",
@@ -149,7 +160,8 @@ export const mockRooms: RoomCard[] = [
     name: "LAB_210",
     roomType: "lab",
     capacity: 36,
-    building: "Building B",
+    building: "narod-opolchenie",
+    buildingLabel: "Народное Ополчение",
     floor: 2,
     equipment: equipmentByIds([
       "44444444-4444-4444-8444-444444444444",
@@ -167,7 +179,8 @@ export const mockRooms: RoomCard[] = [
     name: "SEM_08",
     roomType: "seminar",
     capacity: 28,
-    building: "Building A",
+    building: "aviamotornaya",
+    buildingLabel: "Авиамоторная",
     floor: 2,
     equipment: equipmentByIds([
       "22222222-2222-4222-8222-222222222222",
@@ -185,7 +198,8 @@ export const mockRooms: RoomCard[] = [
     name: "CONF_118",
     roomType: "conference",
     capacity: 18,
-    building: "Building E",
+    building: "narod-opolchenie",
+    buildingLabel: "Народное Ополчение",
     floor: 1,
     equipment: equipmentByIds([
       "11111111-1111-4111-8111-111111111111",
@@ -202,7 +216,8 @@ export const mockRooms: RoomCard[] = [
     name: "STUDIO_11",
     roomType: "studio",
     capacity: 14,
-    building: "Building D",
+    building: "narod-opolchenie",
+    buildingLabel: "Народное Ополчение",
     floor: 3,
     equipment: equipmentByIds([
       "55555555-5555-4555-8555-555555555555",
@@ -220,7 +235,8 @@ export const mockRooms: RoomCard[] = [
     name: "LAB_115",
     roomType: "lab",
     capacity: 30,
-    building: "Building C",
+    building: "aviamotornaya",
+    buildingLabel: "Авиамоторная",
     floor: 1,
     equipment: equipmentByIds([
       "44444444-4444-4444-8444-444444444444",
@@ -238,7 +254,8 @@ export const mockRooms: RoomCard[] = [
     name: "SEM_21",
     roomType: "seminar",
     capacity: 22,
-    building: "Building B",
+    building: "narod-opolchenie",
+    buildingLabel: "Народное Ополчение",
     floor: 4,
     equipment: equipmentByIds([
       "22222222-2222-4222-8222-222222222222",
@@ -256,7 +273,8 @@ export const mockRooms: RoomCard[] = [
     name: "AUD_03",
     roomType: "lecture_hall",
     capacity: 120,
-    building: "Building E",
+    building: "narod-opolchenie",
+    buildingLabel: "Народное Ополчение",
     floor: 2,
     equipment: equipmentByIds([
       "11111111-1111-4111-8111-111111111111",

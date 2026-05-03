@@ -1,11 +1,12 @@
 import { type ChangeEvent, useState } from "react";
 
-import { IconCalendar, IconClock, IconUsers } from "@tabler/icons-react";
+import { IconBuilding, IconCalendar, IconClock, IconUsers } from "@tabler/icons-react";
 import { reatomComponent, useWrap, useAtom } from "@reatom/react";
 import { tAtom, localeAtom } from "@/modules/i18n";
 import { ru, enUS } from "date-fns/locale";
 
 import {
+  roomsBuildingAtom,
   equipmentListAtom,
   roomsDateAtom,
   roomsEquipmentAtom,
@@ -13,6 +14,7 @@ import {
   roomsTimeFromAtom,
   roomsTimeToAtom,
 } from "../application/rooms-atoms";
+import { buildingsListAtom } from "@/modules/catalogs";
 import { getEquipmentIcon } from "../infrastructure/icon-map";
 import { cn } from "@/shared/lib/utils";
 import { Calendar } from "@/shared/ui/calendar";
@@ -52,9 +54,11 @@ const RoomsFilters = reatomComponent(({ className }: RoomsFiltersProps) => {
   const date = roomsDateAtom();
   const timeFrom = roomsTimeFromAtom();
   const timeTo = roomsTimeToAtom();
+  const building = roomsBuildingAtom();
   const equipmentCsv = roomsEquipmentAtom();
   const minCapacity = roomsMinCapacityAtom();
   const equipmentList = equipmentListAtom();
+  const buildings = buildingsListAtom();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -82,7 +86,7 @@ const RoomsFilters = reatomComponent(({ className }: RoomsFiltersProps) => {
       className={cn("flex flex-col gap-4 bg-surface-container p-4", className)}
     >
       {/* Filters grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {/* Date */}
         <div className="flex flex-col gap-2 bg-surface-container-high p-4">
           <div className="flex items-center gap-2">
@@ -117,6 +121,29 @@ const RoomsFilters = reatomComponent(({ className }: RoomsFiltersProps) => {
               />
             </PopoverContent>
           </Popover>
+        </div>
+
+        {/* Building */}
+        <div className="flex flex-col gap-2 bg-surface-container-high p-4">
+          <div className="flex items-center gap-2">
+            <IconBuilding size={14} className="text-primary" />
+            <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+              {t.rooms.filters.building}
+            </span>
+          </div>
+          <select
+            value={building}
+            onChange={useWrap((e: ChangeEvent<HTMLSelectElement>) =>
+              roomsBuildingAtom.set(e.target.value || "aviamotornaya"),
+            )}
+            className={filterInputClass}
+          >
+            {(buildings.length > 0 ? buildings : [{ code: "aviamotornaya", label: "Авиамоторная" }]).map((item) => (
+              <option key={item.code} value={item.code}>
+                {item.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Time From */}
