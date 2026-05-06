@@ -309,6 +309,7 @@ type RoomTimeline struct {
 	Name          string            `json:"name"`
 	Description   *string           `json:"description"`
 	RoomType      RoomType          `json:"roomType"`
+	RoomTypeLabel string            `json:"roomTypeLabel"`
 	Capacity      int               `json:"capacity"`
 	Building      string            `json:"building"`
 	BuildingLabel string            `json:"buildingLabel"`

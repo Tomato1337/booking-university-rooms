@@ -205,6 +205,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Rooms occupancy timeline
+         * @description Returns rooms with day/week timeline data. `bookings` preserves overlapping pending intervals.
+         */
+        get: operations["getRoomsTimeline"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{roomId}": {
         parameters: {
             query?: never;
@@ -610,6 +630,61 @@ export interface paths {
         patch: operations["reactivateRoom"];
         trace?: never;
     };
+    "/ws": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * WebSocket realtime stream
+         * @description Upgrades to WebSocket. Auth via `Authorization: Bearer <token>`, `accessToken` cookie, or `?token=<jwt>` for browser clients.
+         *     Emits `booking.created`, `booking.approved`, `booking.rejected`, `booking.cancelled`, `booking.auto_rejected`, and `ping` events.
+         */
+        get: operations["websocketStream"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List non-admin users */
+        get: operations["listAdminUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{userId}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update user participant type and teacher rank */
+        patch: operations["updateUserRoleProfile"];
+        trace?: never;
+    };
     "/admin/bookings/pending": {
         parameters: {
             query?: never;
@@ -818,6 +893,10 @@ export interface components {
         /** @enum {string} */
         UserRole: "user" | "admin";
         /** @enum {string} */
+        ParticipantType: "student" | "teacher";
+        /** @enum {string} */
+        TeacherRank: "assistant" | "junior_lecturer" | "lecturer" | "senior_lecturer" | "associate_professor" | "professor" | "head_of_department";
+        /** @enum {string} */
         BookingStatus: "pending" | "confirmed" | "rejected" | "cancelled";
         /** @description Stable room type code from the room_types catalog. */
         RoomType: string;
@@ -837,6 +916,8 @@ export interface components {
             lastName: string;
             department?: string | null;
             role: components["schemas"]["UserRole"];
+            participantType?: components["schemas"]["ParticipantType"] | null;
+            teacherRank?: components["schemas"]["TeacherRank"] | null;
             /** Format: date-time */
             createdAt: string;
         };
@@ -968,6 +1049,56 @@ export interface components {
             title: string;
             /** Format: uuid */
             userId: string;
+            /** @description Populated only for admin role. */
+            user?: components["schemas"]["BookingUserInfo"] | null;
+        };
+        BookingUserInfo: {
+            /** Format: uuid */
+            id: string;
+            firstName: string;
+            lastName: string;
+            /** Format: email */
+            email: string;
+            department?: string | null;
+            participantType?: components["schemas"]["ParticipantType"] | null;
+            teacherRank?: components["schemas"]["TeacherRank"] | null;
+        };
+        TimelineBooking: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            userId: string;
+            title: string;
+            status: components["schemas"]["BookingStatus"];
+            /** Format: date */
+            bookingDate?: string;
+            startTime: string;
+            endTime: string;
+            user?: components["schemas"]["BookingUserInfo"] | null;
+        };
+        RoomTimelineDay: {
+            /** Format: date */
+            date: string;
+            slots: components["schemas"]["TimeSlot"][];
+            /** @description Raw booking intervals; preserves overlapping pending bookings. */
+            bookings: components["schemas"]["TimelineBooking"][];
+        };
+        RoomTimeline: components["schemas"]["RoomCard"] & {
+            openTime?: string;
+            closeTime?: string;
+            slots?: components["schemas"]["TimeSlot"][];
+            bookings?: components["schemas"]["TimelineBooking"][];
+            days?: components["schemas"]["RoomTimelineDay"][];
+        };
+        TimelineMeta: {
+            /** Format: date */
+            date: string;
+            /** @enum {string} */
+            mode: "day" | "week";
+            /** Format: date */
+            endDate?: string;
+            hasMore: boolean;
+            nextCursor?: string | null;
         };
         UserBookingSummary: {
             /** Format: uuid */
@@ -1038,7 +1169,11 @@ export interface components {
                 lastName: string;
                 /** @example JD */
                 initials: string;
+                /** Format: email */
+                email?: string;
                 department?: string | null;
+                participantType?: components["schemas"]["ParticipantType"] | null;
+                teacherRank?: components["schemas"]["TeacherRank"] | null;
             };
             room: {
                 /** Format: uuid */
@@ -1128,6 +1263,8 @@ export interface components {
             firstName: string;
             lastName: string;
             department?: string;
+            participantType?: components["schemas"]["ParticipantType"] | null;
+            teacherRank?: components["schemas"]["TeacherRank"] | null;
         };
         LoginRequest: {
             /** Format: email */
@@ -1741,6 +1878,54 @@ export interface operations {
             400: components["responses"]["ValidationError"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    getRoomsTimeline: {
+        parameters: {
+            query?: {
+                /** @description Date (YYYY-MM-DD). Defaults to today. */
+                date?: components["parameters"]["DateParam"];
+                mode?: "day" | "week";
+                /** @description Free-text search */
+                search?: components["parameters"]["SearchParam"];
+                building?: string;
+                roomType?: components["schemas"]["RoomType"];
+                minCapacity?: number;
+                /** @description Comma-separated equipment UUIDs. AND logic. */
+                equipment?: string;
+                /** @description Number of items per page */
+                limit?: components["parameters"]["LimitParam"];
+                /** @description Cursor from a previous response's `meta.nextCursor` */
+                cursor?: components["parameters"]["CursorParam"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Timeline data */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["RoomTimeline"][];
+                        meta: components["schemas"]["TimelineMeta"];
+                    };
+                };
+            };
+            /** @description Invalid date */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
     getRoomDetail: {
@@ -2619,6 +2804,97 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    websocketStream: {
+        parameters: {
+            query?: {
+                /** @description JWT fallback for browser WebSocket clients. */
+                token?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Switching Protocols */
+            101: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    listAdminUsers: {
+        parameters: {
+            query?: {
+                /** @description Free-text search */
+                search?: components["parameters"]["SearchParam"];
+                participantType?: components["schemas"]["ParticipantType"];
+                teacherRank?: components["schemas"]["TeacherRank"];
+                /** @description Number of items per page */
+                limit?: components["parameters"]["LimitParam"];
+                /** @description Cursor from a previous response's `meta.nextCursor` */
+                cursor?: components["parameters"]["CursorParam"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated users */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["User"][];
+                        meta: components["schemas"]["CursorPaginationMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updateUserRoleProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    participantType?: components["schemas"]["ParticipantType"] | null;
+                    teacherRank?: components["schemas"]["TeacherRank"] | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Updated user */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["User"];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationError"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];

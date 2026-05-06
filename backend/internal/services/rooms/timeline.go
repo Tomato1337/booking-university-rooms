@@ -73,7 +73,7 @@ func (s *Service) GetTimeline(ctx context.Context, input TimelineInput, currentU
 	if err != nil {
 		return nil, err
 	}
-	equipmentByRoom, err := s.equipmentForRooms(ctx, roomIDs)
+	equipmentByRoom, err := s.equipmentForRooms(ctx, roomIDs, input.Locale)
 	if err != nil {
 		return nil, err
 	}
@@ -168,14 +168,15 @@ func (s *Service) timelineRooms(ctx context.Context, input TimelineInput, limit 
 	}
 
 	query := fmt.Sprintf(`
-		SELECT r.id, r.name, r.description, r.room_type, r.capacity, r.building, %s,
+		SELECT r.id, r.name, r.description, r.room_type, %s, r.capacity, r.building, %s,
 		       r.floor, r.photos, to_char(r.open_time, 'HH24:MI'), to_char(r.close_time, 'HH24:MI')
 		FROM rooms r
-		LEFT JOIN buildings b ON b.code = r.building
+		JOIN buildings b ON b.code = r.building AND b.is_active = true
+		JOIN room_types rt ON rt.code = r.room_type AND rt.is_active = true
 		WHERE %s
 		ORDER BY r.name ASC, r.id ASC
 		LIMIT $%d
-	`, catalogssvc.LabelExpr("b", input.Locale), strings.Join(conditions, " AND "), argIdx)
+	`, catalogssvc.LabelExpr("rt", input.Locale), catalogssvc.LabelExpr("b", input.Locale), strings.Join(conditions, " AND "), argIdx)
 	args = append(args, limit+1)
 
 	rows, err := s.db.Query(ctx, query, args...)
@@ -187,7 +188,7 @@ func (s *Service) timelineRooms(ctx context.Context, input TimelineInput, limit 
 	var rooms []models.RoomTimeline
 	for rows.Next() {
 		var room models.RoomTimeline
-		if err := rows.Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.Capacity, &room.Building, &room.BuildingLabel, &room.Floor, &room.Photos, &room.OpenTime, &room.CloseTime); err != nil {
+		if err := rows.Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.RoomTypeLabel, &room.Capacity, &room.Building, &room.BuildingLabel, &room.Floor, &room.Photos, &room.OpenTime, &room.CloseTime); err != nil {
 			return nil, false, nil, err
 		}
 		if room.Photos == nil {
@@ -256,19 +257,19 @@ func (s *Service) timelineBookings(ctx context.Context, roomIDs []uuid.UUID, dat
 	return result, rows.Err()
 }
 
-func (s *Service) equipmentForRooms(ctx context.Context, roomIDs []uuid.UUID) (map[uuid.UUID][]models.Equipment, error) {
+func (s *Service) equipmentForRooms(ctx context.Context, roomIDs []uuid.UUID, locale string) (map[uuid.UUID][]models.Equipment, error) {
 	result := map[uuid.UUID][]models.Equipment{}
 	if len(roomIDs) == 0 {
 		return result, nil
 	}
 
-	rows, err := s.db.Query(ctx, `
-		SELECT re.room_id, e.id, e.name, e.icon
+	rows, err := s.db.Query(ctx, fmt.Sprintf(`
+		SELECT re.room_id, e.id, e.code, %s, e.label_ru, e.label_en, e.icon, e.is_active, e.sort_order, e.created_at, e.updated_at
 		FROM room_equipment re
 		JOIN equipment e ON e.id = re.equipment_id
 		WHERE re.room_id = ANY($1)
-		ORDER BY e.name ASC
-	`, roomIDs)
+		ORDER BY e.sort_order ASC, e.code ASC
+	`, catalogssvc.LabelExpr("e", locale)), roomIDs)
 	if err != nil {
 		return nil, fmt.Errorf("timeline equipment: %w", err)
 	}
@@ -277,7 +278,7 @@ func (s *Service) equipmentForRooms(ctx context.Context, roomIDs []uuid.UUID) (m
 	for rows.Next() {
 		var roomID uuid.UUID
 		var e models.Equipment
-		if err := rows.Scan(&roomID, &e.ID, &e.Name, &e.Icon); err != nil {
+		if err := rows.Scan(&roomID, &e.ID, &e.Code, &e.Name, &e.LabelRu, &e.LabelEn, &e.Icon, &e.IsActive, &e.SortOrder, &e.CreatedAt, &e.UpdatedAt); err != nil {
 			return nil, err
 		}
 		result[roomID] = append(result[roomID], e)
