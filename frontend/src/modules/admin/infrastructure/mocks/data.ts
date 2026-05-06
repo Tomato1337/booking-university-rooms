@@ -11,12 +11,23 @@ type ApproveResponse =
   operations["approveBooking"]["responses"][200]["content"]["application/json"]["data"];
 
 interface EquipmentPayload {
-  name: string;
+  code: string;
+  labelRu: string;
+  labelEn: string;
   icon: string;
+  isActive?: boolean;
+  sortOrder: number;
 }
 
 const NOW = "2026-04-13T09:00:00.000Z";
 const AUTO_REJECT_REASON = "Auto-rejected due to overlap with approved booking";
+
+const mockPurposeLabels: Record<string, string> = {
+  academic_lecture: "Лекция / занятие",
+  research_workshop: "Исследовательский воркшоп",
+  collaborative_study: "Групповая работа",
+  technical_assessment: "Техническая аттестация",
+};
 
 const initialPendingBookings: AdminPendingBooking[] = [
   {
@@ -35,6 +46,7 @@ const initialPendingBookings: AdminPendingBooking[] = [
     },
     title: "Distributed Systems Seminar",
     purpose: "academic_lecture",
+    purposeLabel: mockPurposeLabels.academic_lecture,
     bookingDate: "2026-04-20",
     startTime: "10:00",
     endTime: "12:00",
@@ -58,6 +70,7 @@ const initialPendingBookings: AdminPendingBooking[] = [
     },
     title: "Compiler Lab",
     purpose: "collaborative_study",
+    purposeLabel: mockPurposeLabels.collaborative_study,
     bookingDate: "2026-04-20",
     startTime: "11:00",
     endTime: "13:00",
@@ -81,6 +94,7 @@ const initialPendingBookings: AdminPendingBooking[] = [
     },
     title: "Quantum Computing Workshop",
     purpose: "research_workshop",
+    purposeLabel: mockPurposeLabels.research_workshop,
     bookingDate: "2026-04-20",
     startTime: "09:00",
     endTime: "10:30",
@@ -104,6 +118,7 @@ const initialPendingBookings: AdminPendingBooking[] = [
     },
     title: "Motion Graphics Review",
     purpose: "technical_assessment",
+    purposeLabel: mockPurposeLabels.technical_assessment,
     bookingDate: "2026-04-21",
     startTime: "13:00",
     endTime: "15:00",
@@ -127,6 +142,7 @@ const initialPendingBookings: AdminPendingBooking[] = [
     },
     title: "Topology Group Session",
     purpose: "collaborative_study",
+    purposeLabel: mockPurposeLabels.collaborative_study,
     bookingDate: "2026-04-22",
     startTime: "16:00",
     endTime: "18:00",
@@ -150,6 +166,7 @@ const initialPendingBookings: AdminPendingBooking[] = [
     },
     title: "Bioinformatics Lecture",
     purpose: "academic_lecture",
+    purposeLabel: mockPurposeLabels.academic_lecture,
     bookingDate: "2026-04-22",
     startTime: "10:00",
     endTime: "12:00",
@@ -173,6 +190,7 @@ const initialPendingBookings: AdminPendingBooking[] = [
     },
     title: "Robot Control Lab",
     purpose: "research_workshop",
+    purposeLabel: mockPurposeLabels.research_workshop,
     bookingDate: "2026-04-23",
     startTime: "09:30",
     endTime: "11:30",
@@ -196,6 +214,7 @@ const initialPendingBookings: AdminPendingBooking[] = [
     },
     title: "Macroeconomics Colloquium",
     purpose: "academic_lecture",
+    purposeLabel: mockPurposeLabels.academic_lecture,
     bookingDate: "2026-04-23",
     startTime: "14:00",
     endTime: "16:00",
@@ -219,6 +238,7 @@ const initialPendingBookings: AdminPendingBooking[] = [
     },
     title: "Analytical Chemistry Lab",
     purpose: "technical_assessment",
+    purposeLabel: mockPurposeLabels.technical_assessment,
     bookingDate: "2026-04-24",
     startTime: "10:00",
     endTime: "12:30",
@@ -242,6 +262,7 @@ const initialPendingBookings: AdminPendingBooking[] = [
     },
     title: "Urban Design Critique",
     purpose: "collaborative_study",
+    purposeLabel: mockPurposeLabels.collaborative_study,
     bookingDate: "2026-04-24",
     startTime: "15:00",
     endTime: "17:00",
@@ -251,13 +272,24 @@ const initialPendingBookings: AdminPendingBooking[] = [
   },
 ];
 
+function equipmentItem(
+  id: string,
+  code: string,
+  name: string,
+  labelRu: string,
+  icon: string,
+  sortOrder: number,
+): EquipmentItem {
+  return { id, code, name, labelRu, labelEn: name, icon, isActive: true, sortOrder };
+}
+
 const initialEquipment: EquipmentItem[] = [
-  { id: "11111111-1111-4111-8111-111111111111", name: "Projector", icon: "IconVideo" },
-  { id: "22222222-2222-4222-8222-222222222222", name: "Whiteboard", icon: "IconPresentation" },
-  { id: "33333333-3333-4333-8333-333333333333", name: "Broadcast", icon: "IconBroadcast" },
-  { id: "44444444-4444-4444-8444-444444444444", name: "Multi-Media", icon: "IconDeviceDesktop" },
-  { id: "55555555-5555-4555-8555-555555555555", name: "Microphone", icon: "IconMicrophone" },
-  { id: "66666666-6666-4666-8666-666666666666", name: "Wi-Fi", icon: "IconWifi" },
+  equipmentItem("11111111-1111-4111-8111-111111111111", "projector", "Projector", "Проектор", "IconVideo", 10),
+  equipmentItem("22222222-2222-4222-8222-222222222222", "whiteboard", "Whiteboard", "Доска", "IconPresentation", 20),
+  equipmentItem("33333333-3333-4333-8333-333333333333", "broadcast", "Broadcast", "Трансляция", "IconBroadcast", 30),
+  equipmentItem("44444444-4444-4444-8444-444444444444", "multi-media", "Multi-Media", "Мультимедиа", "IconDeviceDesktop", 40),
+  equipmentItem("55555555-5555-4555-8555-555555555555", "microphone", "Microphone", "Микрофон", "IconMicrophone", 50),
+  equipmentItem("66666666-6666-4666-8666-666666666666", "wi-fi", "Wi-Fi", "Wi-Fi", "IconWifi", 60),
 ];
 
 const initialRooms: RoomFull[] = [
@@ -643,8 +675,13 @@ export function deleteRoomItem(roomId: string): boolean {
 export function createEquipmentItem(payload: EquipmentPayload): EquipmentItem {
   const next: EquipmentItem = {
     id: crypto.randomUUID(),
-    name: payload.name,
+    code: payload.code,
+    name: payload.labelRu,
+    labelRu: payload.labelRu,
+    labelEn: payload.labelEn,
     icon: payload.icon,
+    isActive: payload.isActive ?? true,
+    sortOrder: payload.sortOrder ?? 0,
   };
 
   adminMockState.equipment.push(next);
@@ -659,13 +696,23 @@ export function updateEquipmentItem(
   const target = adminMockState.equipment.find((equipment) => equipment.id === equipmentId);
   if (!target) return null;
 
-  target.name = payload.name;
+  target.code = payload.code;
+  target.name = payload.labelRu;
+  target.labelRu = payload.labelRu;
+  target.labelEn = payload.labelEn;
   target.icon = payload.icon;
+  target.isActive = payload.isActive ?? target.isActive;
+  target.sortOrder = payload.sortOrder ?? target.sortOrder;
 
   const publicTarget = mockEquipment.find((equipment) => equipment.id === equipmentId);
   if (publicTarget) {
-    publicTarget.name = payload.name;
+    publicTarget.code = payload.code;
+    publicTarget.name = payload.labelRu;
+    publicTarget.labelRu = payload.labelRu;
+    publicTarget.labelEn = payload.labelEn;
     publicTarget.icon = payload.icon;
+    publicTarget.isActive = payload.isActive ?? publicTarget.isActive;
+    publicTarget.sortOrder = payload.sortOrder ?? publicTarget.sortOrder;
   }
   return target;
 }
@@ -710,4 +757,22 @@ export function deleteEquipmentItem(
       usedInRooms,
     },
   };
+}
+
+export function deactivateEquipmentItem(equipmentId: string): boolean {
+  const target = adminMockState.equipment.find((equipment) => equipment.id === equipmentId);
+  if (!target) return false;
+  target.isActive = false;
+  const publicTarget = mockEquipment.find((equipment) => equipment.id === equipmentId);
+  if (publicTarget) publicTarget.isActive = false;
+  return true;
+}
+
+export function reactivateEquipmentItem(equipmentId: string): EquipmentItem | null {
+  const target = adminMockState.equipment.find((equipment) => equipment.id === equipmentId);
+  if (!target) return null;
+  target.isActive = true;
+  const publicTarget = mockEquipment.find((equipment) => equipment.id === equipmentId);
+  if (publicTarget) publicTarget.isActive = true;
+  return target;
 }

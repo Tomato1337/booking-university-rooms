@@ -37,21 +37,9 @@ import {
 
 interface IconOption {
   value: string
-  key: keyof typeof ICON_MAP
+  key: string
   Icon: React.ComponentType<{ className?: string; size?: number }>
 }
-
-const ICON_MAP = {
-  video: IconVideo,
-  presentation: IconPresentation,
-  broadcast: IconBroadcast,
-  desktop: IconDeviceDesktop,
-  microphone: IconMicrophone,
-  wifi: IconWifi,
-  volume: IconVolume,
-  terminal: IconTerminal2,
-  chalkboard: IconChalkboard,
-} as const
 
 const ICON_OPTIONS: IconOption[] = [
   { value: "IconVideo", key: "video", Icon: IconVideo },
@@ -79,11 +67,17 @@ export const EquipmentForm = reatomComponent<EquipmentFormProps>(({ open, onOpen
   const updateStatus = updateEquipmentMutation.status()
   const submitting = createStatus.isPending || updateStatus.isPending
 
-  const { error: nameError, ...nameBind } = bindField(fields.name)
+  const { error: codeError, ...codeBind } = bindField(fields.code)
+  const { error: labelRuError, ...labelRuBind } = bindField(fields.labelRu)
+  const { error: labelEnError, ...labelEnBind } = bindField(fields.labelEn)
   const { error: iconError } = bindField(fields.icon)
 
   const wrapChangeIcon = useWrap((next: string) => {
     fields.icon.set(next)
+  })
+
+  const wrapChangeSortOrder = useWrap((next: number) => {
+    fields.sortOrder.set(next)
   })
 
   const selectedIconOption = ICON_OPTIONS.find((item) => item.value === fields.icon())
@@ -91,8 +85,12 @@ export const EquipmentForm = reatomComponent<EquipmentFormProps>(({ open, onOpen
 
   const wrapSubmit = useWrap(async () => {
     const values = {
-      name: fields.name(),
+      code: fields.code(),
+      labelRu: fields.labelRu(),
+      labelEn: fields.labelEn(),
       icon: fields.icon(),
+      isActive: fields.isActive(),
+      sortOrder: Number(fields.sortOrder()) || 0,
     }
 
     const parsed = createEquipmentSchema.safeParse(values)
@@ -136,11 +134,31 @@ export const EquipmentForm = reatomComponent<EquipmentFormProps>(({ open, onOpen
 
         <div data-slot="equipment-form" className="flex flex-col gap-5 p-4">
           <label className="flex flex-col gap-2">
-            <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">{t.admin.equipment.form.name}</span>
-            <Input {...nameBind} aria-invalid={!!nameError} placeholder={t.admin.equipment.form.namePlaceholder} />
-            {nameError && (
+            <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">{t.admin.equipment.form.code}</span>
+            <Input {...codeBind} aria-invalid={!!codeError} placeholder={t.admin.equipment.form.codePlaceholder} />
+            {codeError && (
               <p className="text-xs font-bold uppercase tracking-widest text-secondary">
-                {(t.validation as Record<string, string>)[nameError] ?? nameError}
+                {(t.validation as Record<string, string>)[codeError] ?? codeError}
+              </p>
+            )}
+          </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">{t.admin.equipment.form.labelRu}</span>
+            <Input {...labelRuBind} aria-invalid={!!labelRuError} placeholder={t.admin.equipment.form.labelRuPlaceholder} />
+            {labelRuError && (
+              <p className="text-xs font-bold uppercase tracking-widest text-secondary">
+                {(t.validation as Record<string, string>)[labelRuError] ?? labelRuError}
+              </p>
+            )}
+          </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">{t.admin.equipment.form.labelEn}</span>
+            <Input {...labelEnBind} aria-invalid={!!labelEnError} placeholder={t.admin.equipment.form.labelEnPlaceholder} />
+            {labelEnError && (
+              <p className="text-xs font-bold uppercase tracking-widest text-secondary">
+                {(t.validation as Record<string, string>)[labelEnError] ?? labelEnError}
               </p>
             )}
           </label>
@@ -166,6 +184,15 @@ export const EquipmentForm = reatomComponent<EquipmentFormProps>(({ open, onOpen
             )}
           </label>
 
+          <label className="flex flex-col gap-2">
+            <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">{t.admin.equipment.form.sortOrder}</span>
+            <Input
+              type="number"
+              value={fields.sortOrder()}
+              onChange={(e) => wrapChangeSortOrder(Number(e.target.value))}
+            />
+          </label>
+
           <div className="bg-surface-container p-3">
             <p className="mb-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
               {t.admin.equipment.form.preview}
@@ -176,7 +203,7 @@ export const EquipmentForm = reatomComponent<EquipmentFormProps>(({ open, onOpen
                   <SelectedIcon size={18} />
                 </span>
               )}
-              <span className="text-sm font-bold uppercase tracking-wider">{fields.name() || t.admin.equipment.form.defaultName}</span>
+              <span className="text-sm font-bold uppercase tracking-wider">{fields.labelRu() || t.admin.equipment.form.defaultName}</span>
             </div>
           </div>
         </div>

@@ -3,15 +3,18 @@ import { http as mswHttp, HttpResponse } from "msw"
 import { http } from "@/shared/mocks/http"
 
 import type { components } from "@/shared/api/schema"
+import { mockBuildings } from "@/modules/rooms/infrastructure/mocks/data"
 import {
   adminMockState,
   approvePendingBooking,
   createEquipmentItem,
   createRoomItem,
+  deactivateEquipmentItem,
   deleteEquipmentItem,
   deleteRoomItem,
   listPendingBookings,
   listHistoryBookings,
+  reactivateEquipmentItem,
   rejectPendingBooking,
   updateEquipmentItem,
   updateRoomItem,
@@ -20,7 +23,7 @@ import {
 type RejectBookingRequest = components["schemas"]["RejectBookingRequest"]
 type CreateRoomRequest = components["schemas"]["CreateRoomRequest"]
 type UpdateRoomRequest = components["schemas"]["UpdateRoomRequest"]
-type EquipmentPayload = { name: string; icon: string }
+type EquipmentPayload = { code: string; labelRu: string; labelEn: string; icon: string; isActive?: boolean; sortOrder: number }
 
 const mockAdminBookingPurposes = [
   {
@@ -38,6 +41,43 @@ const mockAdminBookingPurposes = [
     sortOrder: 20,
   },
 ]
+
+const mockAdminBuildings = [
+  {
+    code: "aviamotornaya",
+    labelRu: "Авиамоторная",
+    labelEn: "Aviamotornaya",
+    isActive: true,
+    sortOrder: 10,
+  },
+  {
+    code: "narod-opolchenie",
+    labelRu: "Народное Ополчение",
+    labelEn: "Narodnoye Opolcheniye",
+    isActive: true,
+    sortOrder: 20,
+  },
+]
+
+const mockAdminRoomTypes = [
+  { code: "lab", labelRu: "Лаборатория", labelEn: "Lab", isActive: true, sortOrder: 10 },
+  { code: "auditorium", labelRu: "Аудитория", labelEn: "Auditorium", isActive: true, sortOrder: 20 },
+  { code: "seminar", labelRu: "Семинарская", labelEn: "Seminar room", isActive: true, sortOrder: 30 },
+  { code: "conference", labelRu: "Конференц-зал", labelEn: "Conference room", isActive: true, sortOrder: 40 },
+  { code: "studio", labelRu: "Студия", labelEn: "Studio", isActive: true, sortOrder: 50 },
+  { code: "lecture_hall", labelRu: "Лекционный зал", labelEn: "Lecture hall", isActive: true, sortOrder: 60 },
+]
+
+function syncPublicMockBuildings() {
+  mockBuildings.splice(
+    0,
+    mockBuildings.length,
+    ...mockAdminBuildings
+      .filter((building) => building.isActive)
+      .toSorted((a, b) => a.sortOrder - b.sortOrder || a.code.localeCompare(b.code))
+      .map((building) => ({ code: building.code, label: building.labelRu })),
+  )
+}
 
 const FIVE_MINUTE_HM_REGEX = /^([01]\d|2[0-3]):([0-5][05])$/
 
@@ -235,7 +275,7 @@ export const deleteAdminRoom = {
 }
 
 export const listAdminEquipment = {
-  default: http.get("/equipment", ({ response }) => {
+  default: http.get("/admin/equipment", ({ response }) => {
     return response(200).json({ data: adminMockState.equipment })
   }),
 }
@@ -271,9 +311,9 @@ export const updateAdminEquipment = {
 export const deleteAdminEquipment = {
   default: http.delete("/admin/equipment/{equipmentId}", ({ params, response }) => {
     const equipmentId = String(params.equipmentId)
-    const deleted = deleteEquipmentItem(equipmentId, adminMockState.rooms)
+    const deleted = deactivateEquipmentItem(equipmentId)
 
-    if (!deleted.result) {
+    if (!deleted) {
       return HttpResponse.json(
         {
           error: {
@@ -286,6 +326,28 @@ export const deleteAdminEquipment = {
     }
 
     return response(204).empty()
+  }),
+}
+
+export const reactivateAdminEquipment = {
+  default: mswHttp.patch("/api/admin/equipment/:equipmentId/reactivate", ({ params }) => {
+    const equipmentId = String(params.equipmentId)
+    const item = reactivateEquipmentItem(equipmentId)
+    if (!item) {
+      return HttpResponse.json({ error: { code: "EQUIPMENT_NOT_FOUND", message: "Equipment not found" } }, { status: 404 })
+    }
+    return HttpResponse.json({ data: item })
+  }),
+}
+
+export const hardDeleteAdminEquipment = {
+  default: mswHttp.delete("/api/admin/equipment/:equipmentId/hard", ({ params }) => {
+    const equipmentId = String(params.equipmentId)
+    const deleted = deleteEquipmentItem(equipmentId, adminMockState.rooms)
+    if (!deleted.result) {
+      return HttpResponse.json({ error: { code: "EQUIPMENT_NOT_FOUND", message: "Equipment not found" } }, { status: 404 })
+    }
+    return HttpResponse.json({ data: deleted.result })
   }),
 }
 
@@ -373,6 +435,144 @@ export const listAdminBookingPurposes = {
   }),
 }
 
+export const listAdminBuildings = {
+  default: mswHttp.get("/api/admin/buildings", () => {
+    return HttpResponse.json({ data: mockAdminBuildings })
+  }),
+}
+
+export const createAdminBuilding = {
+  default: mswHttp.post("/api/admin/buildings", async ({ request }) => {
+    const body = (await request.json()) as unknown as (typeof mockAdminBuildings)[number]
+    const item = {
+      code: body.code,
+      labelRu: body.labelRu,
+      labelEn: body.labelEn,
+      isActive: body.isActive ?? true,
+      sortOrder: body.sortOrder ?? 0,
+    }
+    mockAdminBuildings.push(item)
+    syncPublicMockBuildings()
+    return HttpResponse.json({ data: item }, { status: 201 })
+  }),
+}
+
+export const updateAdminBuilding = {
+  default: mswHttp.put("/api/admin/buildings/:code", async ({ params, request }) => {
+    const code = String(params.code)
+    const body = (await request.json()) as unknown as (typeof mockAdminBuildings)[number]
+    const item = mockAdminBuildings.find((building) => building.code === code)
+    if (!item) return HttpResponse.json({ error: { code: "BUILDING_NOT_FOUND", message: "Not found" } }, { status: 404 })
+    item.labelRu = body.labelRu
+    item.labelEn = body.labelEn
+    item.isActive = body.isActive ?? item.isActive
+    item.sortOrder = body.sortOrder ?? item.sortOrder
+    syncPublicMockBuildings()
+    return HttpResponse.json({ data: item })
+  }),
+}
+
+export const deactivateAdminBuilding = {
+  default: mswHttp.delete("/api/admin/buildings/:code", ({ params }) => {
+    const item = mockAdminBuildings.find((building) => building.code === String(params.code))
+    if (!item) return HttpResponse.json({ error: { code: "BUILDING_NOT_FOUND", message: "Not found" } }, { status: 404 })
+    item.isActive = false
+    syncPublicMockBuildings()
+    return new HttpResponse(null, { status: 204 })
+  }),
+}
+
+export const reactivateAdminBuilding = {
+  default: mswHttp.patch("/api/admin/buildings/:code/reactivate", ({ params }) => {
+    const item = mockAdminBuildings.find((building) => building.code === String(params.code))
+    if (!item) return HttpResponse.json({ error: { code: "BUILDING_NOT_FOUND", message: "Not found" } }, { status: 404 })
+    item.isActive = true
+    syncPublicMockBuildings()
+    return HttpResponse.json({ data: item })
+  }),
+}
+
+export const hardDeleteAdminBuilding = {
+  default: mswHttp.delete("/api/admin/buildings/:code/hard", ({ params }) => {
+    const code = String(params.code)
+    const index = mockAdminBuildings.findIndex((building) => building.code === code)
+    if (index < 0) return HttpResponse.json({ error: { code: "BUILDING_NOT_FOUND", message: "Not found" } }, { status: 404 })
+    adminMockState.pendingBookings = adminMockState.pendingBookings.filter((booking) => booking.room.building !== code)
+    adminMockState.rooms = adminMockState.rooms.filter((room) => room.building !== code)
+    mockAdminBuildings.splice(index, 1)
+    syncPublicMockBuildings()
+    return new HttpResponse(null, { status: 204 })
+  }),
+}
+
+export const listAdminRoomTypes = {
+  default: mswHttp.get("/api/admin/room-types", () => {
+    return HttpResponse.json({ data: mockAdminRoomTypes })
+  }),
+}
+
+export const createAdminRoomType = {
+  default: mswHttp.post("/api/admin/room-types", async ({ request }) => {
+    const body = (await request.json()) as unknown as (typeof mockAdminRoomTypes)[number]
+    const item = {
+      code: body.code,
+      labelRu: body.labelRu,
+      labelEn: body.labelEn,
+      isActive: body.isActive ?? true,
+      sortOrder: body.sortOrder ?? 0,
+    }
+    mockAdminRoomTypes.push(item)
+    return HttpResponse.json({ data: item }, { status: 201 })
+  }),
+}
+
+export const updateAdminRoomType = {
+  default: mswHttp.put("/api/admin/room-types/:code", async ({ params, request }) => {
+    const code = String(params.code)
+    const body = (await request.json()) as unknown as (typeof mockAdminRoomTypes)[number]
+    const item = mockAdminRoomTypes.find((roomType) => roomType.code === code)
+    if (!item) return HttpResponse.json({ error: { code: "ROOM_TYPE_NOT_FOUND", message: "Not found" } }, { status: 404 })
+    item.labelRu = body.labelRu
+    item.labelEn = body.labelEn
+    item.isActive = body.isActive ?? item.isActive
+    item.sortOrder = body.sortOrder ?? item.sortOrder
+    return HttpResponse.json({ data: item })
+  }),
+}
+
+export const deactivateAdminRoomType = {
+  default: mswHttp.delete("/api/admin/room-types/:code", ({ params }) => {
+    const item = mockAdminRoomTypes.find((roomType) => roomType.code === String(params.code))
+    if (!item) return HttpResponse.json({ error: { code: "ROOM_TYPE_NOT_FOUND", message: "Not found" } }, { status: 404 })
+    item.isActive = false
+    return new HttpResponse(null, { status: 204 })
+  }),
+}
+
+export const reactivateAdminRoomType = {
+  default: mswHttp.patch("/api/admin/room-types/:code/reactivate", ({ params }) => {
+    const item = mockAdminRoomTypes.find((roomType) => roomType.code === String(params.code))
+    if (!item) return HttpResponse.json({ error: { code: "ROOM_TYPE_NOT_FOUND", message: "Not found" } }, { status: 404 })
+    item.isActive = true
+    return HttpResponse.json({ data: item })
+  }),
+}
+
+export const hardDeleteAdminRoomType = {
+  default: mswHttp.delete("/api/admin/room-types/:code/hard", ({ params }) => {
+    const code = String(params.code)
+    const index = mockAdminRoomTypes.findIndex((roomType) => roomType.code === code)
+    if (index < 0) return HttpResponse.json({ error: { code: "ROOM_TYPE_NOT_FOUND", message: "Not found" } }, { status: 404 })
+    adminMockState.pendingBookings = adminMockState.pendingBookings.filter((booking) => {
+      const room = adminMockState.rooms.find((item) => item.id === booking.room.id)
+      return room?.roomType !== code
+    })
+    adminMockState.rooms = adminMockState.rooms.filter((room) => room.roomType !== code)
+    mockAdminRoomTypes.splice(index, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+}
+
 export const createAdminBookingPurpose = {
   default: mswHttp.post("/api/admin/booking-purposes", async ({ request }) => {
     const body = (await request.json()) as unknown as (typeof mockAdminBookingPurposes)[number]
@@ -422,14 +622,29 @@ export const reactivateAdminBookingPurpose = {
 
 export const hardDeleteAdminBookingPurpose = {
   default: mswHttp.delete("/api/admin/booking-purposes/:code/hard", ({ params }) => {
-    const index = mockAdminBookingPurposes.findIndex((purpose) => purpose.code === String(params.code))
+    const code = String(params.code)
+    const index = mockAdminBookingPurposes.findIndex((purpose) => purpose.code === code)
     if (index < 0) return HttpResponse.json({ error: { code: "BOOKING_PURPOSE_NOT_FOUND", message: "Not found" } }, { status: 404 })
+    adminMockState.pendingBookings = adminMockState.pendingBookings.filter((booking) => booking.purpose !== code)
+    adminMockState.stats.pendingCount = adminMockState.pendingBookings.filter((booking) => booking.status === "pending").length
     mockAdminBookingPurposes.splice(index, 1)
     return new HttpResponse(null, { status: 204 })
   }),
 }
 
 export const adminMockHandlers = [
+  listAdminBuildings.default,
+  createAdminBuilding.default,
+  updateAdminBuilding.default,
+  deactivateAdminBuilding.default,
+  reactivateAdminBuilding.default,
+  hardDeleteAdminBuilding.default,
+  listAdminRoomTypes.default,
+  createAdminRoomType.default,
+  updateAdminRoomType.default,
+  deactivateAdminRoomType.default,
+  reactivateAdminRoomType.default,
+  hardDeleteAdminRoomType.default,
   listAdminBookingPurposes.default,
   createAdminBookingPurpose.default,
   updateAdminBookingPurpose.default,
@@ -451,4 +666,6 @@ export const adminMockHandlers = [
   createAdminEquipment.default,
   updateAdminEquipment.default,
   deleteAdminEquipment.default,
+  reactivateAdminEquipment.default,
+  hardDeleteAdminEquipment.default,
 ]

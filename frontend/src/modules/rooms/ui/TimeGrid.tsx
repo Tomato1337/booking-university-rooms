@@ -177,6 +177,8 @@ function TimeGrid({
     gridTemplateColumns,
     gap: `${SLOT_GAP_PX}px`,
   };
+  const getSlotLabel = (label?: string) =>
+    label && label in t.timeGrid ? t.timeGrid[label as TimeSlotStatus] : label;
 
   return (
     <div data-slot="time-grid" className={cn("bg-surface-container-low p-8", className)} {...props}>
@@ -209,9 +211,9 @@ function TimeGrid({
                   {slot.label && (
                     <span
                       className="absolute inset-0 flex min-w-0 items-center justify-center px-2 text-[0.6rem] font-black uppercase tracking-wider text-primary-foreground"
-                      title={slot.label}
+                      title={getSlotLabel(slot.label)}
                     >
-                      <span className="max-w-full truncate">{slot.label}</span>
+                      <span className="max-w-full truncate">{getSlotLabel(slot.label)}</span>
                     </span>
                   )}
                 </div>

@@ -33,11 +33,11 @@ export function toUtcDateStr(date: Date): string {
 	return `${year}-${month}-${day}`
 }
 
-export function formatBookingDate(value: string): string {
+export function formatBookingDate(value: string, locale: string = 'en'): string {
 	const date = new Date(`${value}T00:00:00Z`)
 	if (Number.isNaN(date.getTime())) return value
 
-	return new Intl.DateTimeFormat('en-US', {
+	return new Intl.DateTimeFormat(locale === 'ru' ? 'ru-RU' : 'en-US', {
 		month: 'short',
 		day: '2-digit',
 		year: 'numeric',

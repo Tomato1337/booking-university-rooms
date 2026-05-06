@@ -6,14 +6,16 @@ import { tAtom } from "@/modules/i18n";
 import { rootRoute } from "@/shared/router";
 
 import { BookingsTab } from "./BookingsTab";
+import { BuildingsTab } from "./BuildingsTab";
 import { EquipmentTab } from "./EquipmentTab";
 import { PurposesTab } from "./PurposesTab";
+import { RoomTypesTab } from "./RoomTypesTab";
 import { RoomsTab } from "./RoomsTab";
 import { StatisticsTab } from "./StatisticsTab";
 import { Button } from "@/shared/ui/button";
 import { cn } from "@/shared/lib/utils";
 
-const dashboardTabs: AdminTab[] = ["bookings", "rooms", "equipment", "purposes", "statistics"];
+const dashboardTabs: AdminTab[] = ["bookings", "rooms", "buildings", "roomTypes", "equipment", "purposes", "statistics"];
 
 function isAdminTab(value: string | null | undefined): value is AdminTab {
   return dashboardTabs.includes((value ?? "") as AdminTab);
@@ -72,6 +74,10 @@ const DashboardPage = reatomComponent(() => {
       {activeTab === "bookings" && <BookingsTab />}
 
       {activeTab === "rooms" && <RoomsTab />}
+
+      {activeTab === "buildings" && <BuildingsTab />}
+
+      {activeTab === "roomTypes" && <RoomTypesTab />}
 
       {activeTab === "equipment" && <EquipmentTab />}
 

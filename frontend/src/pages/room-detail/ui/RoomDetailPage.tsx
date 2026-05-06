@@ -92,7 +92,10 @@ const YourBookingsPanel = reatomComponent(() => {
 			</header>
 
 			<div className="flex flex-col gap-3">
-				{detail.userBookingsToday.map((booking) => (
+				{detail.userBookingsToday.map((booking) => {
+					const statusLabel = t.bookings.status[booking.status] ?? booking.status
+
+					return (
 					<article
 						key={booking.id}
 						className={cn('border-l-2 border-primary bg-surface-container-low p-4', {
@@ -113,7 +116,7 @@ const YourBookingsPanel = reatomComponent(() => {
 								},
 							)}
 						>
-							{booking.status}
+							{statusLabel}
 						</p>
 						<Button
 							className="mt-3 w-full uppercase tracking-widest"
@@ -125,7 +128,8 @@ const YourBookingsPanel = reatomComponent(() => {
 							{t.roomDetail.actions.cancel}
 						</Button>
 					</article>
-				))}
+					)
+				})}
 			</div>
 
 			<AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
@@ -311,7 +315,7 @@ const RoomDetailPage = reatomComponent(() => {
 							<span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
 								{t.roomDetail.type}
 							</span>
-							<span className="text-2xl font-bold">{detail?.roomType ?? '--'}</span>
+							<span className="text-2xl font-bold">{detail?.roomTypeLabel ?? detail?.roomType ?? '--'}</span>
 						</div>
 						<div className="flex flex-col gap-2 bg-surface-container p-6">
 							<span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">

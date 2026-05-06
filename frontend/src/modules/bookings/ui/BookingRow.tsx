@@ -2,8 +2,8 @@ import type { ComponentProps } from 'react'
 
 import { tAtom } from '@/modules/i18n'
 import { cn } from '@/shared/lib/utils'
-import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
+import { StatusBadge } from '@/shared/ui/status-badge'
 import { StatusIndicator } from '@/shared/ui/status-indicator'
 import { useAtom } from '@reatom/react'
 
@@ -16,6 +16,8 @@ export interface BookingRowProps extends ComponentProps<'article'> {
 	title: string
 	/** Formatted date string, e.g. "OCT 24, 2023" */
 	date: string
+	/** Localized booking purpose */
+	purposeLabel: string
 	/** Formatted time range, e.g. "14:00 — 16:30" */
 	timeRange: string
 	/** Building/location, e.g. "SCIENCE BLOCK B" */
@@ -34,6 +36,7 @@ function BookingRow({
 	roomName,
 	title,
 	date,
+	purposeLabel,
 	timeRange,
 	location,
 	status,
@@ -44,9 +47,6 @@ function BookingRow({
 	...props
 }: BookingRowProps) {
 	const [t] = useAtom(tAtom)
-	const badgeVariant =
-		status === 'pending' ? 'pending' : status === 'confirmed' ? 'confirmed' : 'booked'
-
 	const indicatorStatus =
 		status === 'pending' ? 'pending' : status === 'confirmed' ? 'available' : 'booked'
 
@@ -92,6 +92,9 @@ function BookingRow({
 					{roomName}
 				</Button>
 				<p className="text-xs tracking-wider text-on-surface-variant">{title}</p>
+				<p className="text-xs tracking-wider uppercase text-on-surface-variant/50">
+					{purposeLabel}
+				</p>
 			</div>
 
 			{/* Date & Time */}
@@ -116,9 +119,7 @@ function BookingRow({
 				<span className="mb-1 text-[0.65rem] uppercase text-on-surface-variant md:hidden">
 					{t.bookings.columns.status}
 				</span>
-				<Badge dot variant={badgeVariant}>
-					{statusLabel}
-				</Badge>
+				<StatusBadge status={status} label={statusLabel} />
 			</div>
 
 			{/* Action */}

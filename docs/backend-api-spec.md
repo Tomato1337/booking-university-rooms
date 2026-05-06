@@ -2178,9 +2178,9 @@ curl -X PATCH http://localhost:3000/api/admin/bookings/booking-uuid/approve \
 
 ---
 
-## Динамические справочники зданий и целей
+## Динамические справочники зданий, типов, оборудования и целей
 
-Названия зданий и целей бронирования не хранятся во frontend i18n. Клиент
+Названия справочников не хранятся во frontend i18n. Клиент
 передаёт текущий язык интерфейса через `X-Locale: ru|en`, backend возвращает
 локализованный `label`. Если язык не передан или неизвестен, используется `ru`.
 
@@ -2192,12 +2192,50 @@ curl -X PATCH http://localhost:3000/api/admin/bookings/booking-uuid/approve \
 - `GET /api/rooms` принимает `building=<code>`; если параметра нет, backend
   использует `aviamotornaya`.
 - Create/update комнаты отклоняет неизвестный или неактивный building code.
+- Admin CRUD:
+  - `GET /api/admin/buildings`
+  - `POST /api/admin/buildings`
+  - `PUT /api/admin/buildings/{code}`
+  - `DELETE /api/admin/buildings/{code}` — soft deactivate
+  - `PATCH /api/admin/buildings/{code}/reactivate`
+  - `DELETE /api/admin/buildings/{code}/hard` — окончательное удаление здания, связанных комнат и бронирований
+- `code` здания после создания не редактируется; labels и sort order редактируются.
+- Hard delete удаляет все комнаты здания; связанные `bookings` удаляются каскадно через FK. UI обязан предупреждать администратора.
 - Начальные значения: `aviamotornaya`, `narod-opolchenie`.
+
+### Типы аудиторий
+
+- `GET /api/room-types` возвращает активные типы: `{ code, label }[]`.
+- В `rooms.room_type` хранится стабильный `code`.
+- Ответы комнат дополнительно содержат `roomTypeLabel`.
+- Create/update комнаты отклоняет неизвестный или неактивный room type code.
+- Admin CRUD:
+  - `GET /api/admin/room-types`
+  - `POST /api/admin/room-types`
+  - `PUT /api/admin/room-types/{code}`
+  - `DELETE /api/admin/room-types/{code}` — soft deactivate
+  - `PATCH /api/admin/room-types/{code}/reactivate`
+  - `DELETE /api/admin/room-types/{code}/hard` — окончательное удаление типа, связанных аудиторий и бронирований
+- `code` типа после создания не редактируется; labels и sort order редактируются.
+
+### Оборудование
+
+- `GET /api/equipment` возвращает только активное оборудование с локализованным `name`.
+- Оборудование хранит стабильный `code`, `label_ru`, `label_en`, `icon`, `is_active`, `sort_order`.
+- Admin CRUD:
+  - `GET /api/admin/equipment`
+  - `POST /api/admin/equipment`
+  - `PUT /api/admin/equipment/{equipmentId}`
+  - `DELETE /api/admin/equipment/{equipmentId}` — soft deactivate
+  - `PATCH /api/admin/equipment/{equipmentId}/reactivate`
+  - `DELETE /api/admin/equipment/{equipmentId}/hard` — окончательное удаление оборудования и связей `room_equipment`
 
 ### Цели бронирования
 
 - `GET /api/booking-purposes` возвращает активные цели: `{ code, label }[]`.
 - В `bookings.purpose` хранится стабильный `code`.
+- Ответы пользовательских и админских бронирований дополнительно содержат
+  `purposeLabel`, локализованный по `X-Locale` / `Accept-Language`.
 - Create booking отклоняет неизвестную или неактивную цель.
 - Admin CRUD:
   - `GET /api/admin/booking-purposes`
@@ -2205,9 +2243,9 @@ curl -X PATCH http://localhost:3000/api/admin/bookings/booking-uuid/approve \
   - `PUT /api/admin/booking-purposes/{code}`
   - `DELETE /api/admin/booking-purposes/{code}` — soft deactivate
   - `PATCH /api/admin/booking-purposes/{code}/reactivate`
-  - `DELETE /api/admin/booking-purposes/{code}/hard` — окончательное удаление неиспользуемой цели
+  - `DELETE /api/admin/booking-purposes/{code}/hard` — окончательное удаление цели и связанных бронирований
 - `code` цели после создания не редактируется; labels и sort order редактируются.
-- Hard delete возвращает `409 BOOKING_PURPOSE_IN_USE`, если цель уже связана с бронированиями.
+- Hard delete каскадно удаляет все `bookings`, где `purpose = code`; UI обязан предупреждать администратора.
 
 ---
 

@@ -160,12 +160,15 @@ export const BookingsTab = reatomComponent(() => {
 						placeholder={t.admin.bookings.searchPlaceholder}
 					/>
 
-					<div className="hidden bg-surface-container-high px-8 pl-10 py-4 md:grid md:grid-cols-5 gap-4">
+					<div className="hidden bg-surface-container-high px-8 pl-10 py-4 md:grid md:grid-cols-6 gap-4">
 						<span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
 							{t.admin.bookings.columns.user}
 						</span>
 						<span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
 							{t.admin.bookings.columns.details}
+						</span>
+						<span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+							{t.admin.bookings.columns.building}
 						</span>
 						<span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
 							{t.admin.bookings.columns.datetime}

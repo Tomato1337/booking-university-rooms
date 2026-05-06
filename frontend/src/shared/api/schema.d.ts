@@ -163,6 +163,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/room-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List active room types
+         * @description Returns localized room type labels using `X-Locale` or `Accept-Language`.
+         */
+        get: operations["listRoomTypes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms": {
         parameters: {
             query?: never;
@@ -346,6 +366,146 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/buildings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all buildings */
+        get: operations["listAdminBuildings"];
+        put?: never;
+        /** Create building */
+        post: operations["createBuilding"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/buildings/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update building labels/status */
+        put: operations["updateBuilding"];
+        post?: never;
+        /** Deactivate building */
+        delete: operations["deactivateBuilding"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/buildings/{code}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Reactivate building */
+        patch: operations["reactivateBuilding"];
+        trace?: never;
+    };
+    "/admin/buildings/{code}/hard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Permanently delete a building and its linked rooms/bookings */
+        delete: operations["hardDeleteBuilding"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/room-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all room types */
+        get: operations["listAdminRoomTypes"];
+        put?: never;
+        /** Create room type */
+        post: operations["createRoomType"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/room-types/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update room type labels/status */
+        put: operations["updateRoomType"];
+        post?: never;
+        /** Deactivate room type */
+        delete: operations["deactivateRoomType"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/room-types/{code}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Reactivate room type */
+        patch: operations["reactivateRoomType"];
+        trace?: never;
+    };
+    "/admin/room-types/{code}/hard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Permanently delete a room type and linked rooms/bookings */
+        delete: operations["hardDeleteRoomType"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/booking-purposes": {
         parameters: {
             query?: never;
@@ -409,7 +569,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Permanently delete an unused inactive booking purpose */
+        /** Permanently delete a booking purpose and its linked bookings */
         delete: operations["hardDeleteBookingPurpose"];
         options?: never;
         head?: never;
@@ -539,7 +699,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List all equipment */
+        get: operations["listAdminEquipment"];
         put?: never;
         /**
          * Create new equipment
@@ -568,9 +729,43 @@ export interface paths {
         post?: never;
         /**
          * Delete equipment
-         * @description Soft-deletes or completely removes an equipment item.
+         * @description Soft-deactivates an equipment item.
          */
         delete: operations["deleteEquipment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/equipment/{equipmentId}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Reactivate equipment */
+        patch: operations["reactivateEquipment"];
+        trace?: never;
+    };
+    "/admin/equipment/{equipmentId}/hard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Permanently delete equipment */
+        delete: operations["hardDeleteEquipment"];
         options?: never;
         head?: never;
         patch?: never;
@@ -624,8 +819,8 @@ export interface components {
         UserRole: "user" | "admin";
         /** @enum {string} */
         BookingStatus: "pending" | "confirmed" | "rejected" | "cancelled";
-        /** @enum {string} */
-        RoomType: "lab" | "auditorium" | "seminar" | "conference" | "studio" | "lecture_hall";
+        /** @description Stable room type code from the room_types catalog. */
+        RoomType: string;
         /** @description Stable booking purpose code from the booking_purposes catalog. */
         BookingPurpose: string;
         /**
@@ -648,15 +843,25 @@ export interface components {
         EquipmentItem: {
             /** Format: uuid */
             id: string;
+            code: string;
+            /** @description Localized label for current request locale. */
             name: string;
+            labelRu?: string;
+            labelEn?: string;
             /** @description Tabler icon name (e.g. IconVideo) */
             icon: string;
+            isActive: boolean;
+            sortOrder?: number;
         };
         BuildingOption: {
             code: string;
             label: string;
         };
         BookingPurposeOption: {
+            code: string;
+            label: string;
+        };
+        RoomTypeOption: {
             code: string;
             label: string;
         };
@@ -667,6 +872,32 @@ export interface components {
             isActive: boolean;
             sortOrder: number;
         };
+        AdminBuilding: {
+            code: string;
+            labelRu: string;
+            labelEn: string;
+            isActive: boolean;
+            sortOrder: number;
+        };
+        AdminRoomType: {
+            code: string;
+            labelRu: string;
+            labelEn: string;
+            isActive: boolean;
+            sortOrder: number;
+        };
+        EquipmentInput: {
+            /** @example projector */
+            code: string;
+            /** @example Проектор */
+            labelRu: string;
+            /** @example Projector */
+            labelEn: string;
+            /** @example IconVideo */
+            icon: string;
+            isActive?: boolean;
+            sortOrder: number;
+        };
         RoomCard: {
             /** Format: uuid */
             id: string;
@@ -674,6 +905,7 @@ export interface components {
             name: string;
             description?: string | null;
             roomType: components["schemas"]["RoomType"];
+            roomTypeLabel?: string;
             capacity: number;
             building: string;
             buildingLabel?: string;
@@ -701,6 +933,7 @@ export interface components {
             name: string;
             description?: string | null;
             roomType: components["schemas"]["RoomType"];
+            roomTypeLabel?: string;
             capacity: number;
             building: string;
             buildingLabel?: string;
@@ -754,6 +987,7 @@ export interface components {
             roomName: string;
             title: string;
             purpose: components["schemas"]["BookingPurpose"];
+            purposeLabel: string;
             /** Format: date */
             bookingDate: string;
             /** @example 14:00 */
@@ -778,6 +1012,8 @@ export interface components {
             /** @example RM_402 QUANTUM LAB */
             roomName: string;
             title: string;
+            purpose: components["schemas"]["BookingPurpose"];
+            purposeLabel: string;
             /** Format: date */
             bookingDate: string;
             /** @example 14:00 */
@@ -809,9 +1045,11 @@ export interface components {
                 id: string;
                 name: string;
                 building: string;
+                buildingLabel?: string;
             };
             title: string;
             purpose: components["schemas"]["BookingPurpose"];
+            purposeLabel?: string;
             /** Format: date */
             bookingDate: string;
             /** @example 14:00 */
@@ -863,6 +1101,7 @@ export interface components {
             name: string;
             description?: string | null;
             roomType: components["schemas"]["RoomType"];
+            roomTypeLabel?: string;
             capacity: number;
             building: string;
             floor: number;
@@ -1392,6 +1631,28 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["BookingPurposeOption"][];
+                    };
+                };
+            };
+        };
+    };
+    listRoomTypes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Room type catalog */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["RoomTypeOption"][];
                     };
                 };
             };
@@ -1939,6 +2200,254 @@ export interface operations {
             403: components["responses"]["Forbidden"];
         };
     };
+    listAdminBuildings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Buildings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminBuilding"][];
+                    };
+                };
+            };
+        };
+    };
+    createBuilding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminBuilding"];
+            };
+        };
+        responses: {
+            /** @description Created building */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateBuilding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated building */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deactivateBuilding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deactivated */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    reactivateBuilding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reactivated building */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    hardDeleteBuilding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Building, linked rooms, and linked bookings permanently deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listAdminRoomTypes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Room types */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminRoomType"][];
+                    };
+                };
+            };
+        };
+    };
+    createRoomType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminRoomType"];
+            };
+        };
+        responses: {
+            /** @description Created room type */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateRoomType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated room type */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deactivateRoomType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deactivated */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    reactivateRoomType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reactivated room type */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    hardDeleteRoomType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Room type, linked rooms, and linked bookings permanently deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listAdminBookingPurposes: {
         parameters: {
             query?: never;
@@ -2054,15 +2563,8 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Booking purpose permanently deleted */
+            /** @description Booking purpose and linked bookings permanently deleted */
             204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Booking purpose is used by existing bookings */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2322,6 +2824,28 @@ export interface operations {
             };
         };
     };
+    listAdminEquipment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Equipment list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EquipmentItem"][];
+                    };
+                };
+            };
+        };
+    };
     createEquipment: {
         parameters: {
             query?: never;
@@ -2331,12 +2855,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    /** @example Projector */
-                    name: string;
-                    /** @example icon-projector */
-                    icon: string;
-                };
+                "application/json": components["schemas"]["EquipmentInput"];
             };
         };
         responses: {
@@ -2367,12 +2886,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    /** @example High-res Projector */
-                    name: string;
-                    /** @example icon-projector */
-                    icon: string;
-                };
+                "application/json": components["schemas"]["EquipmentInput"];
             };
         };
         responses: {
@@ -2404,7 +2918,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Equipment deleted successfully */
+            /** @description Equipment deactivated successfully */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -2414,6 +2928,46 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    reactivateEquipment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                equipmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Equipment reactivated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    hardDeleteEquipment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                equipmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Equipment deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     getAdminStats: {

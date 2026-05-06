@@ -28,6 +28,7 @@ import { tAtom } from "@/modules/i18n";
 import { roomDetailRoute } from "@/pages/room-detail";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
+import { StatusBadge } from "@/shared/ui/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import Search from "@/shared/ui/search";
 import { todayUtcStr } from "@/shared/lib/utils";
@@ -213,7 +214,7 @@ export const RoomsTab = reatomComponent(() => {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="uppercase">{room.roomType.replace("_", " ")}</TableCell>
+                    <TableCell className="uppercase">{room.roomTypeLabel ?? room.roomType.replace("_", " ")}</TableCell>
                     <TableCell>{room.capacity}</TableCell>
                     <TableCell>
                       {(room.buildingLabel ?? room.building)} / {t.rooms.card.floor.replace("{floor}", String(room.floor))}
@@ -236,9 +237,10 @@ export const RoomsTab = reatomComponent(() => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={isInactive ? "booked" : "available"}>
-                        {isInactive ? t.admin.rooms.statuses.inactive.toLowerCase() : t.admin.rooms.statuses.active.toLowerCase()}
-                      </Badge>
+                      <StatusBadge
+                        status={isInactive ? "inactive" : "active"}
+                        label={isInactive ? t.admin.rooms.statuses.inactive : t.admin.rooms.statuses.active}
+                      />
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">

@@ -38,15 +38,11 @@ import { tAtom } from '@/modules/i18n'
 import {
     buildingsListAtom,
     fetchBuildingsAction,
+    fetchRoomTypesAction,
+    roomTypesListAtom,
 } from '@/modules/catalogs'
 
-type RoomType =
-    | 'lab'
-    | 'auditorium'
-    | 'seminar'
-    | 'conference'
-    | 'studio'
-    | 'lecture_hall'
+type RoomType = string
 
 type StringFieldArray = Pick<
     typeof roomForm.fields.equipmentIds,
@@ -114,21 +110,10 @@ export const RoomForm = reatomComponent<RoomFormProps>(
         const fields = roomForm.fields
         const equipment = equipmentListQuery.data()
         const buildings = buildingsListAtom()
+        const roomTypes = roomTypesListAtom()
         const editingRoom = roomFormEditingRoomAtom()
         const [photoFile, setPhotoFile] = useState<File | null>(null)
         const [removePhoto, setRemovePhoto] = useState(false)
-
-        const ROOM_TYPE_OPTIONS: Array<{ value: RoomType; label: string }> = [
-            { value: 'lab', label: t.admin.rooms.form.types.lab },
-            { value: 'auditorium', label: t.admin.rooms.form.types.auditorium },
-            { value: 'seminar', label: t.admin.rooms.form.types.seminar },
-            { value: 'conference', label: t.admin.rooms.form.types.conference },
-            { value: 'studio', label: t.admin.rooms.form.types.studio },
-            {
-                value: 'lecture_hall',
-                label: t.admin.rooms.form.types.lecture_hall,
-            },
-        ]
 
         const createStatus = createRoomMutation.status()
         const updateStatus = updateRoomMutation.status()
@@ -149,6 +134,7 @@ export const RoomForm = reatomComponent<RoomFormProps>(
 
         const wrapFetchBuildings = useWrap(() => {
             fetchBuildingsAction()
+            fetchRoomTypesAction()
         })
 
         useEffect(() => {
@@ -330,10 +316,13 @@ export const RoomForm = reatomComponent<RoomFormProps>(
                                 }
                                 className="h-9 w-full bg-surface-container-lowest px-3 text-sm font-bold uppercase tracking-wide text-on-surface outline-none"
                             >
-                                {ROOM_TYPE_OPTIONS.map((option) => (
+                                {(roomTypes.length > 0
+                                    ? roomTypes
+                                    : [{ code: 'lab', label: t.admin.rooms.form.defaultRoomType }]
+                                ).map((option) => (
                                     <option
-                                        key={option.value}
-                                        value={option.value}
+                                        key={option.code}
+                                        value={option.code}
                                     >
                                         {option.label}
                                     </option>
@@ -434,7 +423,7 @@ export const RoomForm = reatomComponent<RoomFormProps>(
                                 value={readStringFieldArray(
                                     fields.equipmentIds,
                                 )}
-                                options={equipment}
+                                options={equipment.filter((item) => item.isActive)}
                                 onChange={wrapWriteEquipmentIds}
                             />
                         </label>

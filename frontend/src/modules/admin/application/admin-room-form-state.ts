@@ -4,13 +4,7 @@ import { createRoomSchema } from '../domain/schemas'
 import type { RoomCard } from '../domain/types'
 
 export type RoomFormMode = 'create' | 'edit'
-export type RoomType =
-    | 'lab'
-    | 'auditorium'
-    | 'seminar'
-    | 'conference'
-    | 'studio'
-    | 'lecture_hall'
+export type RoomType = string
 
 function defaultValues() {
     return {

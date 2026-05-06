@@ -1,8 +1,9 @@
 import { useState } from 'react'
 
-import { tAtom } from '@/modules/i18n'
-import { Badge } from '@/shared/ui/badge'
+import { localeAtom, tAtom } from '@/modules/i18n'
+import { formatBookingDate } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
+import { StatusBadge } from '@/shared/ui/status-badge'
 import { StatusIndicator } from '@/shared/ui/status-indicator'
 import { reatomComponent, useAtom, useWrap } from '@reatom/react'
 import { IconCheck, IconX } from '@tabler/icons-react'
@@ -17,21 +18,10 @@ export interface AdminBookingRowProps {
 	onOpen: () => void
 }
 
-function formatBookingDate(value: string): string {
-	const date = new Date(`${value}T00:00:00Z`)
-	if (Number.isNaN(date.getTime())) return value
-
-	return new Intl.DateTimeFormat('en-US', {
-		month: 'short',
-		day: '2-digit',
-		year: 'numeric',
-		timeZone: 'UTC',
-	}).format(date)
-}
-
 export const AdminBookingRow = reatomComponent<AdminBookingRowProps>(
 	({ booking, isHistory = false, onOpen }) => {
 		const [t] = useAtom(tAtom)
+		const [locale] = useAtom(localeAtom)
 		const [rejectOpen, setRejectOpen] = useState(false)
 
 		const approveStatus = approveBookingMutation.status()
@@ -40,19 +30,12 @@ export const AdminBookingRow = reatomComponent<AdminBookingRowProps>(
 		const userName = `${booking.user.firstName} ${booking.user.lastName}`
 		const department = booking.user.department ?? t.admin.bookings.noDepartment
 		const timeRange = `${booking.startTime} — ${booking.endTime}`
-		const bookingDate = formatBookingDate(booking.bookingDate).toUpperCase()
+		const bookingDate = formatBookingDate(booking.bookingDate, locale).toUpperCase()
 		const bookingLabel = `${booking.title} (${booking.room.name})`
 
 		const wrapApprove = useWrap(async () => {
 			await approveBookingMutation(booking.id)
 		})
-
-		const badgeVariant =
-			booking.status === 'pending'
-				? 'pending'
-				: booking.status === 'confirmed'
-					? 'confirmed'
-					: 'booked'
 
 		const indicatorStatus =
 			booking.status === 'pending'
@@ -70,15 +53,11 @@ export const AdminBookingRow = reatomComponent<AdminBookingRowProps>(
 						? t.bookings.status.rejected
 						: t.bookings.status.cancelled
 
-		const formatPurpose = (purpose: string) => {
-			return purpose.replace(/_/g, ' ')
-		}
-
 		return (
 			<>
 				<div
 					data-slot="admin-booking-row"
-					className="relative grid grid-cols-1 items-center gap-4 bg-surface-container-low px-8 py-6 pl-10 transition-colors duration-150 ease-linear hover:bg-surface-container md:grid-cols-5"
+					className="relative grid grid-cols-1 items-center gap-4 bg-surface-container-low px-8 py-6 pl-10 transition-colors duration-150 ease-linear hover:bg-surface-container md:grid-cols-6"
 				>
 					<StatusIndicator
 						className="absolute top-0 bottom-0 left-0 rounded-none"
@@ -112,7 +91,16 @@ export const AdminBookingRow = reatomComponent<AdminBookingRowProps>(
 						</Button>
 						<p className="text-xs tracking-wider text-on-surface-variant">{booking.title}</p>
 						<p className="text-xs tracking-wider uppercase text-on-surface-variant/50">
-							{formatPurpose(booking.purpose)}
+							{booking.purposeLabel}
+						</p>
+					</div>
+
+					<div className="flex flex-col gap-0.5">
+						<span className="mb-1 text-[0.65rem] uppercase text-on-surface-variant md:hidden">
+							{t.admin.bookings.columns.building}
+						</span>
+						<p className="text-sm font-bold uppercase text-on-surface">
+							{booking.room.buildingLabel ?? booking.room.building}
 						</p>
 					</div>
 
@@ -128,9 +116,7 @@ export const AdminBookingRow = reatomComponent<AdminBookingRowProps>(
 						<span className="mb-1 text-[0.65rem] uppercase text-on-surface-variant md:hidden">
 							{t.admin.bookings.columns.status}
 						</span>
-						<Badge dot variant={badgeVariant}>
-							{statusLabel}
-						</Badge>
+						<StatusBadge status={booking.status} label={statusLabel} />
 					</div>
 
 					<div className="flex gap-2 md:justify-end">

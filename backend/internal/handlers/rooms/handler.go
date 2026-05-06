@@ -190,6 +190,10 @@ func (h *Handler) Create(c *gin.Context) {
 			utils.RespondError(c, http.StatusBadRequest, "INVALID_BUILDING", "Building does not exist or is inactive")
 			return
 		}
+		if err == roomssvc.ErrInvalidRoomType {
+			utils.RespondError(c, http.StatusBadRequest, "INVALID_ROOM_TYPE", "Room type does not exist or is inactive")
+			return
+		}
 		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
 		return
 	}
@@ -281,6 +285,10 @@ func (h *Handler) Update(c *gin.Context) {
 		}
 		if err == roomssvc.ErrInvalidBuilding {
 			utils.RespondError(c, http.StatusBadRequest, "INVALID_BUILDING", "Building does not exist or is inactive")
+			return
+		}
+		if err == roomssvc.ErrInvalidRoomType {
+			utils.RespondError(c, http.StatusBadRequest, "INVALID_ROOM_TYPE", "Room type does not exist or is inactive")
 			return
 		}
 		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
