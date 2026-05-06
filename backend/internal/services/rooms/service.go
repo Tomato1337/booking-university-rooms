@@ -204,7 +204,7 @@ func (s *Service) Search(ctx context.Context, input SearchInput, currentUserID s
 	}, nil
 }
 
-func (s *Service) GetDetail(ctx context.Context, roomIDStr, date, currentUserID, locale string) (*models.RoomDetail, error) {
+func (s *Service) GetDetail(ctx context.Context, roomIDStr, date, currentUserID, locale string, isAdmin bool) (*models.RoomDetail, error) {
 	roomID, err := uuid.Parse(roomIDStr)
 	if err != nil {
 		return nil, ErrRoomNotFound
@@ -238,7 +238,7 @@ func (s *Service) GetDetail(ctx context.Context, roomIDStr, date, currentUserID,
 	}
 	room.Equipment = equip
 
-	timeSlots, userBookings, err := s.buildTimeline(ctx, roomID, date, currentUserID, room.OpenTime, room.CloseTime)
+	timeSlots, userBookings, err := s.buildTimeline(ctx, roomID, date, currentUserID, room.OpenTime, room.CloseTime, isAdmin)
 	if err != nil {
 		return nil, err
 	}
@@ -447,20 +447,28 @@ func (s *Service) setRoomEquipment(ctx context.Context, roomID uuid.UUID, equipm
 }
 
 type bookingSlot struct {
-	id        uuid.UUID
-	userID    uuid.UUID
-	title     string
-	startTime string
-	endTime   string
-	status    models.BookingStatus
+	id              uuid.UUID
+	userID          uuid.UUID
+	title           string
+	startTime       string
+	endTime         string
+	status          models.BookingStatus
+	firstName       string
+	lastName        string
+	email           string
+	department      *string
+	participantType *models.ParticipantType
+	teacherRank     *models.TeacherRank
 }
 
-func (s *Service) buildTimeline(ctx context.Context, roomID uuid.UUID, date, currentUserID, openTime, closeTime string) ([]models.TimeSlot, []models.UserBookingSummary, error) {
+func (s *Service) buildTimeline(ctx context.Context, roomID uuid.UUID, date, currentUserID, openTime, closeTime string, isAdmin bool) ([]models.TimeSlot, []models.UserBookingSummary, error) {
 	rows, err := s.db.Query(ctx,
-		`SELECT id, user_id, title, to_char(start_time, 'HH24:MI'), to_char(end_time, 'HH24:MI'), status
-		 FROM bookings
-		 WHERE room_id = $1 AND booking_date = $2 AND status IN ('confirmed', 'pending')
-		 ORDER BY start_time ASC`,
+		`SELECT b.id, b.user_id, b.title, to_char(b.start_time, 'HH24:MI'), to_char(b.end_time, 'HH24:MI'), b.status,
+		        u.first_name, u.last_name, u.email, u.department, u.participant_type, u.teacher_rank
+		 FROM bookings b
+		 JOIN users u ON u.id = b.user_id
+		 WHERE b.room_id = $1 AND b.booking_date = $2 AND b.status IN ('confirmed', 'pending')
+		 ORDER BY b.start_time ASC, b.id ASC`,
 		roomID, date,
 	)
 	if err != nil {
@@ -473,7 +481,7 @@ func (s *Service) buildTimeline(ctx context.Context, roomID uuid.UUID, date, cur
 
 	for rows.Next() {
 		var b bookingSlot
-		if err := rows.Scan(&b.id, &b.userID, &b.title, &b.startTime, &b.endTime, &b.status); err != nil {
+		if err := rows.Scan(&b.id, &b.userID, &b.title, &b.startTime, &b.endTime, &b.status, &b.firstName, &b.lastName, &b.email, &b.department, &b.participantType, &b.teacherRank); err != nil {
 			return nil, nil, err
 		}
 		slots = append(slots, b)
@@ -492,11 +500,11 @@ func (s *Service) buildTimeline(ctx context.Context, roomID uuid.UUID, date, cur
 		userBookings = []models.UserBookingSummary{}
 	}
 
-	timeSlots := buildTimeSlots(slots, currentUserID, openTime, closeTime)
+	timeSlots := buildTimeSlots(slots, currentUserID, openTime, closeTime, isAdmin)
 	return timeSlots, userBookings, nil
 }
 
-func buildTimeSlots(slots []bookingSlot, currentUserID, dayStart, dayEnd string) []models.TimeSlot {
+func buildTimeSlots(slots []bookingSlot, currentUserID, dayStart, dayEnd string, isAdmin bool) []models.TimeSlot {
 	result := []models.TimeSlot{}
 	current := dayStart
 
@@ -515,6 +523,9 @@ func buildTimeSlots(slots []bookingSlot, currentUserID, dayStart, dayEnd string)
 			ID:     b.id,
 			Title:  b.title,
 			UserID: b.userID,
+		}
+		if isAdmin {
+			booking.User = bookingUserInfo(b)
 		}
 		result = append(result, models.TimeSlot{
 			StartTime: b.startTime,
@@ -538,6 +549,18 @@ func buildTimeSlots(slots []bookingSlot, currentUserID, dayStart, dayEnd string)
 	}
 
 	return result
+}
+
+func bookingUserInfo(b bookingSlot) *models.BookingUserInfo {
+	return &models.BookingUserInfo{
+		ID:              b.userID,
+		FirstName:       b.firstName,
+		LastName:        b.lastName,
+		Email:           b.email,
+		Department:      b.department,
+		ParticipantType: b.participantType,
+		TeacherRank:     b.teacherRank,
+	}
 }
 
 func determineSlotStatus(b bookingSlot, currentUserID string) models.TimeSlotStatus {

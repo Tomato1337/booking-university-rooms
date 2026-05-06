@@ -13,6 +13,25 @@ const (
 	RoleAdmin UserRole = "admin"
 )
 
+type ParticipantType string
+
+const (
+	ParticipantTypeStudent ParticipantType = "student"
+	ParticipantTypeTeacher ParticipantType = "teacher"
+)
+
+type TeacherRank string
+
+const (
+	TeacherRankAssistant          TeacherRank = "assistant"
+	TeacherRankJuniorLecturer     TeacherRank = "junior_lecturer"
+	TeacherRankLecturer           TeacherRank = "lecturer"
+	TeacherRankSeniorLecturer     TeacherRank = "senior_lecturer"
+	TeacherRankAssociateProfessor TeacherRank = "associate_professor"
+	TeacherRankProfessor          TeacherRank = "professor"
+	TeacherRankHeadOfDepartment   TeacherRank = "head_of_department"
+)
+
 type BookingStatus string
 
 const (
@@ -43,15 +62,17 @@ const (
 )
 
 type User struct {
-	ID           uuid.UUID `json:"id"`
-	Email        string    `json:"email"`
-	PasswordHash string    `json:"-"`
-	FirstName    string    `json:"firstName"`
-	LastName     string    `json:"lastName"`
-	Department   *string   `json:"department"`
-	Role         UserRole  `json:"role"`
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"-"`
+	ID              uuid.UUID        `json:"id"`
+	Email           string           `json:"email"`
+	PasswordHash    string           `json:"-"`
+	FirstName       string           `json:"firstName"`
+	LastName        string           `json:"lastName"`
+	Department      *string          `json:"department"`
+	Role            UserRole         `json:"role"`
+	ParticipantType *ParticipantType `json:"participantType"`
+	TeacherRank     *TeacherRank     `json:"teacherRank"`
+	CreatedAt       time.Time        `json:"createdAt"`
+	UpdatedAt       time.Time        `json:"-"`
 }
 
 type RefreshToken struct {
@@ -166,9 +187,20 @@ const (
 )
 
 type TimeSlotBooking struct {
-	ID     uuid.UUID `json:"id"`
-	Title  string    `json:"title"`
-	UserID uuid.UUID `json:"userId"`
+	ID     uuid.UUID        `json:"id"`
+	Title  string           `json:"title"`
+	UserID uuid.UUID        `json:"userId"`
+	User   *BookingUserInfo `json:"user,omitempty"`
+}
+
+type BookingUserInfo struct {
+	ID              uuid.UUID        `json:"id"`
+	FirstName       string           `json:"firstName"`
+	LastName        string           `json:"lastName"`
+	Email           string           `json:"email"`
+	Department      *string          `json:"department"`
+	ParticipantType *ParticipantType `json:"participantType"`
+	TeacherRank     *TeacherRank     `json:"teacherRank"`
 }
 
 type TimeSlot struct {
@@ -219,11 +251,57 @@ type MyBooking struct {
 }
 
 type AdminBookingUser struct {
-	ID         uuid.UUID `json:"id"`
-	FirstName  string    `json:"firstName"`
-	LastName   string    `json:"lastName"`
-	Initials   string    `json:"initials"`
-	Department *string   `json:"department"`
+	ID              uuid.UUID        `json:"id"`
+	FirstName       string           `json:"firstName"`
+	LastName        string           `json:"lastName"`
+	Initials        string           `json:"initials"`
+	Email           string           `json:"email"`
+	Department      *string          `json:"department"`
+	ParticipantType *ParticipantType `json:"participantType"`
+	TeacherRank     *TeacherRank     `json:"teacherRank"`
+}
+
+type RoomTimelineDay struct {
+	Date     string            `json:"date"`
+	Slots    []TimeSlot        `json:"slots"`
+	Bookings []TimelineBooking `json:"bookings"`
+}
+
+type RoomTimeline struct {
+	ID            uuid.UUID         `json:"id"`
+	Name          string            `json:"name"`
+	Description   *string           `json:"description"`
+	RoomType      RoomType          `json:"roomType"`
+	Capacity      int               `json:"capacity"`
+	Building      string            `json:"building"`
+	BuildingLabel string            `json:"buildingLabel"`
+	Floor         int               `json:"floor"`
+	Photos        []string          `json:"photos"`
+	OpenTime      string            `json:"openTime"`
+	CloseTime     string            `json:"closeTime"`
+	Equipment     []Equipment       `json:"equipment"`
+	Slots         []TimeSlot        `json:"slots,omitempty"`
+	Bookings      []TimelineBooking `json:"bookings,omitempty"`
+	Days          []RoomTimelineDay `json:"days,omitempty"`
+}
+
+type TimelineBooking struct {
+	ID          uuid.UUID        `json:"id"`
+	UserID      uuid.UUID        `json:"userId"`
+	Title       string           `json:"title"`
+	Status      BookingStatus    `json:"status"`
+	BookingDate string           `json:"bookingDate"`
+	StartTime   string           `json:"startTime"`
+	EndTime     string           `json:"endTime"`
+	User        *BookingUserInfo `json:"user,omitempty"`
+}
+
+type TimelineMeta struct {
+	Date       string  `json:"date"`
+	Mode       string  `json:"mode"`
+	EndDate    *string `json:"endDate,omitempty"`
+	HasMore    bool    `json:"hasMore"`
+	NextCursor *string `json:"nextCursor"`
 }
 
 type AdminBookingRoom struct {

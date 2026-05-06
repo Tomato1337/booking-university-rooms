@@ -72,6 +72,15 @@ components:
             type: string
             enum: [user, admin]
 
+        ParticipantType:
+            type: string
+            enum: [student, teacher]
+
+        TeacherRank:
+            type: string
+            enum:
+                [assistant, junior_lecturer, lecturer, senior_lecturer, associate_professor, professor, head_of_department]
+
         BookingStatus:
             type: string
             enum: [pending, confirmed, rejected, cancelled]
@@ -109,6 +118,14 @@ components:
                     nullable: true
                 role:
                     $ref: "#/components/schemas/UserRole"
+                participantType:
+                    nullable: true
+                    oneOf:
+                        - $ref: "#/components/schemas/ParticipantType"
+                teacherRank:
+                    nullable: true
+                    oneOf:
+                        - $ref: "#/components/schemas/TeacherRank"
                 createdAt:
                     type: string
                     format: date-time
@@ -319,6 +336,125 @@ components:
                 userId:
                     type: string
                     format: uuid
+                user:
+                    nullable: true
+                    description: Populated only for admin role.
+                    oneOf:
+                        - $ref: "#/components/schemas/BookingUserInfo"
+
+        BookingUserInfo:
+            type: object
+            required: [id, firstName, lastName, email]
+            properties:
+                id:
+                    type: string
+                    format: uuid
+                firstName:
+                    type: string
+                lastName:
+                    type: string
+                email:
+                    type: string
+                    format: email
+                department:
+                    type: string
+                    nullable: true
+                participantType:
+                    nullable: true
+                    oneOf:
+                        - $ref: "#/components/schemas/ParticipantType"
+                teacherRank:
+                    nullable: true
+                    oneOf:
+                        - $ref: "#/components/schemas/TeacherRank"
+
+        TimelineBooking:
+            type: object
+            required: [id, userId, title, status, startTime, endTime]
+            properties:
+                id:
+                    type: string
+                    format: uuid
+                userId:
+                    type: string
+                    format: uuid
+                title:
+                    type: string
+                status:
+                    $ref: "#/components/schemas/BookingStatus"
+                bookingDate:
+                    type: string
+                    format: date
+                startTime:
+                    type: string
+                    pattern: "^([01]\\d|2[0-3]):([0-5][05])$"
+                endTime:
+                    type: string
+                    pattern: "^([01]\\d|2[0-3]):([0-5][05])$"
+                user:
+                    nullable: true
+                    oneOf:
+                        - $ref: "#/components/schemas/BookingUserInfo"
+
+        RoomTimelineDay:
+            type: object
+            required: [date, slots, bookings]
+            properties:
+                date:
+                    type: string
+                    format: date
+                slots:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/TimeSlot"
+                bookings:
+                    type: array
+                    description: Raw booking intervals; preserves overlapping pending bookings.
+                    items:
+                        $ref: "#/components/schemas/TimelineBooking"
+
+        RoomTimeline:
+            allOf:
+                - $ref: "#/components/schemas/RoomCard"
+                - type: object
+                  properties:
+                      openTime:
+                          type: string
+                          pattern: "^([01]\\d|2[0-3]):([0-5][05])$"
+                      closeTime:
+                          type: string
+                          pattern: "^([01]\\d|2[0-3]):([0-5][05])$"
+                      slots:
+                          type: array
+                          items:
+                              $ref: "#/components/schemas/TimeSlot"
+                      bookings:
+                          type: array
+                          items:
+                              $ref: "#/components/schemas/TimelineBooking"
+                      days:
+                          type: array
+                          items:
+                              $ref: "#/components/schemas/RoomTimelineDay"
+
+        TimelineMeta:
+            type: object
+            required: [date, mode, hasMore]
+            properties:
+                date:
+                    type: string
+                    format: date
+                mode:
+                    type: string
+                    enum: [day, week]
+                endDate:
+                    type: string
+                    format: date
+                hasMore:
+                    type: boolean
+                nextCursor:
+                    type: string
+                    nullable: true
 
         UserBookingSummary:
             type: object
@@ -471,9 +607,20 @@ components:
                         initials:
                             type: string
                             example: JD
+                        email:
+                            type: string
+                            format: email
                         department:
                             type: string
                             nullable: true
+                        participantType:
+                            nullable: true
+                            oneOf:
+                                - $ref: "#/components/schemas/ParticipantType"
+                        teacherRank:
+                            nullable: true
+                            oneOf:
+                                - $ref: "#/components/schemas/TeacherRank"
                 room:
                     type: object
                     required: [id, name, building]
@@ -662,6 +809,14 @@ components:
                 department:
                     type: string
                     maxLength: 200
+                participantType:
+                    nullable: true
+                    oneOf:
+                        - $ref: "#/components/schemas/ParticipantType"
+                teacherRank:
+                    nullable: true
+                    oneOf:
+                        - $ref: "#/components/schemas/TeacherRank"
 
         LoginRequest:
             type: object
@@ -1435,6 +1590,68 @@ paths:
                 "403":
                     $ref: "#/components/responses/Forbidden"
 
+    /rooms/timeline:
+        get:
+            operationId: getRoomsTimeline
+            tags: [Rooms]
+            summary: Rooms occupancy timeline
+            description: Returns rooms with day/week timeline data. `bookings` preserves overlapping pending intervals.
+            security:
+                - AccessCookieAuth: []
+                - BearerAuth: []
+            parameters:
+                - $ref: "#/components/parameters/DateParam"
+                - name: mode
+                  in: query
+                  schema:
+                      type: string
+                      enum: [day, week]
+                      default: day
+                - $ref: "#/components/parameters/SearchParam"
+                - name: building
+                  in: query
+                  schema:
+                      type: string
+                - name: roomType
+                  in: query
+                  schema:
+                      $ref: "#/components/schemas/RoomType"
+                - name: minCapacity
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                - name: equipment
+                  in: query
+                  schema:
+                      type: string
+                  description: Comma-separated equipment UUIDs. AND logic.
+                - $ref: "#/components/parameters/LimitParam"
+                - $ref: "#/components/parameters/CursorParam"
+            responses:
+                "200":
+                    description: Timeline data
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data, meta]
+                                properties:
+                                    data:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/RoomTimeline"
+                                    meta:
+                                        $ref: "#/components/schemas/TimelineMeta"
+                "400":
+                    description: Invalid date
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorResponse"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+
     /rooms/{roomId}:
         get:
             operationId: getRoomDetail
@@ -2022,7 +2239,118 @@ paths:
                     $ref: "#/components/responses/Forbidden"
                 "404":
                     $ref: "#/components/responses/NotFound"
+    /ws:
+        get:
+            operationId: websocketStream
+            tags: [System]
+            summary: WebSocket realtime stream
+            description: |
+                Upgrades to WebSocket. Auth via `Authorization: Bearer <token>`, `accessToken` cookie, or `?token=<jwt>` for browser clients.
+                Emits `booking.created`, `booking.approved`, `booking.rejected`, `booking.cancelled`, `booking.auto_rejected`, and `ping` events.
+            security:
+                - AccessCookieAuth: []
+                - BearerAuth: []
+            parameters:
+                - name: token
+                  in: query
+                  schema:
+                      type: string
+                  description: JWT fallback for browser WebSocket clients.
+            responses:
+                "101":
+                    description: Switching Protocols
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
 
+    /admin/users:
+        get:
+            operationId: listAdminUsers
+            tags: [Admin]
+            summary: List non-admin users
+            security:
+                - AccessCookieAuth: []
+                - BearerAuth: []
+            parameters:
+                - $ref: "#/components/parameters/SearchParam"
+                - name: participantType
+                  in: query
+                  schema:
+                      $ref: "#/components/schemas/ParticipantType"
+                - name: teacherRank
+                  in: query
+                  schema:
+                      $ref: "#/components/schemas/TeacherRank"
+                - $ref: "#/components/parameters/LimitParam"
+                - $ref: "#/components/parameters/CursorParam"
+            responses:
+                "200":
+                    description: Paginated users
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data, meta]
+                                properties:
+                                    data:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/User"
+                                    meta:
+                                        $ref: "#/components/schemas/CursorPaginationMeta"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+
+    /admin/users/{userId}/role:
+        patch:
+            operationId: updateUserRoleProfile
+            tags: [Admin]
+            summary: Update user participant type and teacher rank
+            security:
+                - AccessCookieAuth: []
+                - BearerAuth: []
+            parameters:
+                - name: userId
+                  in: path
+                  required: true
+                  schema:
+                      type: string
+                      format: uuid
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                participantType:
+                                    nullable: true
+                                    oneOf:
+                                        - $ref: "#/components/schemas/ParticipantType"
+                                teacherRank:
+                                    nullable: true
+                                    oneOf:
+                                        - $ref: "#/components/schemas/TeacherRank"
+            responses:
+                "200":
+                    description: Updated user
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        $ref: "#/components/schemas/User"
+                "400":
+                    $ref: "#/components/responses/ValidationError"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "403":
+                    $ref: "#/components/responses/Forbidden"
+                "404":
+                    $ref: "#/components/responses/NotFound"
 
     /admin/bookings/pending:
         get:

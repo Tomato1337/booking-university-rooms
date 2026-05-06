@@ -33,11 +33,13 @@ func NewService(db *pgxpool.Pool, jwtSecret, jwtRefreshSecret string, accessTTL,
 }
 
 type RegisterInput struct {
-	Email      string
-	Password   string
-	FirstName  string
-	LastName   string
-	Department *string
+	Email           string
+	Password        string
+	FirstName       string
+	LastName        string
+	Department      *string
+	ParticipantType *models.ParticipantType
+	TeacherRank     *models.TeacherRank
 }
 
 type AuthResult struct {
@@ -63,11 +65,11 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (*AuthResul
 
 	user := &models.User{}
 	err = s.db.QueryRow(ctx,
-		`INSERT INTO users (email, password_hash, first_name, last_name, department, role)
-		 VALUES ($1, $2, $3, $4, $5, 'user')
-		 RETURNING id, email, first_name, last_name, department, role, created_at, updated_at`,
-		input.Email, string(hash), input.FirstName, input.LastName, input.Department,
-	).Scan(&user.ID, &user.Email, &user.FirstName, &user.LastName, &user.Department, &user.Role, &user.CreatedAt, &user.UpdatedAt)
+		`INSERT INTO users (email, password_hash, first_name, last_name, department, role, participant_type, teacher_rank)
+		 VALUES ($1, $2, $3, $4, $5, 'user', $6, $7)
+		 RETURNING id, email, first_name, last_name, department, role, participant_type, teacher_rank, created_at, updated_at`,
+		input.Email, string(hash), input.FirstName, input.LastName, input.Department, input.ParticipantType, input.TeacherRank,
+	).Scan(&user.ID, &user.Email, &user.FirstName, &user.LastName, &user.Department, &user.Role, &user.ParticipantType, &user.TeacherRank, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("insert user: %w", err)
 	}
@@ -83,10 +85,10 @@ type LoginInput struct {
 func (s *Service) Login(ctx context.Context, input LoginInput) (*AuthResult, error) {
 	user := &models.User{}
 	err := s.db.QueryRow(ctx,
-		`SELECT id, email, password_hash, first_name, last_name, department, role, created_at, updated_at
+		`SELECT id, email, password_hash, first_name, last_name, department, role, participant_type, teacher_rank, created_at, updated_at
 		 FROM users WHERE email = $1`,
 		input.Email,
-	).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.FirstName, &user.LastName, &user.Department, &user.Role, &user.CreatedAt, &user.UpdatedAt)
+	).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.FirstName, &user.LastName, &user.Department, &user.Role, &user.ParticipantType, &user.TeacherRank, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrInvalidCredentials
@@ -136,10 +138,10 @@ func (s *Service) Refresh(ctx context.Context, rawToken string) (*AuthResult, er
 
 	user := &models.User{}
 	err = s.db.QueryRow(ctx,
-		`SELECT id, email, first_name, last_name, department, role, created_at, updated_at
+		`SELECT id, email, first_name, last_name, department, role, participant_type, teacher_rank, created_at, updated_at
 		 FROM users WHERE id = $1`,
 		userID,
-	).Scan(&user.ID, &user.Email, &user.FirstName, &user.LastName, &user.Department, &user.Role, &user.CreatedAt, &user.UpdatedAt)
+	).Scan(&user.ID, &user.Email, &user.FirstName, &user.LastName, &user.Department, &user.Role, &user.ParticipantType, &user.TeacherRank, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("find user: %w", err)
 	}
@@ -167,10 +169,10 @@ func (s *Service) GetMe(ctx context.Context, userIDStr string) (*models.User, er
 
 	user := &models.User{}
 	err = s.db.QueryRow(ctx,
-		`SELECT id, email, first_name, last_name, department, role, created_at, updated_at
+		`SELECT id, email, first_name, last_name, department, role, participant_type, teacher_rank, created_at, updated_at
 		 FROM users WHERE id = $1`,
 		userID,
-	).Scan(&user.ID, &user.Email, &user.FirstName, &user.LastName, &user.Department, &user.Role, &user.CreatedAt, &user.UpdatedAt)
+	).Scan(&user.ID, &user.Email, &user.FirstName, &user.LastName, &user.Department, &user.Role, &user.ParticipantType, &user.TeacherRank, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrUserNotFound

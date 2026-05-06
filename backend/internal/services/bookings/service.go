@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"booking-university-rooms/backend/internal/models"
+	"booking-university-rooms/backend/internal/realtime"
 	catalogssvc "booking-university-rooms/backend/internal/services/catalogs"
 	"booking-university-rooms/backend/internal/utils"
 
@@ -16,11 +17,16 @@ import (
 )
 
 type Service struct {
-	db *pgxpool.Pool
+	db  *pgxpool.Pool
+	hub *realtime.Hub
 }
 
-func NewService(db *pgxpool.Pool) *Service {
-	return &Service{db: db}
+func NewService(db *pgxpool.Pool, hub ...*realtime.Hub) *Service {
+	s := &Service{db: db}
+	if len(hub) > 0 {
+		s.hub = hub[0]
+	}
+	return s
 }
 
 type CreateInput struct {
@@ -152,6 +158,7 @@ func (s *Service) Create(ctx context.Context, userID string, input CreateInput) 
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit tx: %w", err)
 	}
+	s.notifyBookingCreated(booking)
 
 	return booking, nil
 }
@@ -217,11 +224,13 @@ func (s *Service) Cancel(ctx context.Context, bookingIDStr, userID string, isAdm
 
 	booking := &models.Booking{}
 	err = s.db.QueryRow(ctx,
-		`SELECT id, user_id, room_id, status, booking_date::text, to_char(start_time, 'HH24:MI'), to_char(end_time, 'HH24:MI'), updated_at
-		 FROM bookings WHERE id = $1`,
+		`SELECT b.id, b.user_id, b.room_id, r.name, b.title, b.status, b.booking_date::text, to_char(b.start_time, 'HH24:MI'), to_char(b.end_time, 'HH24:MI'), b.updated_at
+		 FROM bookings b
+		 JOIN rooms r ON r.id = b.room_id
+		 WHERE b.id = $1`,
 		bookingID,
 	).Scan(&booking.ID, &booking.UserID, &booking.RoomID,
-		&booking.Status, &booking.BookingDate, &booking.StartTime, &booking.EndTime, &booking.UpdatedAt)
+		&booking.RoomName, &booking.Title, &booking.Status, &booking.BookingDate, &booking.StartTime, &booking.EndTime, &booking.UpdatedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrBookingNotFound
@@ -252,8 +261,69 @@ func (s *Service) Cancel(ctx context.Context, bookingIDStr, userID string, isAdm
 	if err != nil {
 		return nil, fmt.Errorf("cancel booking: %w", err)
 	}
+	s.notifyBookingStatus(booking.UserID.String(), realtime.Event{
+		Type:        realtime.EventBookingCancelled,
+		BookingID:   booking.ID.String(),
+		RoomID:      booking.RoomID.String(),
+		RoomName:    booking.RoomName,
+		Title:       booking.Title,
+		Status:      string(booking.Status),
+		BookingDate: booking.BookingDate,
+		StartTime:   booking.StartTime,
+		EndTime:     booking.EndTime,
+		CreatedAt:   booking.UpdatedAt.UTC().Format(time.RFC3339),
+	})
 
 	return booking, nil
+}
+
+func (s *Service) notifyBookingCreated(booking *models.Booking) {
+	if s.hub == nil {
+		return
+	}
+	go func() {
+		adminIDs, err := s.adminUserIDs(context.Background())
+		if err != nil || len(adminIDs) == 0 {
+			return
+		}
+		s.hub.Broadcast(adminIDs, realtime.Event{
+			Type:        realtime.EventBookingCreated,
+			BookingID:   booking.ID.String(),
+			RoomID:      booking.RoomID.String(),
+			RoomName:    booking.RoomName,
+			Title:       booking.Title,
+			Status:      string(booking.Status),
+			BookingDate: booking.BookingDate,
+			StartTime:   booking.StartTime,
+			EndTime:     booking.EndTime,
+			CreatedAt:   booking.CreatedAt.UTC().Format(time.RFC3339),
+		})
+	}()
+}
+
+func (s *Service) notifyBookingStatus(userID string, event realtime.Event) {
+	if s.hub == nil {
+		return
+	}
+	go s.hub.SendToUser(userID, event)
+}
+
+func (s *Service) adminUserIDs(ctx context.Context) ([]string, error) {
+	rows, err := s.db.Query(ctx, "SELECT id::text FROM users WHERE role = 'admin'")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────

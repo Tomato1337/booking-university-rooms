@@ -18,8 +18,10 @@ import (
 	bookingshandler "booking-university-rooms/backend/internal/handlers/bookings"
 	catalogshandler "booking-university-rooms/backend/internal/handlers/catalogs"
 	equipmenthandler "booking-university-rooms/backend/internal/handlers/equipment"
+	realtimehandler "booking-university-rooms/backend/internal/handlers/realtime"
 	roomshandler "booking-university-rooms/backend/internal/handlers/rooms"
 	"booking-university-rooms/backend/internal/middleware"
+	"booking-university-rooms/backend/internal/realtime"
 	adminsvc "booking-university-rooms/backend/internal/services/admin"
 	authsvc "booking-university-rooms/backend/internal/services/auth"
 	bookingssvc "booking-university-rooms/backend/internal/services/bookings"
@@ -63,12 +65,13 @@ func main() {
 	}
 
 	// Services
+	realtimeHub := realtime.NewHub()
 	authService := authsvc.NewService(pool, cfg.JWTSecret, cfg.JWTRefreshSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 	roomsService := roomssvc.NewService(pool)
-	bookingsService := bookingssvc.NewService(pool)
+	bookingsService := bookingssvc.NewService(pool, realtimeHub)
 	catalogsService := catalogssvc.NewService(pool)
 	equipmentService := equipmentsvc.NewService(pool)
-	adminService := adminsvc.NewService(pool)
+	adminService := adminsvc.NewService(pool, realtimeHub)
 
 	// Handlers
 	authH := authhandler.NewHandler(authService, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
@@ -77,6 +80,7 @@ func main() {
 	equipH := equipmenthandler.NewHandler(equipmentService)
 	bookingsH := bookingshandler.NewHandler(bookingsService)
 	adminH := adminhandler.NewHandler(adminService)
+	realtimeH := realtimehandler.NewHandler(realtimeHub, cfg.JWTSecret)
 
 	if cfg.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -142,9 +146,11 @@ func main() {
 
 	// Authenticated routes
 	authed := api.Group("", middleware.Authenticate(cfg.JWTSecret), rateLimitByUserID(generalAuthLimiter))
+	api.GET("/ws", realtimeH.Stream)
 
 	// Rooms
 	authed.GET("/rooms", roomsH.Search)
+	authed.GET("/rooms/timeline", roomsH.GetTimeline)
 	authed.GET("/rooms/:roomId", roomsH.GetDetail)
 	authed.GET("/buildings", catalogsH.ListBuildings)
 	authed.GET("/booking-purposes", catalogsH.ListBookingPurposes)
@@ -168,6 +174,8 @@ func main() {
 	// Admin
 	admin := api.Group("/admin", middleware.Authenticate(cfg.JWTSecret), middleware.RequireRole("admin"))
 	{
+		admin.GET("/users", adminH.ListUsers)
+		admin.PATCH("/users/:userId/role", adminH.UpdateUserRole)
 		admin.GET("/rooms", roomsH.AdminSearch)
 		admin.DELETE("/rooms/:roomId", roomsH.HardDelete)
 		admin.PATCH("/rooms/:roomId/reactivate", roomsH.Reactivate)

@@ -81,7 +81,7 @@ func (s *Service) ListHistory(ctx context.Context, input ListHistoryInput) (*Lis
 
 	query := fmt.Sprintf(`
 		SELECT b.id,
-		       u.id, u.first_name, u.last_name, u.department,
+		       u.id, u.first_name, u.last_name, u.email, u.department, u.participant_type, u.teacher_rank,
 		       r.id, r.name, r.building, %s,
 		       b.title, b.purpose, b.booking_date::text, to_char(b.start_time, 'HH24:MI'), to_char(b.end_time, 'HH24:MI'),
 		       b.attendee_count, b.status, b.created_at, b.updated_at
@@ -112,7 +112,7 @@ func (s *Service) ListHistory(ctx context.Context, input ListHistoryInput) (*Lis
 		var updatedAt time.Time
 		if err := rows.Scan(
 			&b.ID,
-			&b.User.ID, &b.User.FirstName, &b.User.LastName, &b.User.Department,
+			&b.User.ID, &b.User.FirstName, &b.User.LastName, &b.User.Email, &b.User.Department, &b.User.ParticipantType, &b.User.TeacherRank,
 			&b.Room.ID, &b.Room.Name, &b.Room.Building, &b.Room.BuildingLabel,
 			&b.Title, &b.Purpose, &b.BookingDate, &b.StartTime, &b.EndTime,
 			&b.AttendeeCount, &b.Status, &b.CreatedAt, &updatedAt,

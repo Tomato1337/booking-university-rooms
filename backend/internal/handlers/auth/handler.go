@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"booking-university-rooms/backend/internal/models"
 	authsvc "booking-university-rooms/backend/internal/services/auth"
 	"booking-university-rooms/backend/internal/utils"
 
@@ -21,11 +22,13 @@ func NewHandler(service *authsvc.Service, accessTTL, refreshTTL time.Duration) *
 }
 
 type registerRequest struct {
-	Email      string  `json:"email" binding:"required,email,max=255"`
-	Password   string  `json:"password" binding:"required,min=8,max=128"`
-	FirstName  string  `json:"firstName" binding:"required,min=1,max=100"`
-	LastName   string  `json:"lastName" binding:"required,min=1,max=100"`
-	Department *string `json:"department"`
+	Email           string  `json:"email" binding:"required,email,max=255"`
+	Password        string  `json:"password" binding:"required,min=8,max=128"`
+	FirstName       string  `json:"firstName" binding:"required,min=1,max=100"`
+	LastName        string  `json:"lastName" binding:"required,min=1,max=100"`
+	Department      *string `json:"department"`
+	ParticipantType *string `json:"participantType"`
+	TeacherRank     *string `json:"teacherRank"`
 }
 
 func (h *Handler) Register(c *gin.Context) {
@@ -44,12 +47,19 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
+	participantType, teacherRank, ok := parseParticipantFields(c, req.ParticipantType, req.TeacherRank)
+	if !ok {
+		return
+	}
+
 	result, err := h.service.Register(c.Request.Context(), authsvc.RegisterInput{
-		Email:      req.Email,
-		Password:   req.Password,
-		FirstName:  req.FirstName,
-		LastName:   req.LastName,
-		Department: req.Department,
+		Email:           req.Email,
+		Password:        req.Password,
+		FirstName:       req.FirstName,
+		LastName:        req.LastName,
+		Department:      req.Department,
+		ParticipantType: participantType,
+		TeacherRank:     teacherRank,
 	})
 	if err != nil {
 		if err == authsvc.ErrEmailExists {
@@ -180,4 +190,49 @@ func isValidPassword(password string) bool {
 		}
 	}
 	return hasUpper && hasLower && hasDigit
+}
+
+func parseParticipantFields(c *gin.Context, participantTypeRaw, teacherRankRaw *string) (*models.ParticipantType, *models.TeacherRank, bool) {
+	var participantType *models.ParticipantType
+	if participantTypeRaw != nil {
+		pt := models.ParticipantType(*participantTypeRaw)
+		switch pt {
+		case models.ParticipantTypeStudent, models.ParticipantTypeTeacher:
+			participantType = &pt
+		default:
+			utils.RespondValidationError(c, []utils.ValidationField{{Field: "participantType", Message: "Must be 'student' or 'teacher'", Code: "invalid_value"}})
+			return nil, nil, false
+		}
+	}
+
+	var teacherRank *models.TeacherRank
+	if teacherRankRaw != nil {
+		if participantType == nil || *participantType != models.ParticipantTypeTeacher {
+			utils.RespondValidationError(c, []utils.ValidationField{{Field: "teacherRank", Message: "teacherRank can only be set when participantType is 'teacher'", Code: "invalid_value"}})
+			return nil, nil, false
+		}
+		tr := models.TeacherRank(*teacherRankRaw)
+		if !isValidTeacherRank(tr) {
+			utils.RespondValidationError(c, []utils.ValidationField{{Field: "teacherRank", Message: "Invalid teacher rank value", Code: "invalid_value"}})
+			return nil, nil, false
+		}
+		teacherRank = &tr
+	}
+
+	return participantType, teacherRank, true
+}
+
+func isValidTeacherRank(rank models.TeacherRank) bool {
+	switch rank {
+	case models.TeacherRankAssistant,
+		models.TeacherRankJuniorLecturer,
+		models.TeacherRankLecturer,
+		models.TeacherRankSeniorLecturer,
+		models.TeacherRankAssociateProfessor,
+		models.TeacherRankProfessor,
+		models.TeacherRankHeadOfDepartment:
+		return true
+	default:
+		return false
+	}
 }

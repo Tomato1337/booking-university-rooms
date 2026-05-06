@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"booking-university-rooms/backend/internal/models"
+	"booking-university-rooms/backend/internal/realtime"
 	catalogssvc "booking-university-rooms/backend/internal/services/catalogs"
 	"booking-university-rooms/backend/internal/utils"
 
@@ -16,11 +17,16 @@ import (
 )
 
 type Service struct {
-	db *pgxpool.Pool
+	db  *pgxpool.Pool
+	hub *realtime.Hub
 }
 
-func NewService(db *pgxpool.Pool) *Service {
-	return &Service{db: db}
+func NewService(db *pgxpool.Pool, hub ...*realtime.Hub) *Service {
+	s := &Service{db: db}
+	if len(hub) > 0 {
+		s.hub = hub[0]
+	}
+	return s
 }
 
 type ListPendingInput struct {
@@ -104,7 +110,7 @@ func (s *Service) ListPending(ctx context.Context, input ListPendingInput) (*Lis
 
 	query := fmt.Sprintf(`
 		SELECT b.id,
-		       u.id, u.first_name, u.last_name, u.department,
+		       u.id, u.first_name, u.last_name, u.email, u.department, u.participant_type, u.teacher_rank,
 		       r.id, r.name, r.building, %s,
 		       b.title, b.purpose, b.booking_date::text, to_char(b.start_time, 'HH24:MI'), to_char(b.end_time, 'HH24:MI'),
 		       b.attendee_count, b.status, b.created_at
@@ -129,7 +135,7 @@ func (s *Service) ListPending(ctx context.Context, input ListPendingInput) (*Lis
 		var b models.AdminPendingBooking
 		if err := rows.Scan(
 			&b.ID,
-			&b.User.ID, &b.User.FirstName, &b.User.LastName, &b.User.Department,
+			&b.User.ID, &b.User.FirstName, &b.User.LastName, &b.User.Email, &b.User.Department, &b.User.ParticipantType, &b.User.TeacherRank,
 			&b.Room.ID, &b.Room.Name, &b.Room.Building, &b.Room.BuildingLabel,
 			&b.Title, &b.Purpose, &b.BookingDate, &b.StartTime, &b.EndTime,
 			&b.AttendeeCount, &b.Status, &b.CreatedAt,
@@ -188,17 +194,22 @@ func (s *Service) Approve(ctx context.Context, bookingIDStr, adminIDStr string) 
 	// Lock and fetch booking
 	var b struct {
 		id          uuid.UUID
+		userID      uuid.UUID
 		roomID      uuid.UUID
+		roomName    string
+		title       string
 		bookingDate string
 		startTime   string
 		endTime     string
 		status      models.BookingStatus
 	}
 	err = tx.QueryRow(ctx,
-		`SELECT id, room_id, booking_date::text, to_char(start_time, 'HH24:MI'), to_char(end_time, 'HH24:MI'), status
-		 FROM bookings WHERE id = $1 FOR UPDATE`,
+		`SELECT b.id, b.user_id, b.room_id, r.name, b.title, b.booking_date::text, to_char(b.start_time, 'HH24:MI'), to_char(b.end_time, 'HH24:MI'), b.status
+		 FROM bookings b
+		 JOIN rooms r ON r.id = b.room_id
+		 WHERE b.id = $1 FOR UPDATE`,
 		bookingID,
-	).Scan(&b.id, &b.roomID, &b.bookingDate, &b.startTime, &b.endTime, &b.status)
+	).Scan(&b.id, &b.userID, &b.roomID, &b.roomName, &b.title, &b.bookingDate, &b.startTime, &b.endTime, &b.status)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrBookingNotFound
@@ -284,6 +295,33 @@ func (s *Service) Approve(ctx context.Context, bookingIDStr, adminIDStr string) 
 	if autoRejected == nil {
 		autoRejected = []models.AutoRejectedBooking{}
 	}
+	s.notifyBookingApproved(b.userID.String(), realtime.Event{
+		Type:        realtime.EventBookingApproved,
+		BookingID:   bookingID.String(),
+		RoomID:      b.roomID.String(),
+		RoomName:    b.roomName,
+		Title:       b.title,
+		Status:      string(models.StatusConfirmed),
+		BookingDate: b.bookingDate,
+		StartTime:   b.startTime,
+		EndTime:     b.endTime,
+		CreatedAt:   updatedAt.UTC().Format(time.RFC3339),
+	})
+	for _, rejected := range autoRejected {
+		s.notifyBookingApproved(rejected.UserID.String(), realtime.Event{
+			Type:        realtime.EventBookingAutoRejected,
+			BookingID:   rejected.ID.String(),
+			RoomID:      b.roomID.String(),
+			RoomName:    b.roomName,
+			Title:       rejected.Title,
+			Status:      string(models.StatusRejected),
+			Reason:      &rejected.Reason,
+			BookingDate: b.bookingDate,
+			StartTime:   rejected.StartTime,
+			EndTime:     rejected.EndTime,
+			CreatedAt:   updatedAt.UTC().Format(time.RFC3339),
+		})
+	}
 
 	return &ApproveResult{
 		Booking: approvedBookingResponse{
@@ -310,9 +348,9 @@ func (s *Service) Reject(ctx context.Context, bookingIDStr, adminIDStr, reason s
 		`UPDATE bookings
 		 SET status = 'rejected', admin_id = $1, status_reason = $2, updated_at = now()
 		 WHERE id = $3 AND status = 'pending'
-		 RETURNING id, status, status_reason, updated_at`,
+		 RETURNING id, user_id, room_id, title, booking_date::text, to_char(start_time, 'HH24:MI'), to_char(end_time, 'HH24:MI'), status, status_reason, updated_at`,
 		adminID, nullableString(reason), bookingID,
-	).Scan(&booking.ID, &booking.Status, &booking.StatusReason, &booking.UpdatedAt)
+	).Scan(&booking.ID, &booking.UserID, &booking.RoomID, &booking.Title, &booking.BookingDate, &booking.StartTime, &booking.EndTime, &booking.Status, &booking.StatusReason, &booking.UpdatedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			// Check if booking exists at all
@@ -325,8 +363,29 @@ func (s *Service) Reject(ctx context.Context, bookingIDStr, adminIDStr, reason s
 		}
 		return nil, fmt.Errorf("reject booking: %w", err)
 	}
+	_ = s.db.QueryRow(ctx, "SELECT name FROM rooms WHERE id = $1", booking.RoomID).Scan(&booking.RoomName)
+	s.notifyBookingApproved(booking.UserID.String(), realtime.Event{
+		Type:        realtime.EventBookingRejected,
+		BookingID:   booking.ID.String(),
+		RoomID:      booking.RoomID.String(),
+		RoomName:    booking.RoomName,
+		Title:       booking.Title,
+		Status:      string(booking.Status),
+		Reason:      booking.StatusReason,
+		BookingDate: booking.BookingDate,
+		StartTime:   booking.StartTime,
+		EndTime:     booking.EndTime,
+		CreatedAt:   booking.UpdatedAt.UTC().Format(time.RFC3339),
+	})
 
 	return booking, nil
+}
+
+func (s *Service) notifyBookingApproved(userID string, event realtime.Event) {
+	if s.hub == nil {
+		return
+	}
+	go s.hub.SendToUser(userID, event)
 }
 
 func (s *Service) GetStats(ctx context.Context, period string) (*models.AdminStats, error) {

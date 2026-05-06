@@ -100,10 +100,11 @@ func (h *Handler) Search(c *gin.Context) {
 
 func (h *Handler) GetDetail(c *gin.Context) {
 	currentUserID := c.GetString(middleware.ContextUserID)
+	isAdmin := c.GetString(middleware.ContextRole) == "admin"
 	roomID := c.Param("roomId")
 	date := c.Query("date")
 
-	room, err := h.service.GetDetail(c.Request.Context(), roomID, date, currentUserID, requestLocale(c))
+	room, err := h.service.GetDetail(c.Request.Context(), roomID, date, currentUserID, requestLocale(c), isAdmin)
 	if err != nil {
 		if err == roomssvc.ErrRoomNotFound {
 			utils.RespondError(c, http.StatusNotFound, "ROOM_NOT_FOUND", "Room not found")

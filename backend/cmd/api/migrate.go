@@ -24,6 +24,9 @@ var fiveMinuteTimeGranularitySQL []byte
 //go:embed migrations/000005_catalogs.sql
 var catalogsSQL []byte
 
+//go:embed migrations/000006_add_role_hierarchy.sql
+var roleHierarchySQL []byte
+
 func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	// Create migrations tracking table if needed
 	_, err := pool.Exec(ctx, `
@@ -45,6 +48,7 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		{"000003_seed_data", seedDataSQL},
 		{"000004_five_minute_time_granularity", fiveMinuteTimeGranularitySQL},
 		{"000005_catalogs", catalogsSQL},
+		{"000006_add_role_hierarchy", roleHierarchySQL},
 	}
 
 	for _, m := range migrations {
