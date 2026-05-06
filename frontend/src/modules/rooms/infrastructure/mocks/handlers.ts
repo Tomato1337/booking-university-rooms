@@ -1,20 +1,26 @@
 import { http } from "@/shared/mocks/http"
 import { http as mswHttp, HttpResponse } from "msw"
 
-import { getMockRoomDetail, mockBuildings, mockEquipment, mockRooms, paginateRooms } from "./data"
+import { getMockRoomDetail, mockBuildings, mockEquipment, mockRooms, mockRoomTypes, paginateRooms } from "./data"
 import { ensureRoomBookingsProviderRegistered } from "@/modules/bookings/infrastructure/mocks/data"
 
 const FIVE_MINUTE_HM_REGEX = /^([01]\d|2[0-3]):([0-5][05])$/
 
 export const listEquipment = {
   default: http.get("/equipment", ({ response }) => {
-    return response(200).json({ data: mockEquipment })
+    return response(200).json({ data: mockEquipment.filter((item) => item.isActive) })
   }),
 }
 
 export const listBuildings = {
   default: mswHttp.get("/api/buildings", () => {
     return HttpResponse.json({ data: mockBuildings })
+  }),
+}
+
+export const listRoomTypes = {
+  default: mswHttp.get("/api/room-types", () => {
+    return HttpResponse.json({ data: mockRoomTypes })
   }),
 }
 
@@ -96,6 +102,7 @@ export const searchRooms = {
 
 export const roomsMockHandlers = [
   listBuildings.default,
+  listRoomTypes.default,
   listEquipment.default,
   searchRooms.default,
   http.get("/rooms/{roomId}", ({ params, request, response }) => {

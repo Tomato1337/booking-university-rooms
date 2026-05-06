@@ -78,7 +78,7 @@ components:
 
         RoomType:
             type: string
-            enum: [lab, auditorium, seminar, conference, studio, lecture_hall]
+            description: Stable room type code from the room_types catalog.
 
         BookingPurpose:
             type: string
@@ -115,16 +115,27 @@ components:
 
         EquipmentItem:
             type: object
-            required: [id, name, icon]
+            required: [id, code, name, icon, isActive]
             properties:
                 id:
                     type: string
                     format: uuid
+                code:
+                    type: string
                 name:
+                    type: string
+                    description: Localized label for current request locale.
+                labelRu:
+                    type: string
+                labelEn:
                     type: string
                 icon:
                     type: string
                     description: Tabler icon name (e.g. IconVideo)
+                isActive:
+                    type: boolean
+                sortOrder:
+                    type: integer
 
         BuildingOption:
             type: object
@@ -144,6 +155,15 @@ components:
                 label:
                     type: string
 
+        RoomTypeOption:
+            type: object
+            required: [code, label]
+            properties:
+                code:
+                    type: string
+                label:
+                    type: string
+
         AdminBookingPurpose:
             type: object
             required: [code, labelRu, labelEn, isActive, sortOrder]
@@ -154,6 +174,57 @@ components:
                     type: string
                 labelEn:
                     type: string
+                isActive:
+                    type: boolean
+                sortOrder:
+                    type: integer
+
+        AdminBuilding:
+            type: object
+            required: [code, labelRu, labelEn, isActive, sortOrder]
+            properties:
+                code:
+                    type: string
+                labelRu:
+                    type: string
+                labelEn:
+                    type: string
+                isActive:
+                    type: boolean
+                sortOrder:
+                    type: integer
+
+        AdminRoomType:
+            type: object
+            required: [code, labelRu, labelEn, isActive, sortOrder]
+            properties:
+                code:
+                    type: string
+                labelRu:
+                    type: string
+                labelEn:
+                    type: string
+                isActive:
+                    type: boolean
+                sortOrder:
+                    type: integer
+
+        EquipmentInput:
+            type: object
+            required: [code, labelRu, labelEn, icon, sortOrder]
+            properties:
+                code:
+                    type: string
+                    example: projector
+                labelRu:
+                    type: string
+                    example: Проектор
+                labelEn:
+                    type: string
+                    example: Projector
+                icon:
+                    type: string
+                    example: IconVideo
                 isActive:
                     type: boolean
                 sortOrder:
@@ -184,6 +255,8 @@ components:
                     nullable: true
                 roomType:
                     $ref: "#/components/schemas/RoomType"
+                roomTypeLabel:
+                    type: string
                 capacity:
                     type: integer
                     minimum: 1
@@ -249,6 +322,8 @@ components:
                     nullable: true
                 roomType:
                     $ref: "#/components/schemas/RoomType"
+                roomTypeLabel:
+                    type: string
                 capacity:
                     type: integer
                     minimum: 1
@@ -347,6 +422,7 @@ components:
                     roomName,
                     title,
                     purpose,
+                    purposeLabel,
                     bookingDate,
                     startTime,
                     endTime,
@@ -366,6 +442,8 @@ components:
                     type: string
                 purpose:
                     $ref: "#/components/schemas/BookingPurpose"
+                purposeLabel:
+                    type: string
                 bookingDate:
                     type: string
                     format: date
@@ -394,6 +472,8 @@ components:
                     roomId,
                     roomName,
                     title,
+                    purpose,
+                    purposeLabel,
                     bookingDate,
                     startTime,
                     endTime,
@@ -416,6 +496,10 @@ components:
                     type: string
                     example: RM_402 QUANTUM LAB
                 title:
+                    type: string
+                purpose:
+                    $ref: "#/components/schemas/BookingPurpose"
+                purposeLabel:
                     type: string
                 bookingDate:
                     type: string
@@ -485,10 +569,14 @@ components:
                             type: string
                         building:
                             type: string
+                        buildingLabel:
+                            type: string
                 title:
                     type: string
                 purpose:
                     $ref: "#/components/schemas/BookingPurpose"
+                purposeLabel:
+                    type: string
                 bookingDate:
                     type: string
                     format: date
@@ -606,6 +694,8 @@ components:
                     nullable: true
                 roomType:
                     $ref: "#/components/schemas/RoomType"
+                roomTypeLabel:
+                    type: string
                 capacity:
                     type: integer
                     minimum: 1
@@ -1330,6 +1420,29 @@ paths:
                                         items:
                                             $ref: "#/components/schemas/BookingPurposeOption"
 
+    /room-types:
+        get:
+            operationId: listRoomTypes
+            tags: [Rooms]
+            summary: List active room types
+            description: Returns localized room type labels using `X-Locale` or `Accept-Language`.
+            security:
+                - AccessCookieAuth: []
+                - BearerAuth: []
+            responses:
+                "200":
+                    description: Room type catalog
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/RoomTypeOption"
+
     # ── Rooms ───────────────────────────────────
     /rooms:
         get:
@@ -1874,6 +1987,204 @@ paths:
                 "403":
                     $ref: "#/components/responses/Forbidden"
 
+    /admin/buildings:
+        get:
+            operationId: listAdminBuildings
+            tags: [Admin]
+            summary: List all buildings
+            security:
+                - AccessCookieAuth: []
+                - BearerAuth: []
+            responses:
+                "200":
+                    description: Buildings
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/AdminBuilding"
+        post:
+            operationId: createBuilding
+            tags: [Admin]
+            summary: Create building
+            security:
+                - AccessCookieAuth: []
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: "#/components/schemas/AdminBuilding"
+            responses:
+                "201":
+                    description: Created building
+
+    /admin/buildings/{code}:
+        put:
+            operationId: updateBuilding
+            tags: [Admin]
+            summary: Update building labels/status
+            parameters:
+                - name: code
+                  in: path
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                "200":
+                    description: Updated building
+        delete:
+            operationId: deactivateBuilding
+            tags: [Admin]
+            summary: Deactivate building
+            parameters:
+                - name: code
+                  in: path
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                "204":
+                    description: Deactivated
+
+    /admin/buildings/{code}/reactivate:
+        patch:
+            operationId: reactivateBuilding
+            tags: [Admin]
+            summary: Reactivate building
+            parameters:
+                - name: code
+                  in: path
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                "200":
+                    description: Reactivated building
+
+    /admin/buildings/{code}/hard:
+        delete:
+            operationId: hardDeleteBuilding
+            tags: [Admin]
+            summary: Permanently delete a building and its linked rooms/bookings
+            security:
+                - AccessCookieAuth: []
+                - BearerAuth: []
+            parameters:
+                - name: code
+                  in: path
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                "204":
+                    description: Building, linked rooms, and linked bookings permanently deleted
+
+    /admin/room-types:
+        get:
+            operationId: listAdminRoomTypes
+            tags: [Admin]
+            summary: List all room types
+            security:
+                - AccessCookieAuth: []
+                - BearerAuth: []
+            responses:
+                "200":
+                    description: Room types
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/AdminRoomType"
+        post:
+            operationId: createRoomType
+            tags: [Admin]
+            summary: Create room type
+            security:
+                - AccessCookieAuth: []
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: "#/components/schemas/AdminRoomType"
+            responses:
+                "201":
+                    description: Created room type
+
+    /admin/room-types/{code}:
+        put:
+            operationId: updateRoomType
+            tags: [Admin]
+            summary: Update room type labels/status
+            parameters:
+                - name: code
+                  in: path
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                "200":
+                    description: Updated room type
+        delete:
+            operationId: deactivateRoomType
+            tags: [Admin]
+            summary: Deactivate room type
+            parameters:
+                - name: code
+                  in: path
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                "204":
+                    description: Deactivated
+
+    /admin/room-types/{code}/reactivate:
+        patch:
+            operationId: reactivateRoomType
+            tags: [Admin]
+            summary: Reactivate room type
+            parameters:
+                - name: code
+                  in: path
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                "200":
+                    description: Reactivated room type
+
+    /admin/room-types/{code}/hard:
+        delete:
+            operationId: hardDeleteRoomType
+            tags: [Admin]
+            summary: Permanently delete a room type and linked rooms/bookings
+            security:
+                - AccessCookieAuth: []
+                - BearerAuth: []
+            parameters:
+                - name: code
+                  in: path
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                "204":
+                    description: Room type, linked rooms, and linked bookings permanently deleted
+
     /admin/booking-purposes:
         get:
             operationId: listAdminBookingPurposes
@@ -2258,6 +2569,26 @@ paths:
                                     message: Booking is no longer pending
 
     /admin/equipment:
+        get:
+            operationId: listAdminEquipment
+            tags: [Admin]
+            summary: List all equipment
+            security:
+                - AccessCookieAuth: []
+                - BearerAuth: []
+            responses:
+                "200":
+                    description: Equipment list
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [data]
+                                properties:
+                                    data:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/EquipmentItem"
         post:
             operationId: createEquipment
             tags: [Admin]
@@ -2271,15 +2602,7 @@ paths:
                 content:
                     application/json:
                         schema:
-                            type: object
-                            required: [name, icon]
-                            properties:
-                                name:
-                                    type: string
-                                    example: Projector
-                                icon:
-                                    type: string
-                                    example: icon-projector
+                            $ref: "#/components/schemas/EquipmentInput"
             responses:
                 "201":
                     description: Created equipment item
@@ -2318,15 +2641,7 @@ paths:
                 content:
                     application/json:
                         schema:
-                            type: object
-                            required: [name, icon]
-                            properties:
-                                name:
-                                    type: string
-                                    example: High-res Projector
-                                icon:
-                                    type: string
-                                    example: icon-projector
+                            $ref: "#/components/schemas/EquipmentInput"
             responses:
                 "200":
                     description: Updated equipment item
@@ -2349,7 +2664,7 @@ paths:
             operationId: deleteEquipment
             tags: [Admin]
             summary: Delete equipment
-            description: Soft-deletes or completely removes an equipment item.
+            description: Soft-deactivates an equipment item.
             security:
                 - AccessCookieAuth: []
                 - BearerAuth: []
@@ -2362,13 +2677,51 @@ paths:
                       format: uuid
             responses:
                 "204":
-                    description: Equipment deleted successfully
+                    description: Equipment deactivated successfully
                 "401":
                     $ref: "#/components/responses/Unauthorized"
                 "403":
                     $ref: "#/components/responses/Forbidden"
                 "404":
                     $ref: "#/components/responses/NotFound"
+
+    /admin/equipment/{equipmentId}/reactivate:
+        patch:
+            operationId: reactivateEquipment
+            tags: [Admin]
+            summary: Reactivate equipment
+            security:
+                - AccessCookieAuth: []
+                - BearerAuth: []
+            parameters:
+                - name: equipmentId
+                  in: path
+                  required: true
+                  schema:
+                      type: string
+                      format: uuid
+            responses:
+                "200":
+                    description: Equipment reactivated
+
+    /admin/equipment/{equipmentId}/hard:
+        delete:
+            operationId: hardDeleteEquipment
+            tags: [Admin]
+            summary: Permanently delete equipment
+            security:
+                - AccessCookieAuth: []
+                - BearerAuth: []
+            parameters:
+                - name: equipmentId
+                  in: path
+                  required: true
+                  schema:
+                      type: string
+                      format: uuid
+            responses:
+                "200":
+                    description: Equipment deleted
 
     /admin/stats:
         get:

@@ -112,13 +112,14 @@ func (s *Service) Search(ctx context.Context, input SearchInput, currentUserID s
 
 	whereClause := "WHERE " + strings.Join(conditions, " AND ")
 	query := fmt.Sprintf(`
-		SELECT r.id, r.name, r.description, r.room_type, r.capacity, r.building, %s, r.floor, r.photos, to_char(r.open_time, 'HH24:MI'), to_char(r.close_time, 'HH24:MI')
+		SELECT r.id, r.name, r.description, r.room_type, %s, r.capacity, r.building, %s, r.floor, r.photos, to_char(r.open_time, 'HH24:MI'), to_char(r.close_time, 'HH24:MI')
 		FROM rooms r
 		JOIN buildings b ON b.code = r.building AND b.is_active = true
+		JOIN room_types rt ON rt.code = r.room_type AND rt.is_active = true
 		%s
 		ORDER BY r.name ASC, r.id ASC
 		LIMIT $%d
-	`, catalogssvc.LabelExpr("b", input.Locale), whereClause, argIdx)
+	`, catalogssvc.LabelExpr("rt", input.Locale), catalogssvc.LabelExpr("b", input.Locale), whereClause, argIdx)
 	args = append(args, limit+1)
 
 	rows, err := s.db.Query(ctx, query, args...)
@@ -132,6 +133,7 @@ func (s *Service) Search(ctx context.Context, input SearchInput, currentUserID s
 		name          string
 		description   *string
 		roomType      models.RoomType
+		roomTypeLabel string
 		capacity      int
 		building      string
 		buildingLabel string
@@ -144,7 +146,7 @@ func (s *Service) Search(ctx context.Context, input SearchInput, currentUserID s
 	var roomRows []roomRow
 	for rows.Next() {
 		var r roomRow
-		if err := rows.Scan(&r.id, &r.name, &r.description, &r.roomType, &r.capacity, &r.building, &r.buildingLabel, &r.floor, &r.photos, &r.openTime, &r.closeTime); err != nil {
+		if err := rows.Scan(&r.id, &r.name, &r.description, &r.roomType, &r.roomTypeLabel, &r.capacity, &r.building, &r.buildingLabel, &r.floor, &r.photos, &r.openTime, &r.closeTime); err != nil {
 			return nil, err
 		}
 		if r.photos == nil {
@@ -160,7 +162,7 @@ func (s *Service) Search(ctx context.Context, input SearchInput, currentUserID s
 
 	roomCards := make([]models.RoomCard, 0, len(roomRows))
 	for _, r := range roomRows {
-		equip, err := s.getRoomEquipment(ctx, r.id)
+		equip, err := s.getRoomEquipment(ctx, r.id, input.Locale)
 		if err != nil {
 			return nil, err
 		}
@@ -175,6 +177,7 @@ func (s *Service) Search(ctx context.Context, input SearchInput, currentUserID s
 			Name:          r.name,
 			Description:   r.description,
 			RoomType:      r.roomType,
+			RoomTypeLabel: r.roomTypeLabel,
 			Capacity:      r.capacity,
 			Building:      r.building,
 			BuildingLabel: r.buildingLabel,
@@ -217,10 +220,13 @@ func (s *Service) GetDetail(ctx context.Context, roomIDStr, date, currentUserID,
 	var room models.RoomDetail
 	var photos []string
 	err = s.db.QueryRow(ctx,
-		fmt.Sprintf(`SELECT r.id, r.name, r.description, r.room_type, r.capacity, r.building, %s, r.floor, r.photos, to_char(r.open_time, 'HH24:MI'), to_char(r.close_time, 'HH24:MI')
-		 FROM rooms r JOIN buildings b ON b.code = r.building WHERE r.id = $1 AND r.is_active = true`, catalogssvc.LabelExpr("b", locale)),
+		fmt.Sprintf(`SELECT r.id, r.name, r.description, r.room_type, %s, r.capacity, r.building, %s, r.floor, r.photos, to_char(r.open_time, 'HH24:MI'), to_char(r.close_time, 'HH24:MI')
+		 FROM rooms r
+		 JOIN buildings b ON b.code = r.building
+		 JOIN room_types rt ON rt.code = r.room_type
+		 WHERE r.id = $1 AND r.is_active = true`, catalogssvc.LabelExpr("rt", locale), catalogssvc.LabelExpr("b", locale)),
 		roomID,
-	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.Capacity, &room.Building, &room.BuildingLabel, &room.Floor, &photos, &room.OpenTime, &room.CloseTime)
+	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.RoomTypeLabel, &room.Capacity, &room.Building, &room.BuildingLabel, &room.Floor, &photos, &room.OpenTime, &room.CloseTime)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrRoomNotFound
@@ -232,7 +238,7 @@ func (s *Service) GetDetail(ctx context.Context, roomIDStr, date, currentUserID,
 	}
 	room.Photos = photos
 
-	equip, err := s.getRoomEquipment(ctx, roomID)
+	equip, err := s.getRoomEquipment(ctx, roomID, locale)
 	if err != nil {
 		return nil, err
 	}
@@ -260,6 +266,13 @@ func (s *Service) Create(ctx context.Context, input CreateRoomInput) (*models.Ro
 	if !ok {
 		return nil, ErrInvalidBuilding
 	}
+	ok, err = s.activeRoomTypeExists(ctx, string(input.RoomType))
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, ErrInvalidRoomType
+	}
 	if input.ID == uuid.Nil {
 		input.ID = uuid.New()
 	}
@@ -267,11 +280,15 @@ func (s *Service) Create(ctx context.Context, input CreateRoomInput) (*models.Ro
 	room := &models.Room{}
 	var photos []string
 	err = s.db.QueryRow(ctx,
-		`INSERT INTO rooms (id, name, description, room_type, capacity, building, floor, photos, open_time, close_time)
+		fmt.Sprintf(`INSERT INTO rooms (id, name, description, room_type, capacity, building, floor, photos, open_time, close_time)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::time, $10::time)
-		 RETURNING id, name, description, room_type, capacity, building, building, floor, photos, is_active, created_at, updated_at, to_char(open_time, 'HH24:MI'), to_char(close_time, 'HH24:MI')`,
+		 RETURNING id, name, description, room_type,
+		           (SELECT %s FROM room_types rt WHERE rt.code = rooms.room_type),
+		           capacity, building,
+		           (SELECT %s FROM buildings b WHERE b.code = rooms.building),
+		           floor, photos, is_active, created_at, updated_at, to_char(open_time, 'HH24:MI'), to_char(close_time, 'HH24:MI')`, catalogssvc.LabelExpr("rt", input.Locale), catalogssvc.LabelExpr("b", input.Locale)),
 		input.ID, input.Name, input.Description, input.RoomType, input.Capacity, input.Building, input.Floor, input.Photos, openTime, closeTime,
-	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.Capacity, &room.Building, &room.BuildingLabel, &room.Floor, &photos, &room.IsActive, &room.CreatedAt, &room.UpdatedAt, &room.OpenTime, &room.CloseTime)
+	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.RoomTypeLabel, &room.Capacity, &room.Building, &room.BuildingLabel, &room.Floor, &photos, &room.IsActive, &room.CreatedAt, &room.UpdatedAt, &room.OpenTime, &room.CloseTime)
 	if err != nil {
 		return nil, fmt.Errorf("insert room: %w", err)
 	}
@@ -286,7 +303,7 @@ func (s *Service) Create(ctx context.Context, input CreateRoomInput) (*models.Ro
 		}
 	}
 
-	equip, err := s.getRoomEquipment(ctx, room.ID)
+	equip, err := s.getRoomEquipment(ctx, room.ID, input.Locale)
 	if err != nil {
 		return nil, err
 	}
@@ -310,15 +327,26 @@ func (s *Service) Update(ctx context.Context, roomIDStr string, input CreateRoom
 	if !ok {
 		return nil, ErrInvalidBuilding
 	}
+	ok, err = s.activeRoomTypeExists(ctx, string(input.RoomType))
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, ErrInvalidRoomType
+	}
 
 	room := &models.Room{}
 	var photos []string
 	err = s.db.QueryRow(ctx,
-		`UPDATE rooms SET name=$1, description=$2, room_type=$3, capacity=$4, building=$5, floor=$6, photos=CASE WHEN $10 THEN photos ELSE $7 END, open_time=$8::time, close_time=$9::time, updated_at=now()
+		fmt.Sprintf(`UPDATE rooms SET name=$1, description=$2, room_type=$3, capacity=$4, building=$5, floor=$6, photos=CASE WHEN $10 THEN photos ELSE $7 END, open_time=$8::time, close_time=$9::time, updated_at=now()
 		 WHERE id=$11 AND is_active=true
-		 RETURNING id, name, description, room_type, capacity, building, building, floor, photos, is_active, created_at, updated_at, to_char(open_time, 'HH24:MI'), to_char(close_time, 'HH24:MI')`,
+		 RETURNING id, name, description, room_type,
+		           (SELECT %s FROM room_types rt WHERE rt.code = rooms.room_type),
+		           capacity, building,
+		           (SELECT %s FROM buildings b WHERE b.code = rooms.building),
+		           floor, photos, is_active, created_at, updated_at, to_char(open_time, 'HH24:MI'), to_char(close_time, 'HH24:MI')`, catalogssvc.LabelExpr("rt", input.Locale), catalogssvc.LabelExpr("b", input.Locale)),
 		input.Name, input.Description, input.RoomType, input.Capacity, input.Building, input.Floor, input.Photos, openTime, closeTime, input.KeepExistingPhotos, roomID,
-	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.Capacity, &room.Building, &room.BuildingLabel, &room.Floor, &photos, &room.IsActive, &room.CreatedAt, &room.UpdatedAt, &room.OpenTime, &room.CloseTime)
+	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.RoomTypeLabel, &room.Capacity, &room.Building, &room.BuildingLabel, &room.Floor, &photos, &room.IsActive, &room.CreatedAt, &room.UpdatedAt, &room.OpenTime, &room.CloseTime)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrRoomNotFound
@@ -340,7 +368,7 @@ func (s *Service) Update(ctx context.Context, roomIDStr string, input CreateRoom
 		}
 	}
 
-	equip, err := s.getRoomEquipment(ctx, room.ID)
+	equip, err := s.getRoomEquipment(ctx, room.ID, input.Locale)
 	if err != nil {
 		return nil, err
 	}
@@ -385,7 +413,11 @@ func (s *Service) Delete(ctx context.Context, roomIDStr string) error {
 }
 
 func (s *Service) ListEquipment(ctx context.Context) ([]models.Equipment, error) {
-	rows, err := s.db.Query(ctx, "SELECT id, name, icon FROM equipment ORDER BY name ASC")
+	rows, err := s.db.Query(ctx, `
+		SELECT id, code, label_en, label_ru, label_en, icon, is_active, sort_order, created_at, updated_at
+		FROM equipment
+		ORDER BY sort_order ASC, code ASC
+	`)
 	if err != nil {
 		return nil, fmt.Errorf("list equipment: %w", err)
 	}
@@ -394,7 +426,7 @@ func (s *Service) ListEquipment(ctx context.Context) ([]models.Equipment, error)
 	var items []models.Equipment
 	for rows.Next() {
 		var e models.Equipment
-		if err := rows.Scan(&e.ID, &e.Name, &e.Icon); err != nil {
+		if err := rows.Scan(&e.ID, &e.Code, &e.Name, &e.LabelRu, &e.LabelEn, &e.Icon, &e.IsActive, &e.SortOrder, &e.CreatedAt, &e.UpdatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, e)
@@ -405,13 +437,13 @@ func (s *Service) ListEquipment(ctx context.Context) ([]models.Equipment, error)
 	return items, nil
 }
 
-func (s *Service) getRoomEquipment(ctx context.Context, roomID uuid.UUID) ([]models.Equipment, error) {
+func (s *Service) getRoomEquipment(ctx context.Context, roomID uuid.UUID, locale string) ([]models.Equipment, error) {
 	rows, err := s.db.Query(ctx,
-		`SELECT e.id, e.name, e.icon
+		fmt.Sprintf(`SELECT e.id, e.code, %s, e.label_ru, e.label_en, e.icon, e.is_active, e.sort_order, e.created_at, e.updated_at
 		 FROM equipment e
 		 JOIN room_equipment re ON re.equipment_id = e.id
 		 WHERE re.room_id = $1
-		 ORDER BY e.name ASC`,
+		 ORDER BY e.sort_order ASC, e.code ASC`, catalogssvc.LabelExpr("e", locale)),
 		roomID,
 	)
 	if err != nil {
@@ -422,7 +454,7 @@ func (s *Service) getRoomEquipment(ctx context.Context, roomID uuid.UUID) ([]mod
 	var items []models.Equipment
 	for rows.Next() {
 		var e models.Equipment
-		if err := rows.Scan(&e.ID, &e.Name, &e.Icon); err != nil {
+		if err := rows.Scan(&e.ID, &e.Code, &e.Name, &e.LabelRu, &e.LabelEn, &e.Icon, &e.IsActive, &e.SortOrder, &e.CreatedAt, &e.UpdatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, e)
@@ -682,6 +714,15 @@ func (s *Service) activeBuildingExists(ctx context.Context, code string) (bool, 
 	return exists, nil
 }
 
+func (s *Service) activeRoomTypeExists(ctx context.Context, code string) (bool, error) {
+	var exists bool
+	err := s.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM room_types WHERE code = $1 AND is_active = true)", code).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check room type: %w", err)
+	}
+	return exists, nil
+}
+
 func normalizeRoomHours(openTime, closeTime string) (string, string, error) {
 	if openTime == "" {
 		openTime = "08:00"
@@ -741,23 +782,33 @@ func (s *Service) AdminSearch(ctx context.Context, input AdminSearchInput) (*Sea
 
 	query := fmt.Sprintf(`
 		SELECT
-			r.id, r.name, r.description, r.room_type, r.capacity, r.building, r.floor, r.photos, r.is_active,
+			r.id, r.name, r.description, r.room_type, %s AS room_type_label, r.capacity, r.building, r.floor, r.photos, r.is_active,
 			%s AS building_label,
 			COALESCE(
 				json_agg(
-					json_build_object('id', e.id, 'name', e.name, 'icon', e.icon)
+					json_build_object(
+						'id', e.id,
+						'code', e.code,
+						'name', %s,
+						'labelRu', e.label_ru,
+						'labelEn', e.label_en,
+						'icon', e.icon,
+						'isActive', e.is_active,
+						'sortOrder', e.sort_order
+					)
 				) FILTER (WHERE e.id IS NOT NULL),
 				'[]'
 			) as equipment
 		FROM rooms r
 		LEFT JOIN buildings b ON b.code = r.building
+		LEFT JOIN room_types rt ON rt.code = r.room_type
 		LEFT JOIN room_equipment re ON r.id = re.room_id
 		LEFT JOIN equipment e ON re.equipment_id = e.id
 		%s
-		GROUP BY r.id, b.label_ru, b.label_en
+		GROUP BY r.id, b.label_ru, b.label_en, rt.label_ru, rt.label_en
 		ORDER BY r.name ASC, r.id ASC
 		LIMIT $%d
-	`, catalogssvc.LabelExpr("b", input.Locale), whereClause, argIdx)
+	`, catalogssvc.LabelExpr("rt", input.Locale), catalogssvc.LabelExpr("b", input.Locale), catalogssvc.LabelExpr("e", input.Locale), whereClause, argIdx)
 
 	args = append(args, limit+1)
 
@@ -774,7 +825,7 @@ func (s *Service) AdminSearch(ctx context.Context, input AdminSearchInput) (*Sea
 		var isActive bool
 
 		if err := rows.Scan(
-			&room.ID, &room.Name, &room.Description, &room.RoomType, &room.Capacity,
+			&room.ID, &room.Name, &room.Description, &room.RoomType, &room.RoomTypeLabel, &room.Capacity,
 			&room.Building, &room.Floor, &room.Photos, &isActive, &room.BuildingLabel, &eqBytes,
 		); err != nil {
 			return nil, fmt.Errorf("scan admin room: %w", err)
@@ -826,9 +877,9 @@ func (s *Service) Reactivate(ctx context.Context, roomIDStr string) (*models.Roo
 	var photos []string
 	err = s.db.QueryRow(ctx,
 		`UPDATE rooms SET is_active=true, updated_at=now() WHERE id=$1
-		 RETURNING id, name, description, room_type, capacity, building, floor, photos, is_active, created_at, updated_at, to_char(open_time, 'HH24:MI'), to_char(close_time, 'HH24:MI')`,
+		 RETURNING id, name, description, room_type, room_type, capacity, building, building, floor, photos, is_active, created_at, updated_at, to_char(open_time, 'HH24:MI'), to_char(close_time, 'HH24:MI')`,
 		roomID,
-	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.Capacity, &room.Building, &room.Floor, &photos, &room.IsActive, &room.CreatedAt, &room.UpdatedAt, &room.OpenTime, &room.CloseTime)
+	).Scan(&room.ID, &room.Name, &room.Description, &room.RoomType, &room.RoomTypeLabel, &room.Capacity, &room.Building, &room.BuildingLabel, &room.Floor, &photos, &room.IsActive, &room.CreatedAt, &room.UpdatedAt, &room.OpenTime, &room.CloseTime)
 
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -841,7 +892,7 @@ func (s *Service) Reactivate(ctx context.Context, roomIDStr string) (*models.Roo
 	}
 	room.Photos = photos
 
-	equip, err := s.getRoomEquipment(ctx, room.ID)
+	equip, err := s.getRoomEquipment(ctx, room.ID, "")
 	if err != nil {
 		return nil, err
 	}

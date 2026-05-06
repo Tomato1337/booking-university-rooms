@@ -17,7 +17,7 @@ import {
 	myBookingsSearchAtom,
 	type MyBooking,
 } from '@/modules/bookings'
-import { tAtom } from '@/modules/i18n'
+import { localeAtom, tAtom } from '@/modules/i18n'
 import { roomDetailRoute } from '@/pages/room-detail'
 import { cn, formatBookingDate } from '@/shared/lib/utils'
 import { rootRoute } from '@/shared/router'
@@ -37,14 +37,15 @@ import { wrap } from '@reatom/core'
 import { reatomComponent, useWrap, useAtom } from '@reatom/react'
 type BookingsTab = 'active' | 'history'
 
-function toBookingRowData(booking: MyBooking) {
+function toBookingRowData(booking: MyBooking, locale: string) {
 	return {
 		id: booking.id,
 		roomId: booking.roomId,
 		title: booking.title,
 		roomName: booking.roomName,
 		bookingId: booking.bookingId,
-		date: formatBookingDate(booking.bookingDate).toUpperCase(),
+		date: formatBookingDate(booking.bookingDate, locale).toUpperCase(),
+		purposeLabel: booking.purposeLabel,
 		timeRange: `${booking.startTime} — ${booking.endTime}`,
 		location: booking.buildingLabel ?? booking.building,
 		status: booking.status,
@@ -55,6 +56,7 @@ function toBookingRowData(booking: MyBooking) {
 
 const BookingsPage = reatomComponent(() => {
 	const [t] = useAtom(tAtom)
+	const [locale] = useAtom(localeAtom)
 	const [activeTab, setActiveTab] = useState<BookingsTab>('active')
 	const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
 	const [bookingToCancel, setBookingToCancel] = useState<ReturnType<
@@ -62,8 +64,8 @@ const BookingsPage = reatomComponent(() => {
 	> | null>(null)
 
 	const query = bookingsPageSearchAtom()
-	const activeBookings = myBookingsAtom().map(toBookingRowData)
-	const historyBookings = myBookingHistoryAtom().map(toBookingRowData)
+	const activeBookings = myBookingsAtom().map((booking) => toBookingRowData(booking, locale))
+	const historyBookings = myBookingHistoryAtom().map((booking) => toBookingRowData(booking, locale))
 
 	const currentRows = activeTab === 'active' ? activeBookings : historyBookings
 	const isLoading = activeTab === 'active' ? myBookingsLoadingAtom() : myBookingHistoryLoadingAtom()
@@ -211,6 +213,7 @@ const BookingsPage = reatomComponent(() => {
 								roomName={booking.roomName}
 								title={booking.title}
 								date={booking.date}
+								purposeLabel={booking.purposeLabel}
 								timeRange={booking.timeRange}
 								location={booking.location}
 								status={booking.status}

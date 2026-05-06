@@ -7,8 +7,12 @@ export type EquipmentFormMode = "create" | "edit"
 
 function defaultValues() {
   return {
-    name: "",
+    code: "",
+    labelRu: "",
+    labelEn: "",
     icon: "IconVideo",
+    isActive: true,
+    sortOrder: 0,
   }
 }
 
@@ -16,8 +20,12 @@ export function toInitialValues(equipment?: EquipmentItem) {
   if (!equipment) return defaultValues()
 
   return {
-    name: equipment.name,
+    code: equipment.code ?? "",
+    labelRu: equipment.labelRu ?? equipment.name,
+    labelEn: equipment.labelEn ?? equipment.name,
     icon: equipment.icon,
+    isActive: equipment.isActive ?? true,
+    sortOrder: equipment.sortOrder ?? 0,
   }
 }
 

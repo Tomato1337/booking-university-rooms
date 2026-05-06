@@ -4,6 +4,7 @@ import {
   IconTrash,
   IconAlertTriangle,
   IconExclamationCircle,
+  IconRefresh,
 } from "@tabler/icons-react";
 
 import { reatomComponent, useWrap, useAtom } from "@reatom/react";
@@ -18,6 +19,8 @@ import {
   openCreateEquipmentFormAction,
   openEditEquipmentFormAction,
   equipmentListQuery,
+  hardDeleteEquipmentMutation,
+  reactivateEquipmentMutation,
   searchAdminRoomsAction,
   type EquipmentDeleteResult,
   type EquipmentItem,
@@ -36,6 +39,8 @@ import {
   AlertDialogTitle,
 } from "@/shared/ui/alert-dialog";
 import { Button } from "@/shared/ui/button";
+import { StatusBadge } from "@/shared/ui/status-badge";
+import { StatusTabs } from "@/shared/ui/status-tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 
 interface DeleteDialogState {
@@ -50,10 +55,15 @@ export const EquipmentTab = reatomComponent(() => {
   const status = equipmentListQuery.status();
   const rooms = adminRoomsListAtom();
   const deleteStatus = deleteEquipmentMutation.status();
+  const hardDeleteStatus = hardDeleteEquipmentMutation.status();
   const equipmentFormOpen = equipmentFormOpenAtom();
   const equipmentFormMode = equipmentFormModeAtom();
 
   const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState | null>(null);
+  const [statusTab, setStatusTab] = useState<"active" | "inactive">("active");
+  const filteredEquipment = equipment.filter((item) =>
+    statusTab === "active" ? item.isActive : !item.isActive,
+  );
 
   const wrapOpenDeleteDialog = useWrap((item: EquipmentItem) => {
     const usage = rooms
@@ -70,7 +80,7 @@ export const EquipmentTab = reatomComponent(() => {
   const wrapConfirmDelete = useWrap(async () => {
     if (!deleteDialog) return;
 
-    await deleteEquipmentMutation(deleteDialog.equipment.id);
+    await hardDeleteEquipmentMutation(deleteDialog.equipment.id);
 
     setDeleteDialog({
       equipment: deleteDialog.equipment,
@@ -85,6 +95,14 @@ export const EquipmentTab = reatomComponent(() => {
 
   const wrapOpenEditForm = useWrap((item: EquipmentItem) => {
     openEditEquipmentFormAction(item);
+  });
+
+  const wrapDeactivate = useWrap(async (item: EquipmentItem) => {
+    await deleteEquipmentMutation(item.id);
+  });
+
+  const wrapReactivate = useWrap(async (item: EquipmentItem) => {
+    await reactivateEquipmentMutation(item.id);
   });
 
   const wrapCloseForm = useWrap(() => {
@@ -112,24 +130,35 @@ export const EquipmentTab = reatomComponent(() => {
         </Button>
       </div>
 
+      <StatusTabs
+        value={statusTab}
+        onChange={setStatusTab}
+        options={[
+          { value: "active", label: t.admin.equipment.tabs.active },
+          { value: "inactive", label: t.admin.equipment.tabs.inactive },
+        ]}
+      />
+
       <div className="bg-surface-container-low">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>{t.admin.equipment.columns.icon}</TableHead>
+              <TableHead>{t.admin.equipment.columns.code}</TableHead>
               <TableHead>{t.admin.equipment.columns.name}</TableHead>
+              <TableHead>{t.admin.equipment.columns.status}</TableHead>
               <TableHead className="text-right">{t.admin.equipment.columns.actions}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {status.isFirstPending ? (
               <TableRow>
-                <TableCell colSpan={3} className="py-12 text-center text-on-surface-variant">
+                <TableCell colSpan={5} className="py-12 text-center text-on-surface-variant">
                   {t.admin.equipment.loading}
                 </TableCell>
               </TableRow>
-            ) : equipment.length > 0 ? (
-              equipment.map((item) => {
+            ) : filteredEquipment.length > 0 ? (
+              filteredEquipment.map((item) => {
                 const EquipmentIcon = getEquipmentIcon(item.icon);
 
                 return (
@@ -139,8 +168,15 @@ export const EquipmentTab = reatomComponent(() => {
                         <EquipmentIcon size={16} />
                       </span>
                     </TableCell>
+                    <TableCell className="font-mono text-xs">{item.code}</TableCell>
                     <TableCell className="font-bold uppercase tracking-wider">
                       {item.name}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge
+                        status={item.isActive ? "active" : "inactive"}
+                        label={item.isActive ? t.admin.equipment.active : t.admin.equipment.inactive}
+                      />
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
@@ -153,16 +189,40 @@ export const EquipmentTab = reatomComponent(() => {
                           <IconPencil className="size-4" />
                           {t.admin.equipment.actions.edit}
                         </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="destructive"
-                          disabled={deleteStatus.isPending}
-                          onClick={() => wrapOpenDeleteDialog(item)}
-                        >
-                          <IconTrash className="size-4" />
-                          {t.admin.equipment.actions.delete}
-                        </Button>
+                        {item.isActive ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={deleteStatus.isPending}
+                            onClick={() => wrapDeactivate(item)}
+                          >
+                            <IconTrash className="size-4" />
+                            {t.admin.equipment.actions.deactivate}
+                          </Button>
+                        ) : (
+                          <>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => wrapReactivate(item)}
+                            >
+                              <IconRefresh className="size-4" />
+                              {t.admin.equipment.actions.reactivate}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="destructive"
+                              disabled={hardDeleteStatus.isPending}
+                              onClick={() => wrapOpenDeleteDialog(item)}
+                            >
+                              <IconTrash className="size-4" />
+                              {t.admin.equipment.actions.delete}
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -170,8 +230,8 @@ export const EquipmentTab = reatomComponent(() => {
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={3} className="py-12 text-center text-on-surface-variant">
-                  {t.admin.equipment.noEquipment}
+                <TableCell colSpan={5} className="py-12 text-center text-on-surface-variant">
+                  {statusTab === "active" ? t.admin.equipment.emptyActive : t.admin.equipment.emptyInactive}
                 </TableCell>
               </TableRow>
             )}
@@ -256,7 +316,7 @@ export const EquipmentTab = reatomComponent(() => {
                   void wrapConfirmDelete();
                 }}
               >
-                {deleteStatus.isPending ? t.admin.equipment.alerts.deleting : t.admin.equipment.alerts.confirmDelete}
+                {hardDeleteStatus.isPending ? t.admin.equipment.alerts.deleting : t.admin.equipment.alerts.confirmDelete}
               </AlertDialogAction>
             )}
           </AlertDialogFooter>

@@ -214,7 +214,7 @@ export const RoomsTab = reatomComponent(() => {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="uppercase">{room.roomType.replace("_", " ")}</TableCell>
+                    <TableCell className="uppercase">{room.roomTypeLabel ?? room.roomType.replace("_", " ")}</TableCell>
                     <TableCell>{room.capacity}</TableCell>
                     <TableCell>
                       {(room.buildingLabel ?? room.building)} / {t.rooms.card.floor.replace("{floor}", String(room.floor))}

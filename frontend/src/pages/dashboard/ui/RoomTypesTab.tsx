@@ -2,14 +2,14 @@ import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
 import {
-  adminBookingPurposesAtom,
-  createBookingPurposeMutation,
-  deactivateBookingPurposeMutation,
-  fetchAdminBookingPurposesAction,
-  hardDeleteBookingPurposeMutation,
-  reactivateBookingPurposeMutation,
-  updateBookingPurposeMutation,
-  type AdminBookingPurpose,
+  adminRoomTypesAtom,
+  createRoomTypeMutation,
+  deactivateRoomTypeMutation,
+  fetchAdminRoomTypesAction,
+  hardDeleteRoomTypeMutation,
+  reactivateRoomTypeMutation,
+  updateRoomTypeMutation,
+  type AdminRoomType,
 } from "@/modules/catalogs"
 import { tAtom } from "@/modules/i18n"
 import {
@@ -37,7 +37,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { reatomComponent, useAtom, useWrap } from "@reatom/react"
 import { IconPencil, IconPlus, IconRefresh, IconTrash, IconTrashX } from "@tabler/icons-react"
 
-type PurposeFormState = {
+type RoomTypeFormState = {
   code: string
   labelRu: string
   labelEn: string
@@ -45,9 +45,9 @@ type PurposeFormState = {
   isActive: boolean
 }
 
-type PurposeStatusTab = "active" | "inactive"
+type RoomTypeStatusTab = "active" | "inactive"
 
-const emptyForm: PurposeFormState = {
+const emptyForm: RoomTypeFormState = {
   code: "",
   labelRu: "",
   labelEn: "",
@@ -55,7 +55,7 @@ const emptyForm: PurposeFormState = {
   isActive: true,
 }
 
-function toForm(item: AdminBookingPurpose): PurposeFormState {
+function toForm(item: AdminRoomType): RoomTypeFormState {
   return {
     code: item.code,
     labelRu: item.labelRu,
@@ -65,30 +65,30 @@ function toForm(item: AdminBookingPurpose): PurposeFormState {
   }
 }
 
-export const PurposesTab = reatomComponent(() => {
+export const RoomTypesTab = reatomComponent(() => {
   const [t] = useAtom(tAtom)
-  const purposes = adminBookingPurposesAtom()
-  const loadStatus = fetchAdminBookingPurposesAction.status()
-  const createStatus = createBookingPurposeMutation.status()
-  const updateStatus = updateBookingPurposeMutation.status()
-  const deactivateStatus = deactivateBookingPurposeMutation.status()
-  const reactivateStatus = reactivateBookingPurposeMutation.status()
-  const hardDeleteStatus = hardDeleteBookingPurposeMutation.status()
+  const roomTypes = adminRoomTypesAtom()
+  const loadStatus = fetchAdminRoomTypesAction.status()
+  const createStatus = createRoomTypeMutation.status()
+  const updateStatus = updateRoomTypeMutation.status()
+  const deactivateStatus = deactivateRoomTypeMutation.status()
+  const reactivateStatus = reactivateRoomTypeMutation.status()
+  const hardDeleteStatus = hardDeleteRoomTypeMutation.status()
 
-  const [statusTab, setStatusTab] = useState<PurposeStatusTab>("active")
+  const [statusTab, setStatusTab] = useState<RoomTypeStatusTab>("active")
   const [formOpen, setFormOpen] = useState(false)
-  const [editingPurpose, setEditingPurpose] = useState<AdminBookingPurpose | null>(null)
-  const [deletePurpose, setDeletePurpose] = useState<AdminBookingPurpose | null>(null)
-  const [form, setForm] = useState<PurposeFormState>(emptyForm)
+  const [editingRoomType, setEditingRoomType] = useState<AdminRoomType | null>(null)
+  const [deleteRoomType, setDeleteRoomType] = useState<AdminRoomType | null>(null)
+  const [form, setForm] = useState<RoomTypeFormState>(emptyForm)
   const submitting = createStatus.isPending || updateStatus.isPending
 
-  const filteredPurposes = useMemo(
-    () => purposes.filter((item) => (statusTab === "active" ? item.isActive : !item.isActive)),
-    [purposes, statusTab],
+  const filteredRoomTypes = useMemo(
+    () => roomTypes.filter((item) => (statusTab === "active" ? item.isActive : !item.isActive)),
+    [roomTypes, statusTab],
   )
 
   const wrapLoad = useWrap(() => {
-    fetchAdminBookingPurposesAction()
+    fetchAdminRoomTypesAction()
   })
 
   useEffect(() => {
@@ -96,20 +96,20 @@ export const PurposesTab = reatomComponent(() => {
   }, [wrapLoad])
 
   const wrapOpenCreate = useWrap(() => {
-    setEditingPurpose(null)
+    setEditingRoomType(null)
     setForm(emptyForm)
     setFormOpen(true)
   })
 
-  const wrapOpenEdit = useWrap((item: AdminBookingPurpose) => {
-    setEditingPurpose(item)
+  const wrapOpenEdit = useWrap((item: AdminRoomType) => {
+    setEditingRoomType(item)
     setForm(toForm(item))
     setFormOpen(true)
   })
 
   const wrapCloseForm = useWrap(() => {
     setFormOpen(false)
-    setEditingPurpose(null)
+    setEditingRoomType(null)
     setForm(emptyForm)
   })
 
@@ -121,35 +121,35 @@ export const PurposesTab = reatomComponent(() => {
       sortOrder: Number(form.sortOrder) || 0,
       isActive: form.isActive,
     }
-    if (!body.labelRu || !body.labelEn || (!editingPurpose && !body.code)) return
+    if (!body.labelRu || !body.labelEn || (!editingRoomType && !body.code)) return
 
-    if (editingPurpose) {
-      await updateBookingPurposeMutation({ code: editingPurpose.code, body })
+    if (editingRoomType) {
+      await updateRoomTypeMutation({ code: editingRoomType.code, body })
     } else {
-      await createBookingPurposeMutation(body)
+      await createRoomTypeMutation(body)
     }
     wrapCloseForm()
   })
 
   const wrapDeactivate = useWrap(async (code: string) => {
-    await deactivateBookingPurposeMutation(code)
-    toast.success(t.admin.purposes.toasts.deactivated)
+    await deactivateRoomTypeMutation(code)
+    toast.success(t.admin.roomTypes.toasts.deactivated)
   })
 
   const wrapReactivate = useWrap(async (code: string) => {
-    await reactivateBookingPurposeMutation(code)
-    toast.success(t.admin.purposes.toasts.reactivated)
+    await reactivateRoomTypeMutation(code)
+    toast.success(t.admin.roomTypes.toasts.reactivated)
   })
 
   const wrapHardDelete = useWrap(async () => {
-    if (!deletePurpose) return
+    if (!deleteRoomType) return
     try {
-      await hardDeleteBookingPurposeMutation(deletePurpose.code)
-      toast.success(t.admin.purposes.toasts.deleted)
+      await hardDeleteRoomTypeMutation(deleteRoomType.code)
+      toast.success(t.admin.roomTypes.toasts.deleted)
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : t.admin.purposes.toasts.deleteFailed)
+      toast.error(e instanceof Error ? e.message : t.admin.roomTypes.toasts.deleteFailed)
     } finally {
-      setDeletePurpose(null)
+      setDeleteRoomType(null)
     }
   })
 
@@ -158,13 +158,13 @@ export const PurposesTab = reatomComponent(() => {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-col gap-2">
           <h3 className="text-[1.75rem] font-black uppercase tracking-tighter">
-            {t.admin.purposes.title}
+            {t.admin.roomTypes.title}
           </h3>
-          <p className="text-sm text-on-surface-variant">{t.admin.purposes.subtitle}</p>
+          <p className="text-sm text-on-surface-variant">{t.admin.roomTypes.subtitle}</p>
         </div>
         <Button type="button" onClick={wrapOpenCreate}>
           <IconPlus className="size-4" />
-          {t.admin.purposes.form.create}
+          {t.admin.roomTypes.form.create}
         </Button>
       </div>
 
@@ -172,8 +172,8 @@ export const PurposesTab = reatomComponent(() => {
         value={statusTab}
         onChange={setStatusTab}
         options={[
-          { value: "active", label: t.admin.purposes.tabs.active },
-          { value: "inactive", label: t.admin.purposes.tabs.inactive },
+          { value: "active", label: t.admin.roomTypes.tabs.active },
+          { value: "inactive", label: t.admin.roomTypes.tabs.inactive },
         ]}
       />
 
@@ -181,23 +181,23 @@ export const PurposesTab = reatomComponent(() => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t.admin.purposes.columns.code}</TableHead>
-              <TableHead>{t.admin.purposes.columns.labelRu}</TableHead>
-              <TableHead>{t.admin.purposes.columns.labelEn}</TableHead>
-              <TableHead>{t.admin.purposes.columns.sortOrder}</TableHead>
-              <TableHead>{t.admin.purposes.columns.status}</TableHead>
-              <TableHead className="text-right">{t.admin.purposes.columns.actions}</TableHead>
+              <TableHead>{t.admin.roomTypes.columns.code}</TableHead>
+              <TableHead>{t.admin.roomTypes.columns.labelRu}</TableHead>
+              <TableHead>{t.admin.roomTypes.columns.labelEn}</TableHead>
+              <TableHead>{t.admin.roomTypes.columns.sortOrder}</TableHead>
+              <TableHead>{t.admin.roomTypes.columns.status}</TableHead>
+              <TableHead className="text-right">{t.admin.roomTypes.columns.actions}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loadStatus.isFirstPending ? (
               <TableRow>
                 <TableCell colSpan={6} className="py-12 text-center text-on-surface-variant">
-                  {t.admin.purposes.loading}
+                  {t.admin.roomTypes.loading}
                 </TableCell>
               </TableRow>
-            ) : filteredPurposes.length > 0 ? (
-              filteredPurposes.map((item) => (
+            ) : filteredRoomTypes.length > 0 ? (
+              filteredRoomTypes.map((item) => (
                 <TableRow key={item.code}>
                   <TableCell className="font-mono text-xs">{item.code}</TableCell>
                   <TableCell>{item.labelRu}</TableCell>
@@ -206,7 +206,7 @@ export const PurposesTab = reatomComponent(() => {
                   <TableCell>
                     <StatusBadge
                       status={item.isActive ? "active" : "inactive"}
-                      label={item.isActive ? t.admin.purposes.active : t.admin.purposes.inactive}
+                      label={item.isActive ? t.admin.roomTypes.active : t.admin.roomTypes.inactive}
                     />
                   </TableCell>
                   <TableCell className="text-right">
@@ -215,24 +215,24 @@ export const PurposesTab = reatomComponent(() => {
                         <>
                           <Button type="button" size="sm" variant="outline" onClick={() => wrapOpenEdit(item)}>
                             <IconPencil className="size-4" />
-                            {t.admin.purposes.actions.edit}
+                            {t.admin.roomTypes.actions.edit}
                           </Button>
                           <Button
                             type="button"
                             size="sm"
-                            variant="destructive"
+                            variant="outline"
                             disabled={deactivateStatus.isPending}
                             onClick={() => wrapDeactivate(item.code)}
                           >
                             <IconTrash className="size-4" />
-                            {t.admin.purposes.actions.deactivate}
+                            {t.admin.roomTypes.actions.deactivate}
                           </Button>
                         </>
                       ) : (
                         <>
                           <Button type="button" size="sm" variant="outline" onClick={() => wrapOpenEdit(item)}>
                             <IconPencil className="size-4" />
-                            {t.admin.purposes.actions.edit}
+                            {t.admin.roomTypes.actions.edit}
                           </Button>
                           <Button
                             type="button"
@@ -242,11 +242,16 @@ export const PurposesTab = reatomComponent(() => {
                             onClick={() => wrapReactivate(item.code)}
                           >
                             <IconRefresh className="size-4" />
-                            {t.admin.purposes.actions.reactivate}
+                            {t.admin.roomTypes.actions.reactivate}
                           </Button>
-                          <Button type="button" size="sm" variant="destructive" onClick={() => setDeletePurpose(item)}>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => setDeleteRoomType(item)}
+                          >
                             <IconTrashX className="size-4" />
-                            {t.admin.purposes.actions.delete}
+                            {t.admin.roomTypes.actions.delete}
                           </Button>
                         </>
                       )}
@@ -257,7 +262,7 @@ export const PurposesTab = reatomComponent(() => {
             ) : (
               <TableRow>
                 <TableCell colSpan={6} className="py-12 text-center text-on-surface-variant">
-                  {statusTab === "active" ? t.admin.purposes.emptyActive : t.admin.purposes.emptyInactive}
+                  {statusTab === "active" ? t.admin.roomTypes.emptyActive : t.admin.roomTypes.emptyInactive}
                 </TableCell>
               </TableRow>
             )}
@@ -265,41 +270,40 @@ export const PurposesTab = reatomComponent(() => {
         </Table>
       </div>
 
-      <Sheet open={formOpen} onOpenChange={(open) => (!open ? wrapCloseForm() : setFormOpen(true))}>
+      <Sheet open={formOpen} onOpenChange={(open) => !open && wrapCloseForm()}>
         <SheetContent side="right" className="w-full max-w-xl bg-surface-container-low">
           <SheetHeader>
             <SheetTitle>
-              {editingPurpose ? t.admin.purposes.form.editTitle : t.admin.purposes.form.createTitle}
+              {editingRoomType ? t.admin.roomTypes.form.editTitle : t.admin.roomTypes.form.createTitle}
             </SheetTitle>
           </SheetHeader>
 
-          <div className="grid gap-4 p-4">
+          <div className="flex flex-col gap-4 p-4">
             <label className="flex flex-col gap-2">
               <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                {t.admin.purposes.form.code}
+                {t.admin.roomTypes.form.code}
               </span>
               <Input
                 value={form.code}
-                disabled={Boolean(editingPurpose)}
+                disabled={Boolean(editingRoomType)}
                 onChange={(e) => setForm((prev) => ({ ...prev, code: e.target.value }))}
-                placeholder="exam_review"
               />
             </label>
             <label className="flex flex-col gap-2">
               <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                {t.admin.purposes.form.labelRu}
+                {t.admin.roomTypes.form.labelRu}
               </span>
               <Input value={form.labelRu} onChange={(e) => setForm((prev) => ({ ...prev, labelRu: e.target.value }))} />
             </label>
             <label className="flex flex-col gap-2">
               <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                {t.admin.purposes.form.labelEn}
+                {t.admin.roomTypes.form.labelEn}
               </span>
               <Input value={form.labelEn} onChange={(e) => setForm((prev) => ({ ...prev, labelEn: e.target.value }))} />
             </label>
             <label className="flex flex-col gap-2">
               <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                {t.admin.purposes.form.sortOrder}
+                {t.admin.roomTypes.form.sortOrder}
               </span>
               <Input
                 type="number"
@@ -311,37 +315,46 @@ export const PurposesTab = reatomComponent(() => {
 
           <SheetFooter>
             <Button type="button" variant="outline" onClick={wrapCloseForm}>
-              {t.admin.purposes.form.cancel}
+              {t.admin.roomTypes.form.cancel}
             </Button>
             <Button type="button" disabled={submitting} onClick={wrapSubmit}>
               {submitting
-                ? t.admin.purposes.form.saving
-                : editingPurpose
-                  ? t.admin.purposes.form.save
-                  : t.admin.purposes.form.create}
+                ? t.admin.roomTypes.form.saving
+                : editingRoomType
+                  ? t.admin.roomTypes.form.save
+                  : t.admin.roomTypes.form.create}
             </Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
 
-      <AlertDialog open={Boolean(deletePurpose)} onOpenChange={(open) => !open && setDeletePurpose(null)}>
-        <AlertDialogContent>
+      <AlertDialog open={Boolean(deleteRoomType)} onOpenChange={(open) => !open && setDeleteRoomType(null)}>
+        <AlertDialogContent size="sm">
           <AlertDialogHeader>
-            <AlertDialogTitle>{t.admin.purposes.alerts.deleteTitle}</AlertDialogTitle>
+            <AlertDialogTitle>{t.admin.roomTypes.alerts.deleteTitle}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t.admin.purposes.alerts.deleteDesc.replace("{code}", deletePurpose?.code ?? "")}
+              {t.admin.roomTypes.alerts.deleteDesc.replace("{code}", deleteRoomType?.code ?? "")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={hardDeleteStatus.isPending}>
-              {t.admin.purposes.alerts.deleteCancel}
+            <AlertDialogCancel>
+              {t.admin.roomTypes.alerts.deleteCancel}
             </AlertDialogCancel>
-            <AlertDialogAction variant="destructive" disabled={hardDeleteStatus.isPending} onClick={wrapHardDelete}>
-              {hardDeleteStatus.isPending ? t.admin.purposes.alerts.deleting : t.admin.purposes.alerts.deleteConfirm}
+            <AlertDialogAction
+              variant="destructive"
+              disabled={hardDeleteStatus.isPending}
+              onClick={(e) => {
+                e.preventDefault()
+                void wrapHardDelete()
+              }}
+            >
+              {hardDeleteStatus.isPending
+                ? t.admin.roomTypes.alerts.deleting
+                : t.admin.roomTypes.alerts.deleteConfirm}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </section>
   )
-}, "PurposesTab")
+}, "RoomTypesTab")

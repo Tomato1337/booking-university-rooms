@@ -8,6 +8,7 @@ import * as equipmentApi from "../infrastructure/equipment-api"
 type EquipmentItem = components["schemas"]["EquipmentItem"]
 type EquipmentDeleteResult = {
   deleted: boolean
+  usedInRooms: { id: string; name: string }[]
 }
 
 export const equipmentListQuery = computed(async () => {
@@ -49,7 +50,27 @@ export const updateEquipmentMutation = action(
 ).extend(withAsync({ status: true }))
 
 export const deleteEquipmentMutation = action(async (equipmentId: string) => {
-  const { data, error } = await wrap(equipmentApi.deleteEquipment(equipmentId))
+  const { error } = await wrap(equipmentApi.deleteEquipment(equipmentId))
+  if (error) {
+    throw new Error("Failed to deactivate equipment")
+  }
+
+  await wrap(equipmentListQuery.retry())
+  return equipmentId
+}, "deleteEquipmentMutation").extend(withAsync({ status: true }))
+
+export const reactivateEquipmentMutation = action(async (equipmentId: string) => {
+  const { error } = await wrap(equipmentApi.reactivateEquipment(equipmentId))
+  if (error) {
+    throw new Error("Failed to reactivate equipment")
+  }
+
+  await wrap(equipmentListQuery.retry())
+  return equipmentId
+}, "reactivateEquipmentMutation").extend(withAsync({ status: true }))
+
+export const hardDeleteEquipmentMutation = action(async (equipmentId: string) => {
+  const { data, error } = await wrap(equipmentApi.hardDeleteEquipment(equipmentId))
   if (error || !data) {
     throw new Error("Failed to delete equipment")
   }
@@ -58,6 +79,7 @@ export const deleteEquipmentMutation = action(async (equipmentId: string) => {
 
   const result: EquipmentDeleteResult = {
     deleted: true,
+    usedInRooms: data.data?.usedInRooms ?? [],
   }
 
   if (typeof result.deleted !== "boolean") {
@@ -65,4 +87,4 @@ export const deleteEquipmentMutation = action(async (equipmentId: string) => {
   }
 
   return result
-}, "deleteEquipmentMutation").extend(withAsync({ status: true }))
+}, "hardDeleteEquipmentMutation").extend(withAsync({ status: true }))

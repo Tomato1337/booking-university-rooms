@@ -64,9 +64,16 @@ type RefreshToken struct {
 }
 
 type Equipment struct {
-	ID   uuid.UUID `json:"id"`
-	Name string    `json:"name"`
-	Icon string    `json:"icon"`
+	ID        uuid.UUID `json:"id"`
+	Code      string    `json:"code"`
+	Name      string    `json:"name"`
+	LabelRu   string    `json:"labelRu,omitempty"`
+	LabelEn   string    `json:"labelEn,omitempty"`
+	Icon      string    `json:"icon"`
+	IsActive  bool      `json:"isActive"`
+	SortOrder int       `json:"sortOrder,omitempty"`
+	CreatedAt time.Time `json:"createdAt,omitempty"`
+	UpdatedAt time.Time `json:"updatedAt,omitempty"`
 }
 
 type EquipmentUsageRoom struct {
@@ -82,6 +89,31 @@ type EquipmentDeleteResult struct {
 type BuildingOption struct {
 	Code  string `json:"code"`
 	Label string `json:"label"`
+}
+
+type RoomTypeOption struct {
+	Code  string `json:"code"`
+	Label string `json:"label"`
+}
+
+type AdminBuilding struct {
+	Code      string    `json:"code"`
+	LabelRu   string    `json:"labelRu"`
+	LabelEn   string    `json:"labelEn"`
+	IsActive  bool      `json:"isActive"`
+	SortOrder int       `json:"sortOrder"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+type AdminRoomType struct {
+	Code      string    `json:"code"`
+	LabelRu   string    `json:"labelRu"`
+	LabelEn   string    `json:"labelEn"`
+	IsActive  bool      `json:"isActive"`
+	SortOrder int       `json:"sortOrder"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 type BookingPurposeOption struct {
@@ -104,6 +136,7 @@ type Room struct {
 	Name          string      `json:"name"`
 	Description   *string     `json:"description"`
 	RoomType      RoomType    `json:"roomType"`
+	RoomTypeLabel string      `json:"roomTypeLabel"`
 	Capacity      int         `json:"capacity"`
 	Building      string      `json:"building"`
 	BuildingLabel string      `json:"buildingLabel"`
@@ -146,6 +179,7 @@ type RoomCard struct {
 	Name          string           `json:"name"`
 	Description   *string          `json:"description"`
 	RoomType      RoomType         `json:"roomType"`
+	RoomTypeLabel string           `json:"roomTypeLabel"`
 	Capacity      int              `json:"capacity"`
 	Building      string           `json:"building"`
 	BuildingLabel string           `json:"buildingLabel"`
@@ -191,6 +225,7 @@ type RoomDetail struct {
 	Name              string               `json:"name"`
 	Description       *string              `json:"description"`
 	RoomType          RoomType             `json:"roomType"`
+	RoomTypeLabel     string               `json:"roomTypeLabel"`
 	Capacity          int                  `json:"capacity"`
 	Building          string               `json:"building"`
 	BuildingLabel     string               `json:"buildingLabel"`
@@ -204,18 +239,20 @@ type RoomDetail struct {
 }
 
 type MyBooking struct {
-	ID            uuid.UUID     `json:"id"`
-	BookingID     string        `json:"bookingId"`
-	RoomID        uuid.UUID     `json:"roomId"`
-	RoomName      string        `json:"roomName"`
-	Title         string        `json:"title"`
-	BookingDate   string        `json:"bookingDate"`
-	StartTime     string        `json:"startTime"`
-	EndTime       string        `json:"endTime"`
-	Building      string        `json:"building"`
-	BuildingLabel string        `json:"buildingLabel"`
-	Status        BookingStatus `json:"status"`
-	CreatedAt     time.Time     `json:"createdAt"`
+	ID            uuid.UUID      `json:"id"`
+	BookingID     string         `json:"bookingId"`
+	RoomID        uuid.UUID      `json:"roomId"`
+	RoomName      string         `json:"roomName"`
+	Title         string         `json:"title"`
+	Purpose       BookingPurpose `json:"purpose"`
+	PurposeLabel  string         `json:"purposeLabel"`
+	BookingDate   string         `json:"bookingDate"`
+	StartTime     string         `json:"startTime"`
+	EndTime       string         `json:"endTime"`
+	Building      string         `json:"building"`
+	BuildingLabel string         `json:"buildingLabel"`
+	Status        BookingStatus  `json:"status"`
+	CreatedAt     time.Time      `json:"createdAt"`
 }
 
 type AdminBookingUser struct {
@@ -239,6 +276,7 @@ type AdminPendingBooking struct {
 	Room          AdminBookingRoom `json:"room"`
 	Title         string           `json:"title"`
 	Purpose       BookingPurpose   `json:"purpose"`
+	PurposeLabel  string           `json:"purposeLabel"`
 	BookingDate   string           `json:"bookingDate"`
 	StartTime     string           `json:"startTime"`
 	EndTime       string           `json:"endTime"`

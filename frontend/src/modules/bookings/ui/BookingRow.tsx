@@ -16,6 +16,8 @@ export interface BookingRowProps extends ComponentProps<'article'> {
 	title: string
 	/** Formatted date string, e.g. "OCT 24, 2023" */
 	date: string
+	/** Localized booking purpose */
+	purposeLabel: string
 	/** Formatted time range, e.g. "14:00 — 16:30" */
 	timeRange: string
 	/** Building/location, e.g. "SCIENCE BLOCK B" */
@@ -34,6 +36,7 @@ function BookingRow({
 	roomName,
 	title,
 	date,
+	purposeLabel,
 	timeRange,
 	location,
 	status,
@@ -89,6 +92,9 @@ function BookingRow({
 					{roomName}
 				</Button>
 				<p className="text-xs tracking-wider text-on-surface-variant">{title}</p>
+				<p className="text-xs tracking-wider uppercase text-on-surface-variant/50">
+					{purposeLabel}
+				</p>
 			</div>
 
 			{/* Date & Time */}

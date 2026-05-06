@@ -34,6 +34,13 @@ const NOW_ISO = new Date("2026-04-12T10:00:00.000Z").toISOString();
 const NOW_MINUTES = 10 * 60;
 let roomBookingsProviderRegistered = false;
 
+const mockPurposeLabels: Record<string, string> = {
+  academic_lecture: "Лекция / занятие",
+  research_workshop: "Исследовательский воркшоп",
+  collaborative_study: "Групповая работа",
+  technical_assessment: "Техническая аттестация",
+};
+
 const mockBookingsStore: MockBookingStoreItem[] = [
   {
     id: "bf8f9d2e-1000-4a09-9000-111111111111",
@@ -134,6 +141,8 @@ function toMyBooking(booking: MockBookingStoreItem): MyBooking {
     roomId: booking.roomId,
     roomName: booking.roomName,
     title: booking.title,
+    purpose: booking.purpose,
+    purposeLabel: mockPurposeLabels[booking.purpose] ?? booking.purpose,
     bookingDate: booking.bookingDate,
     startTime: booking.startTime,
     endTime: booking.endTime,
@@ -150,6 +159,7 @@ function toBooking(booking: MockBookingStoreItem): Booking {
     roomName: booking.roomName,
     title: booking.title,
     purpose: booking.purpose,
+    purposeLabel: mockPurposeLabels[booking.purpose] ?? booking.purpose,
     bookingDate: booking.bookingDate,
     startTime: booking.startTime,
     endTime: booking.endTime,

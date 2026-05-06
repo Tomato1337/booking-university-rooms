@@ -46,6 +46,253 @@ func (h *Handler) ListBookingPurposes(c *gin.Context) {
 	utils.RespondSuccess(c, http.StatusOK, items)
 }
 
+func (h *Handler) ListRoomTypes(c *gin.Context) {
+	items, err := h.service.ListRoomTypes(c.Request.Context(), requestLocale(c))
+	if err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		return
+	}
+	utils.RespondSuccess(c, http.StatusOK, items)
+}
+
+func (h *Handler) ListAdminBuildings(c *gin.Context) {
+	items, err := h.service.ListAdminBuildings(c.Request.Context())
+	if err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		return
+	}
+	utils.RespondSuccess(c, http.StatusOK, items)
+}
+
+func (h *Handler) ListAdminRoomTypes(c *gin.Context) {
+	items, err := h.service.ListAdminRoomTypes(c.Request.Context())
+	if err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		return
+	}
+	utils.RespondSuccess(c, http.StatusOK, items)
+}
+
+type buildingRequest struct {
+	Code      string `json:"code"`
+	LabelRu   string `json:"labelRu" binding:"required,min=1,max=200"`
+	LabelEn   string `json:"labelEn" binding:"required,min=1,max=200"`
+	IsActive  *bool  `json:"isActive"`
+	SortOrder int    `json:"sortOrder"`
+}
+
+type roomTypeRequest struct {
+	Code      string `json:"code"`
+	LabelRu   string `json:"labelRu" binding:"required,min=1,max=200"`
+	LabelEn   string `json:"labelEn" binding:"required,min=1,max=200"`
+	IsActive  *bool  `json:"isActive"`
+	SortOrder int    `json:"sortOrder"`
+}
+
+func (h *Handler) CreateRoomType(c *gin.Context) {
+	var req roomTypeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondValidationError(c, []utils.ValidationField{{Field: "body", Message: err.Error(), Code: "invalid"}})
+		return
+	}
+
+	code := strings.TrimSpace(req.Code)
+	if !catalogCodeRegex.MatchString(code) {
+		utils.RespondValidationError(c, []utils.ValidationField{{Field: "code", Message: "code must be 2-64 chars and contain lowercase letters, digits, underscore, or dash", Code: "invalid"}})
+		return
+	}
+	isActive := true
+	if req.IsActive != nil {
+		isActive = *req.IsActive
+	}
+
+	item, err := h.service.CreateRoomType(c.Request.Context(), catalogssvc.RoomTypeInput{
+		Code:      code,
+		LabelRu:   strings.TrimSpace(req.LabelRu),
+		LabelEn:   strings.TrimSpace(req.LabelEn),
+		IsActive:  isActive,
+		SortOrder: req.SortOrder,
+	})
+	if err != nil {
+		if err == catalogssvc.ErrRoomTypeExists {
+			utils.RespondError(c, http.StatusConflict, "ROOM_TYPE_EXISTS", "Room type already exists")
+			return
+		}
+		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		return
+	}
+
+	utils.RespondSuccess(c, http.StatusCreated, item)
+}
+
+func (h *Handler) UpdateRoomType(c *gin.Context) {
+	var req roomTypeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondValidationError(c, []utils.ValidationField{{Field: "body", Message: err.Error(), Code: "invalid"}})
+		return
+	}
+
+	isActive := true
+	if req.IsActive != nil {
+		isActive = *req.IsActive
+	}
+	item, err := h.service.UpdateRoomType(c.Request.Context(), c.Param("code"), catalogssvc.RoomTypeInput{
+		LabelRu:   strings.TrimSpace(req.LabelRu),
+		LabelEn:   strings.TrimSpace(req.LabelEn),
+		IsActive:  isActive,
+		SortOrder: req.SortOrder,
+	})
+	if err != nil {
+		if err == catalogssvc.ErrRoomTypeNotFound {
+			utils.RespondError(c, http.StatusNotFound, "ROOM_TYPE_NOT_FOUND", "Room type not found")
+			return
+		}
+		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		return
+	}
+
+	utils.RespondSuccess(c, http.StatusOK, item)
+}
+
+func (h *Handler) DeactivateRoomType(c *gin.Context) {
+	if err := h.service.DeactivateRoomType(c.Request.Context(), c.Param("code")); err != nil {
+		if err == catalogssvc.ErrRoomTypeNotFound {
+			utils.RespondError(c, http.StatusNotFound, "ROOM_TYPE_NOT_FOUND", "Room type not found")
+			return
+		}
+		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func (h *Handler) ReactivateRoomType(c *gin.Context) {
+	item, err := h.service.ReactivateRoomType(c.Request.Context(), c.Param("code"))
+	if err != nil {
+		if err == catalogssvc.ErrRoomTypeNotFound {
+			utils.RespondError(c, http.StatusNotFound, "ROOM_TYPE_NOT_FOUND", "Room type not found")
+			return
+		}
+		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		return
+	}
+	utils.RespondSuccess(c, http.StatusOK, item)
+}
+
+func (h *Handler) HardDeleteRoomType(c *gin.Context) {
+	if err := h.service.HardDeleteRoomType(c.Request.Context(), c.Param("code")); err != nil {
+		if err == catalogssvc.ErrRoomTypeNotFound {
+			utils.RespondError(c, http.StatusNotFound, "ROOM_TYPE_NOT_FOUND", "Room type not found")
+			return
+		}
+		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func (h *Handler) CreateBuilding(c *gin.Context) {
+	var req buildingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondValidationError(c, []utils.ValidationField{{Field: "body", Message: err.Error(), Code: "invalid"}})
+		return
+	}
+
+	code := strings.TrimSpace(req.Code)
+	if !catalogCodeRegex.MatchString(code) {
+		utils.RespondValidationError(c, []utils.ValidationField{{Field: "code", Message: "code must be 2-64 chars and contain lowercase letters, digits, underscore, or dash", Code: "invalid"}})
+		return
+	}
+	isActive := true
+	if req.IsActive != nil {
+		isActive = *req.IsActive
+	}
+
+	item, err := h.service.CreateBuilding(c.Request.Context(), catalogssvc.BuildingInput{
+		Code:      code,
+		LabelRu:   strings.TrimSpace(req.LabelRu),
+		LabelEn:   strings.TrimSpace(req.LabelEn),
+		IsActive:  isActive,
+		SortOrder: req.SortOrder,
+	})
+	if err != nil {
+		if err == catalogssvc.ErrBuildingExists {
+			utils.RespondError(c, http.StatusConflict, "BUILDING_EXISTS", "Building already exists")
+			return
+		}
+		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		return
+	}
+
+	utils.RespondSuccess(c, http.StatusCreated, item)
+}
+
+func (h *Handler) UpdateBuilding(c *gin.Context) {
+	var req buildingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondValidationError(c, []utils.ValidationField{{Field: "body", Message: err.Error(), Code: "invalid"}})
+		return
+	}
+
+	isActive := true
+	if req.IsActive != nil {
+		isActive = *req.IsActive
+	}
+	item, err := h.service.UpdateBuilding(c.Request.Context(), c.Param("code"), catalogssvc.BuildingInput{
+		LabelRu:   strings.TrimSpace(req.LabelRu),
+		LabelEn:   strings.TrimSpace(req.LabelEn),
+		IsActive:  isActive,
+		SortOrder: req.SortOrder,
+	})
+	if err != nil {
+		if err == catalogssvc.ErrBuildingNotFound {
+			utils.RespondError(c, http.StatusNotFound, "BUILDING_NOT_FOUND", "Building not found")
+			return
+		}
+		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		return
+	}
+
+	utils.RespondSuccess(c, http.StatusOK, item)
+}
+
+func (h *Handler) DeactivateBuilding(c *gin.Context) {
+	if err := h.service.DeactivateBuilding(c.Request.Context(), c.Param("code")); err != nil {
+		if err == catalogssvc.ErrBuildingNotFound {
+			utils.RespondError(c, http.StatusNotFound, "BUILDING_NOT_FOUND", "Building not found")
+			return
+		}
+		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func (h *Handler) ReactivateBuilding(c *gin.Context) {
+	item, err := h.service.ReactivateBuilding(c.Request.Context(), c.Param("code"))
+	if err != nil {
+		if err == catalogssvc.ErrBuildingNotFound {
+			utils.RespondError(c, http.StatusNotFound, "BUILDING_NOT_FOUND", "Building not found")
+			return
+		}
+		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		return
+	}
+	utils.RespondSuccess(c, http.StatusOK, item)
+}
+
+func (h *Handler) HardDeleteBuilding(c *gin.Context) {
+	if err := h.service.HardDeleteBuilding(c.Request.Context(), c.Param("code")); err != nil {
+		if err == catalogssvc.ErrBuildingNotFound {
+			utils.RespondError(c, http.StatusNotFound, "BUILDING_NOT_FOUND", "Building not found")
+			return
+		}
+		utils.RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
 func (h *Handler) ListAdminBookingPurposes(c *gin.Context) {
 	items, err := h.service.ListAdminBookingPurposes(c.Request.Context())
 	if err != nil {

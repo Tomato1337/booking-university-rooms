@@ -106,16 +106,17 @@ func (s *Service) ListPending(ctx context.Context, input ListPendingInput) (*Lis
 		SELECT b.id,
 		       u.id, u.first_name, u.last_name, u.department,
 		       r.id, r.name, r.building, %s,
-		       b.title, b.purpose, b.booking_date::text, to_char(b.start_time, 'HH24:MI'), to_char(b.end_time, 'HH24:MI'),
+		       b.title, b.purpose, %s, b.booking_date::text, to_char(b.start_time, 'HH24:MI'), to_char(b.end_time, 'HH24:MI'),
 		       b.attendee_count, b.status, b.created_at
 		FROM bookings b
 		JOIN users u ON u.id = b.user_id
 		JOIN rooms r ON r.id = b.room_id
 		LEFT JOIN buildings bl ON bl.code = r.building
+		LEFT JOIN booking_purposes bp ON bp.code = b.purpose
 		%s
 		ORDER BY b.created_at ASC, b.id ASC
 		LIMIT $%d
-	`, catalogssvc.LabelExpr("bl", input.Locale), where, argIdx)
+	`, catalogssvc.LabelExpr("bl", input.Locale), catalogssvc.LabelExpr("bp", input.Locale), where, argIdx)
 	args = append(args, limit+1)
 
 	rows, err := s.db.Query(ctx, query, args...)
@@ -131,7 +132,7 @@ func (s *Service) ListPending(ctx context.Context, input ListPendingInput) (*Lis
 			&b.ID,
 			&b.User.ID, &b.User.FirstName, &b.User.LastName, &b.User.Department,
 			&b.Room.ID, &b.Room.Name, &b.Room.Building, &b.Room.BuildingLabel,
-			&b.Title, &b.Purpose, &b.BookingDate, &b.StartTime, &b.EndTime,
+			&b.Title, &b.Purpose, &b.PurposeLabel, &b.BookingDate, &b.StartTime, &b.EndTime,
 			&b.AttendeeCount, &b.Status, &b.CreatedAt,
 		); err != nil {
 			return nil, err

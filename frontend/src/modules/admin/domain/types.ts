@@ -27,4 +27,4 @@ export type PopularRoom = SchemaType<"PopularRoom">
 export type DayOfWeekCount = SchemaType<"DayOfWeekCount">
 export type BuildingOccupancy = SchemaType<"BuildingOccupancy">
 
-export type AdminTab = "bookings" | "rooms" | "equipment" | "purposes" | "statistics"
+export type AdminTab = "bookings" | "rooms" | "buildings" | "roomTypes" | "equipment" | "purposes" | "statistics"

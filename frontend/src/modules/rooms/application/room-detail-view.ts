@@ -35,7 +35,10 @@ export function buildRoomDetailTimeGridSlots(timeSlots: RoomDetail["timeSlots"])
       endLabel: slot.endTime,
       startTime: slot.startTime,
       endTime: slot.endTime,
-      label: slot.status === "yours" ? "YOUR_SLOT" : slot.status === "yours_pending" ? "PENDING" : undefined,
+      label:
+        slot.status === "yours" || slot.status === "yours_pending" || slot.status === "pending"
+          ? toUiSlotStatus(slot.status)
+          : undefined,
     }
   })
 }

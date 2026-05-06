@@ -69,6 +69,8 @@ export {
   createEquipmentMutation,
   deleteEquipmentMutation,
   equipmentListQuery,
+  hardDeleteEquipmentMutation,
+  reactivateEquipmentMutation,
   updateEquipmentMutation,
 } from "./application/equipment-atoms"
 

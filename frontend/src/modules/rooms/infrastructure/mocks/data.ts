@@ -16,21 +16,41 @@ export interface MockRoomUserBooking {
 
 type RoomUserBookingsProvider = (roomId: string, date: string) => MockRoomUserBooking[]
 
+function equipmentItem(
+  id: string,
+  code: string,
+  name: string,
+  labelRu: string,
+  icon: string,
+  sortOrder: number,
+): EquipmentItem {
+  return { id, code, name, labelRu, labelEn: name, icon, isActive: true, sortOrder }
+}
+
 export const mockEquipment: EquipmentItem[] = [
-  { id: "11111111-1111-4111-8111-111111111111", name: "Projector", icon: "IconVideo" },
-  { id: "22222222-2222-4222-8222-222222222222", name: "Whiteboard", icon: "IconPresentation" },
-  { id: "33333333-3333-4333-8333-333333333333", name: "Broadcast", icon: "IconBroadcast" },
-  { id: "44444444-4444-4444-8444-444444444444", name: "Multi-Media", icon: "IconDeviceDesktop" },
-  { id: "55555555-5555-4555-8555-555555555555", name: "Microphone", icon: "IconMicrophone" },
-  { id: "66666666-6666-4666-8666-666666666666", name: "Wi-Fi", icon: "IconWifi" },
-  { id: "77777777-7777-4777-8777-777777777777", name: "Sound System", icon: "IconVolume" },
-  { id: "88888888-8888-4888-8888-888888888888", name: "Linux Nodes", icon: "IconTerminal2" },
-  { id: "99999999-9999-4999-8999-999999999999", name: "Smart Board", icon: "IconChalkboard" },
+  equipmentItem("11111111-1111-4111-8111-111111111111", "projector", "Projector", "Проектор", "IconVideo", 10),
+  equipmentItem("22222222-2222-4222-8222-222222222222", "whiteboard", "Whiteboard", "Доска", "IconPresentation", 20),
+  equipmentItem("33333333-3333-4333-8333-333333333333", "broadcast", "Broadcast", "Трансляция", "IconBroadcast", 30),
+  equipmentItem("44444444-4444-4444-8444-444444444444", "multi-media", "Multi-Media", "Мультимедиа", "IconDeviceDesktop", 40),
+  equipmentItem("55555555-5555-4555-8555-555555555555", "microphone", "Microphone", "Микрофон", "IconMicrophone", 50),
+  equipmentItem("66666666-6666-4666-8666-666666666666", "wi-fi", "Wi-Fi", "Wi-Fi", "IconWifi", 60),
+  equipmentItem("77777777-7777-4777-8777-777777777777", "sound-system", "Sound System", "Аудиосистема", "IconVolume", 70),
+  equipmentItem("88888888-8888-4888-8888-888888888888", "linux-nodes", "Linux Nodes", "Linux-узлы", "IconTerminal2", 80),
+  equipmentItem("99999999-9999-4999-8999-999999999999", "smart-board", "Smart Board", "Умная доска", "IconChalkboard", 90),
 ]
 
 export const mockBuildings = [
   { code: "aviamotornaya", label: "Авиамоторная" },
   { code: "narod-opolchenie", label: "Народное Ополчение" },
+]
+
+export const mockRoomTypes = [
+  { code: "lab", label: "Лаборатория" },
+  { code: "auditorium", label: "Аудитория" },
+  { code: "seminar", label: "Семинарская" },
+  { code: "conference", label: "Конференц-зал" },
+  { code: "studio", label: "Студия" },
+  { code: "lecture_hall", label: "Лекционный зал" },
 ]
 
 function equipmentByIds(ids: string[]) {

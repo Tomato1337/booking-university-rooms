@@ -317,15 +317,17 @@ func buildBookingQuery(conditions []string, argIdx, limit int, order string, loc
 	return fmt.Sprintf(`
 		SELECT b.id, b.room_id, r.name, r.building, r.room_type,
 		       %s AS building_label,
-		       b.title, b.booking_date::text, to_char(b.start_time, 'HH24:MI'), to_char(b.end_time, 'HH24:MI'),
+		       b.title, b.purpose, %s AS purpose_label,
+		       b.booking_date::text, to_char(b.start_time, 'HH24:MI'), to_char(b.end_time, 'HH24:MI'),
 		       b.status, b.created_at
 		FROM bookings b
 		JOIN rooms r ON r.id = b.room_id
 		LEFT JOIN buildings bl ON bl.code = r.building
+		LEFT JOIN booking_purposes bp ON bp.code = b.purpose
 		%s
 		ORDER BY b.booking_date %s, b.start_time %s, b.id %s
 		LIMIT $%d
-	`, catalogssvc.LabelExpr("bl", locale), where, order, order, order, argIdx)
+	`, catalogssvc.LabelExpr("bl", locale), catalogssvc.LabelExpr("bp", locale), where, order, order, order, argIdx)
 }
 
 func scanMyBookings(rows pgx.Rows, limit int, order string) (*ListResult, error) {
@@ -335,7 +337,7 @@ func scanMyBookings(rows pgx.Rows, limit int, order string) (*ListResult, error)
 		var roomType models.RoomType
 		if err := rows.Scan(
 			&b.ID, &b.RoomID, &b.RoomName, &b.Building, &roomType, &b.BuildingLabel,
-			&b.Title, &b.BookingDate, &b.StartTime, &b.EndTime,
+			&b.Title, &b.Purpose, &b.PurposeLabel, &b.BookingDate, &b.StartTime, &b.EndTime,
 			&b.Status, &b.CreatedAt,
 		); err != nil {
 			return nil, err
